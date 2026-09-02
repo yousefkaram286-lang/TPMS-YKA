@@ -3,10 +3,12 @@ import { Router } from '@angular/router';
 import { Observable, from } from 'rxjs';
 import { User, LoginCredentials, LoginResponse } from '../models/user.model';
 import { SupabaseService } from './supabase.service';
+import { SupabaseMasterDataSeedService } from './supabase-master-data-seed.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private supabaseService = inject(SupabaseService);
+  private supabaseMasterDataSeed = inject(SupabaseMasterDataSeedService);
   private router = inject(Router);
 
   // Signals for reactive state
@@ -62,6 +64,11 @@ export class AuthService {
       this.supabaseService.client.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           await this.loadUserProfile(session.user);
+          // Central master data (Lines/Products/Materials + Line↔Product mappings)
+          // is seeded additively from Supabase. Best-effort, gated by idempotency.
+          await this.supabaseMasterDataSeed.runSeed().catch(err =>
+            console.warn('[Auth] Supabase master data seed skipped:', err?.message ?? err)
+          );
         } else {
           this._currentUser.set(null);
           if (event === 'SIGNED_OUT') {
