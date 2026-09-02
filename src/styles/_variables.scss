@@ -1,0 +1,298 @@
+// ============================================================
+// TPMS Design System — Variables
+// Premium SaaS Theme (Sleek, Modern, Sophisticated)
+// ============================================================
+
+// --- Color Palette ---
+:root {
+  // Primary (Espresso)
+  --primary:          #2B2118;
+  --primary-light:    #756A5D;
+  --primary-dark:     #1C1510;
+  --primary-50:       #F1E9DC;
+  --primary-100:      #E5DCCF;
+
+  // Accent (Gold)
+  --accent:           #B08D57;
+  --accent-light:     #E8D9BD;
+  --accent-dark:      #967443;
+  --accent-2:         #B08D57;
+  --accent-2-light:   #E8D9BD;
+
+  // Neutrals (Light Mode - Warm Ivory)
+  --surface:          #FFFDF8;
+  --background:       #F6F1E8;
+  --surface-alt:      #F1E9DC;
+  --border:           #E5DCCF;
+  --border-subtle:    #F1E9DC;
+
+  // Text (Light Mode - Espresso)
+  --text-primary:     #2B2118;
+  --text-secondary:   #756A5D;
+  --text-tertiary:    #9A9084;
+  --text-inverse:     #FFFDF8;
+
+  // Sidebar (Light Mode - Espresso)
+  --sidebar-bg:       #2B2118;
+  --sidebar-surface:  #1C1510;
+  --sidebar-border:   #3F3227;
+  --sidebar-text:     #E8D9BD;
+  --sidebar-active:   #FFFDF8;
+  --sidebar-active-bg: rgba(176, 141, 87, 0.15); // Subtle Gold tint
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
+
+  // Header (Light Mode)
+  --header-bg:        rgba(255, 253, 248, 0.85);
+  --header-border:    rgba(229, 220, 207, 0.8);
+
+  // Status Colors (Luxury Muted)
+  --success:          #3F7D5A;
+  --success-light:    rgba(63, 125, 90, 0.15);
+  --success-dark:     #2C5A41;
+  --warning:          #C58A2A;
+  --warning-light:    rgba(197, 138, 42, 0.15);
+  --warning-dark:     #93651C;
+  --error:            #B94A48;
+  --error-light:      rgba(185, 74, 72, 0.15);
+  --error-dark:       #8A3534;
+  --info:             #66788A;
+  --info-light:       rgba(102, 120, 138, 0.15);
+
+  // Gradients (Subtle warm gradients)
+  --gradient-primary:   linear-gradient(135deg, #2B2118 0%, #3F3227 100%);
+  --gradient-brand:     linear-gradient(135deg, #2B2118 0%, #B08D57 100%);
+  --gradient-accent:    linear-gradient(135deg, #B08D57 0%, #967443 100%);
+  --gradient-text:      linear-gradient(120deg, #2B2118 0%, #B08D57 100%);
+
+  // Glassmorphism (Warm)
+  --glass-bg:         rgba(255, 253, 248, 0.7);
+  --glass-bg-strong:  rgba(255, 253, 248, 0.9);
+  --glass-border:     rgba(229, 220, 207, 0.6);
+  --glass-blur:       blur(12px) saturate(140%);
+  --glass-shadow:     0 4px 20px rgba(43, 33, 24, 0.05);
+
+  // Aurora blobs (Subtle, elegant)
+  --blob-primary:     rgba(176, 141, 87, 0.1);
+  --blob-accent:      rgba(176, 141, 87, 0.08);
+  --blob-fuchsia:     rgba(176, 141, 87, 0.05);
+
+  // Shadows (Premium, warm)
+  --shadow-xs:        0 1px 2px 0 rgba(43, 33, 24, 0.05);
+  --shadow-sm:        0 1px 3px 0 rgba(43, 33, 24, 0.08), 0 1px 2px -1px rgba(43, 33, 24, 0.05);
+  --shadow-md:        0 4px 6px -1px rgba(43, 33, 24, 0.08), 0 2px 4px -2px rgba(43, 33, 24, 0.04);
+  --shadow-lg:        0 10px 15px -3px rgba(43, 33, 24, 0.08), 0 4px 6px -4px rgba(43, 33, 24, 0.04);
+  --shadow-xl:        0 20px 25px -5px rgba(43, 33, 24, 0.08), 0 8px 10px -6px rgba(43, 33, 24, 0.04);
+  --shadow-glow:      0 0 0 3px rgba(176, 141, 87, 0.2);
+  --shadow-glow-accent: 0 4px 20px rgba(176, 141, 87, 0.25);
+
+  // Border Radius (Modern, slightly more squircle-like)
+  --radius-xs:        4px;
+  --radius-sm:        6px;
+  --radius-md:        8px;
+  --radius-lg:        12px;
+  --radius-xl:        16px;
+  --radius-2xl:       24px;
+  --radius-full:      9999px;
+
+  // Spacing (8px system)
+  --space-1:          4px;
+  --space-2:          8px;
+  --space-3:          12px;
+  --space-4:          16px;
+  --space-5:          20px;
+  --space-6:          24px;
+  --space-8:          32px;
+  --space-10:         40px;
+  --space-12:         48px;
+  --space-16:         64px;
+
+  // Typography (Inter as primary, pleasing reading experience)
+  --font-sans:        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display:     'Outfit', 'Inter', sans-serif;
+  --font-mono:        'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs:          0.75rem;    // 12px
+  --text-sm:          0.875rem;   // 14px
+  --text-base:        1rem;       // 16px
+  --text-lg:          1.125rem;   // 18px
+  --text-xl:          1.25rem;    // 20px
+  --text-2xl:         1.5rem;     // 24px
+  --text-3xl:         1.875rem;   // 30px
+  --text-4xl:         2.25rem;    // 36px
+  --text-5xl:         3rem;       // 48px
+
+  --weight-normal:    400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+  --weight-extrabold: 800;
+
+  --leading-tight:    1.2;
+  --leading-snug:     1.375;
+  --leading-normal:   1.5;
+  --leading-relaxed:  1.625;
+
+  // Transitions (Performant CSS)
+  --transition-fast:  150ms ease-out;
+  --transition-base:  200ms ease-out;
+  --transition-slow:  300ms ease-out;
+  --transition-sidebar: 250ms cubic-bezier(0.2, 0, 0, 1);
+  --transition-theme: 300ms ease;
+
+  // Z-Index
+  --z-sidebar:        100;
+  --z-header:         200;
+  --z-overlay:        300;
+  --z-modal:          400;
+  --z-toast:          500;
+
+  // Sidebar dimensions
+  --sidebar-width:    260px;
+  --sidebar-collapsed:72px;
+
+  // Header dimensions
+  --header-height:    64px;
+}
+
+// ============================================================
+// Dark Mode Theme (Deep, layered, exceptional contrast)
+// ============================================================
+[data-theme="dark"] {
+  --color-scheme: dark;
+
+  // Primary (adjusted for dark mode, slightly brighter for contrast)
+  --primary:          #6366F1;
+  --primary-light:    #818CF8;
+  --primary-dark:     #4F46E5;
+  --primary-50:       rgba(99, 102, 241, 0.1);
+  --primary-100:      rgba(99, 102, 241, 0.2);
+
+  // Accent (adjusted for dark mode)
+  --accent:           #38BDF8;
+  --accent-light:     #7DD3FC;
+  --accent-dark:      #0EA5E9;
+  --accent-2:         #34D399;
+  --accent-2-light:   #6EE7B7;
+
+  // Neutrals (Dark Mode - Deep Slate)
+  --surface:          #1E293B; // Deep slate surface
+  --background:       #0F172A; // Very dark background
+  --surface-alt:      #334155;
+  --border:           #334155;
+  --border-subtle:    #1E293B; // Blend into surface slightly
+
+  // Text (Dark Mode)
+  --text-primary:     #F8FAFC;
+  --text-secondary:   #94A3B8;
+  --text-tertiary:    #64748B;
+  --text-inverse:     #0F172A;
+
+  // Sidebar (Dark Mode - Match background for seamless look or slight elevation)
+  --sidebar-bg:       #0F172A;
+  --sidebar-surface:  #0F172A;
+  --sidebar-border:   #1E293B;
+  --sidebar-text:     #94A3B8;
+  --sidebar-active:   #F8FAFC;
+  --sidebar-active-bg: rgba(99, 102, 241, 0.15);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
+
+  // Header (Dark Mode)
+  --header-bg:        rgba(15, 23, 42, 0.85);
+  --header-border:    rgba(30, 41, 59, 0.8);
+
+  // Gradients (dark mode)
+  --gradient-primary: linear-gradient(135deg, #6366F1 0%, #818CF8 100%);
+  --gradient-brand:   linear-gradient(135deg, #6366F1 0%, #38BDF8 100%);
+  --gradient-accent:  linear-gradient(135deg, #38BDF8 0%, #34D399 100%);
+  --gradient-text:    linear-gradient(120deg, #818CF8 0%, #7DD3FC 100%);
+
+  // Glassmorphism (dark mode)
+  --glass-bg:         rgba(30, 41, 59, 0.7);
+  --glass-bg-strong:  rgba(30, 41, 59, 0.9);
+  --glass-border:     rgba(255, 255, 255, 0.08);
+  --glass-blur:       blur(12px) saturate(140%);
+  --glass-shadow:     0 4px 20px rgb(0 0 0 / 0.3);
+
+  // Status (adjusted for dark mode)
+  --success:          #34D399;
+  --success-light:    rgba(16, 185, 129, 0.15);
+  --success-dark:     #10B981;
+  --warning:          #FBBF24;
+  --warning-light:    rgba(245, 158, 11, 0.15);
+  --warning-dark:     #F59E0B;
+  --error:            #F87171;
+  --error-light:      rgba(239, 68, 68, 0.15);
+  --error-dark:       #EF4444;
+  --info:             #38BDF8;
+  --info-light:       rgba(56, 189, 248, 0.15);
+
+  // Shadows (Dark Mode - deeper, richer)
+  --shadow-xs:        0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-sm:        0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-md:        0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg:        0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --shadow-xl:        0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  --shadow-glow:      0 0 0 3px rgba(99, 102, 241, 0.3);
+  --shadow-glow-accent: 0 4px 20px rgba(99, 102, 241, 0.25);
+}
+
+// SCSS variable aliases (for use inside SCSS rules)
+$primary:         #2B2118;
+$primary-light:   #756A5D;
+$accent:          #B08D57;
+$surface:         #FFFDF8;
+$background:      #F6F1E8;
+$text-primary:    #2B2118;
+$text-secondary:  #756A5D;
+$sidebar-bg:      #2B2118;
+$sidebar-width:   260px;
+$sidebar-collapsed: 72px;
+$header-height:   64px;
+$success:         #10B981;
+$warning:         #F59E0B;
+$error:           #EF4444;
+
+// Breakpoints
+$bp-sm:  576px;
+$bp-md:  768px;
+$bp-lg:  1024px;
+$bp-xl:  1280px;
+$bp-2xl: 1536px;
+
+// Mixins
+@mixin respond-to($bp) {
+  @if $bp == sm  { @media (max-width: #{$bp-sm})  { @content; } }
+  @if $bp == md  { @media (max-width: #{$bp-md})  { @content; } }
+  @if $bp == lg  { @media (max-width: #{$bp-lg})  { @content; } }
+  @if $bp == xl  { @media (max-width: #{$bp-xl})  { @content; } }
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin card-base {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+@mixin focus-ring {
+  outline: none;
+  box-shadow: var(--shadow-glow);
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

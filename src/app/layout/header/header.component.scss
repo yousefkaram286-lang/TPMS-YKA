@@ -1,0 +1,352 @@
+// ============================================================
+// TPMS — Header SCSS
+// Premium SaaS Theme
+// ============================================================
+@use '../../../styles/variables' as *;
+@use '../../../styles/animations' as *;
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.header {
+  height: var(--header-height);
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  z-index: var(--z-header);
+  position: relative;
+  transition: background-color var(--transition-theme), border-color var(--transition-theme);
+
+  // Dark mode adjustments
+  :host-context([data-theme="dark"]) & {
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05); // subtle bottom separator instead of thick border
+  }
+
+  &__left, &__right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  // Mobile menu button
+  &__mobile-menu {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--surface-alt);
+      color: var(--text-primary);
+    }
+
+    @include respond-to(md) {
+      display: flex;
+    }
+  }
+
+  // Search
+  &__search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 300px;
+
+    @include respond-to(md) {
+      display: none;
+    }
+  }
+
+  &__search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-tertiary);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+    transition: color var(--transition-fast);
+  }
+
+  &__search-input {
+    width: 100%;
+    padding: 8px 60px 8px 38px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-xs);
+
+    &::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    &:focus {
+      background: var(--surface);
+      border-color: var(--primary);
+      box-shadow: var(--shadow-glow);
+      outline: none;
+
+      & + .header__search-shortcut {
+        opacity: 0;
+      }
+    }
+  }
+
+  &__search:focus-within .header__search-icon {
+    color: var(--primary);
+  }
+
+  &__search-shortcut {
+    position: absolute;
+    right: 8px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    color: var(--text-tertiary);
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+  }
+
+  // Action buttons
+  &__action-btn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--surface-alt);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+
+    mat-icon { font-size: 20px; width: 20px; height: 20px; }
+  }
+
+  &__action-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--error);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--header-bg);
+    color: white;
+    font-size: 10px;
+    font-weight: var(--weight-bold);
+    line-height: 12px;
+    text-align: center;
+    overflow: hidden;
+    animation: fadeSlideUp 0.3s ease-out both;
+  }
+
+  &__divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+  }
+
+  // User Dropdown trigger
+  &__user-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 4px 8px 4px 4px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--surface-alt);
+      border-color: var(--border-subtle);
+    }
+  }
+
+  &__user-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  &__user-name {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+
+  &__user-role {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  &__user-chevron {
+    color: var(--text-tertiary);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// Material Menu styling overrides
+::ng-deep .tpms-menu {
+  margin-top: 8px;
+  min-width: 240px !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  overflow: hidden;
+
+  // Override MDC internal color tokens so the panel itself
+  // uses the TPMS surface variables instead of the near-black default.
+  --mat-menu-container-color: var(--surface);
+  --mat-menu-item-label-text-color: var(--text-primary);
+  --mat-menu-item-icon-color: var(--text-secondary);
+  --mat-menu-item-hover-state-layer-color: var(--surface-alt);
+  --mat-menu-item-focus-state-layer-color: var(--surface-alt);
+  --mdc-elevated-card-container-color: var(--surface);
+
+  // The actual MDC surface element
+  .mdc-menu-surface,
+  .mat-mdc-menu-surface {
+    background: var(--surface) !important;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg) !important;
+  }
+
+  // Profile header block
+  .menu-header {
+    padding: var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-subtle);
+
+    &-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    &-name {
+      font-weight: var(--weight-medium);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+    }
+
+    &-email {
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      @include truncate;
+    }
+  }
+
+  // Menu items
+  .mat-mdc-menu-item {
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+
+    .mat-icon,
+    .mat-mdc-menu-item-icon {
+      color: var(--text-secondary);
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+
+    .mdc-list-item__primary-text {
+      color: var(--text-primary);
+    }
+
+    &:hover:not([disabled]) {
+      background: var(--surface-alt);
+
+      .mat-icon,
+      .mat-mdc-menu-item-icon {
+        color: var(--primary);
+      }
+
+      .mdc-list-item__primary-text {
+        color: var(--text-primary);
+      }
+    }
+  }
+
+  // Dividers
+  .mat-divider {
+    border-top-color: var(--border-subtle);
+  }
+
+  // Danger / Logout item
+  .text-danger {
+    color: var(--error) !important;
+
+    .mat-icon,
+    .mat-mdc-menu-item-icon {
+      color: var(--error) !important;
+    }
+
+    .mdc-list-item__primary-text {
+      color: var(--error) !important;
+    }
+
+    &:hover:not([disabled]) {
+      background: var(--error-light) !important;
+
+      .mat-icon,
+      .mat-mdc-menu-item-icon,
+      .mdc-list-item__primary-text {
+        color: var(--error-dark) !important;
+      }
+    }
+  }
+
+  // Dark mode overrides — adjust hover state layer to a darker tint
+  [data-theme="dark"] & {
+    --mat-menu-item-hover-state-layer-color: rgba(255,255,255,0.05);
+    --mat-menu-item-focus-state-layer-color: rgba(255,255,255,0.05);
+
+    .text-danger:hover:not([disabled]) {
+      background: rgba(239, 68, 68, 0.1) !important;
+      .mat-icon, .mdc-list-item__primary-text {
+        color: var(--error) !important;
+      }
+    }
+  }
+}

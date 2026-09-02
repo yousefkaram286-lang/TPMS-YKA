@@ -1,0 +1,183 @@
+<div class="users-page page-content">
+  <app-page-header
+    title="Users"
+    subtitle="Create and manage TPMS user accounts"
+    icon="group"
+  ></app-page-header>
+
+  <div class="users-layout">
+    <!-- Create User -->
+    <app-card
+      class="users-card users-card--create"
+      title="Create New User"
+      subtitle="Create a new account with Dashboard-only access."
+    >
+      <span class="card-head-icon" cardHeader>
+        <mat-icon>person_add</mat-icon>
+      </span>
+
+      <div class="role-note">
+        <span class="role-note__icon"><mat-icon>lock</mat-icon></span>
+        <span class="role-note__text">New accounts are automatically assigned</span>
+        <span class="role-note__chip">Role: User</span>
+      </div>
+
+      <div *ngIf="message" class="alert" [ngClass]="{ 'alert-success': message.success, 'alert-error': !message.success }">
+        <mat-icon>{{ message.success ? 'check_circle' : 'error' }}</mat-icon>
+        {{ message.text }}
+      </div>
+
+      <form [formGroup]="createForm" (ngSubmit)="createUser()" novalidate class="users-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              formControlName="email"
+              class="form-control"
+              placeholder="name@company.com"
+              autocomplete="off"
+              [class.is-invalid]="createForm.get('email')?.invalid && createForm.get('email')?.touched"
+            />
+            <div class="invalid-feedback" *ngIf="createForm.get('email')?.errors?.['required'] && createForm.get('email')?.touched">
+              Email is required.
+            </div>
+            <div class="invalid-feedback" *ngIf="createForm.get('email')?.errors?.['email'] && createForm.get('email')?.touched">
+              Enter a valid email address.
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="password">Temporary Password</label>
+            <input
+              type="password"
+              id="password"
+              formControlName="password"
+              class="form-control"
+              placeholder="Min. 6 characters"
+              autocomplete="new-password"
+              [class.is-invalid]="createForm.get('password')?.invalid && createForm.get('password')?.touched"
+            />
+            <div class="invalid-feedback" *ngIf="createForm.get('password')?.errors?.['required'] && createForm.get('password')?.touched">
+              Password is required.
+            </div>
+            <div class="invalid-feedback" *ngIf="createForm.get('password')?.errors?.['minlength'] && createForm.get('password')?.touched">
+              At least 6 characters.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              formControlName="username"
+              class="form-control"
+              placeholder="e.g. ahmed"
+              autocomplete="off"
+              [class.is-invalid]="createForm.get('username')?.invalid && createForm.get('username')?.touched"
+            />
+            <div class="invalid-feedback" *ngIf="createForm.get('username')?.invalid && createForm.get('username')?.touched">
+              Username is required.
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="displayName">Display Name</label>
+            <input
+              type="text"
+              id="displayName"
+              formControlName="displayName"
+              class="form-control"
+              placeholder="e.g. Ahmed Hassan"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="createForm.invalid || creating">
+            <mat-icon *ngIf="!creating">person_add</mat-icon>
+            <span class="btn-spinner" *ngIf="creating"></span>
+            {{ creating ? 'Creating...' : 'Create User' }}
+          </button>
+        </div>
+      </form>
+    </app-card>
+
+    <!-- Existing Users -->
+    <app-card
+      class="users-card users-card--list"
+      title="Existing Users"
+      subtitle="All registered TPMS accounts."
+    >
+      <span class="count-badge" cardHeader>
+        <span class="count-badge__num">{{ users.length }}</span>
+        <span class="count-badge__label">accounts</span>
+      </span>
+
+      <div *ngIf="loading" class="users-loading">
+        <span class="users-loading__spinner"></span>
+        <span>Loading users...</span>
+      </div>
+
+      <app-empty-state
+        *ngIf="!loading && !message && users.length === 0"
+        icon="group_off"
+        title="No users yet"
+        description="User accounts you create will appear here."
+      ></app-empty-state>
+
+      <div *ngIf="!loading && message && !message.success" class="alert alert-error users-error">
+        <mat-icon>error</mat-icon>
+        {{ message.text }}
+      </div>
+
+      <div *ngIf="!loading && users.length > 0" class="table-responsive">
+        <table class="tpms-table">
+          <thead>
+            <tr>
+              <th class="col-user">User</th>
+              <th class="col-username">Username</th>
+              <th class="col-role">Role</th>
+              <th class="col-status">Status</th>
+              <th class="col-created">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of users">
+              <td class="col-user">
+                <div class="user-cell">
+                  <div class="user-cell__avatar" [class.user-cell__avatar--admin]="u.role === 'Admin'">
+                    {{ (u.displayName || u.username || '?').charAt(0).toUpperCase() }}
+                  </div>
+                  <span class="user-cell__name">{{ u.displayName || u.username }}</span>
+                </div>
+              </td>
+              <td class="col-username">
+                <span class="username-text" [title]="u.username">&#64;{{ u.username }}</span>
+              </td>
+              <td class="col-role">
+                <span
+                  class="role-badge"
+                  [class.role-badge--admin]="u.role === 'Admin'"
+                  [class.role-badge--user]="u.role === 'User'"
+                >{{ u.role }}</span>
+              </td>
+              <td class="col-status">
+                <span class="status-chip" [class.status-chip--inactive]="!u.active">
+                  <span class="status-chip__dot"></span>
+                  {{ u.active ? 'Active' : 'Disabled' }}
+                </span>
+              </td>
+              <td class="col-created">
+                <span class="created-text">{{ u.createdAt ? (u.createdAt | date: 'mediumDate') : '—' }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </app-card>
+  </div>
+</div>

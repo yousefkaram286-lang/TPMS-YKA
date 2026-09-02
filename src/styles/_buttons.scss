@@ -1,0 +1,220 @@
+// ============================================================
+// TPMS Design System — Buttons
+// Premium SaaS Theme
+// ============================================================
+@use 'variables' as *;
+@use 'animations' as *;
+
+// Base button
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-6);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  mat-icon, .btn-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    transition: transform 0.15s ease;
+  }
+
+  &.btn-sm {
+    padding: 7px var(--space-4);
+    font-size: var(--text-xs);
+    border-radius: var(--radius-sm);
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &.btn-lg {
+    padding: 14px var(--space-8);
+    font-size: var(--text-base);
+    border-radius: var(--radius-lg);
+  }
+
+  &.btn-full { width: 100%; }
+}
+
+// Variants
+.btn-primary {
+  @extend .btn;
+  background: var(--primary);
+  color: var(--text-inverse) !important;
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
+
+  mat-icon, * { color: var(--text-inverse) !important; }
+
+  &:hover:not(:disabled) {
+    background: var(--primary-dark);
+    box-shadow: var(--shadow-md), var(--shadow-glow);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) { 
+    transform: translateY(0); 
+    box-shadow: var(--shadow-xs);
+  }
+  &:focus-visible { @include focus-ring; }
+}
+
+[data-theme="dark"] .btn-primary {
+  background: var(--primary);
+  color: var(--text-inverse);
+  &:hover:not(:disabled) {
+    background: var(--primary-light);
+  }
+}
+
+.btn-secondary {
+  @extend .btn;
+  background: var(--surface);
+  color: var(--text-primary) !important;
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+
+  mat-icon, * { color: var(--text-primary) !important; }
+
+  &:hover:not(:disabled) {
+    background: var(--surface-alt);
+    border-color: var(--primary-100);
+    transform: translateY(-1px);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--shadow-xs);
+  }
+  &:focus-visible { @include focus-ring; }
+}
+
+[data-theme="dark"] .btn-secondary {
+  &:hover:not(:disabled) {
+    border-color: var(--border-subtle);
+  }
+}
+
+.btn-outline {
+  @extend .btn;
+  background: transparent;
+  color: var(--text-primary) !important;
+  border-color: var(--border);
+
+  mat-icon, * { color: var(--text-primary) !important; }
+
+  &:hover:not(:disabled) {
+    background: var(--primary-50);
+    border-color: var(--primary-100);
+    color: var(--primary) !important;
+    transform: translateY(-1px);
+    
+    mat-icon, * { color: var(--primary) !important; }
+  }
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  &:focus-visible { @include focus-ring; }
+}
+
+[data-theme="dark"] .btn-outline {
+  &:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--primary);
+  }
+}
+
+.btn-danger {
+  @extend .btn;
+  background: var(--error);
+  color: white;
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
+
+  &:hover:not(:disabled) {
+    background: var(--error-dark);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--shadow-xs);
+  }
+  &:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3); }
+}
+
+.btn-ghost {
+  @extend .btn;
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+  box-shadow: none;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-alt);
+    color: var(--text-primary);
+  }
+  &:active:not(:disabled) {
+    background: var(--border);
+  }
+  &:focus-visible { @include focus-ring; }
+}
+
+// Icon-only button
+.btn-icon-only {
+  @extend .btn;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md); // squircle shape instead of circle for premium feel
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+
+  &:hover { 
+    background: var(--surface-alt); 
+    color: var(--primary);
+  }
+  &:active {
+    background: var(--border-subtle);
+  }
+  
+  &.btn-sm {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+// Loading state
+.btn-loading {
+  pointer-events: none;
+  .btn-spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+}

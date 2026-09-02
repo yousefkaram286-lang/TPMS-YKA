@@ -1,0 +1,88 @@
+<aside
+  class="sidebar"
+  [class.sidebar--collapsed]="collapsed"
+  role="navigation"
+  aria-label="Main navigation"
+>
+  <!-- Brand -->
+  <div class="sidebar__brand">
+    <div class="sidebar__logo">
+      <mat-icon class="sidebar__logo-icon">precision_manufacturing</mat-icon>
+    </div>
+    <div class="sidebar__brand-text" *ngIf="!collapsed">
+      <span class="sidebar__brand-name">{{ appName }}</span>
+      <span class="sidebar__brand-sub">{{ appFullName }}</span>
+    </div>
+    <button
+      class="sidebar__collapse-btn"
+      (click)="toggleCollapse()"
+      [matTooltip]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      matTooltipPosition="right"
+      aria-label="Toggle sidebar"
+    >
+      <mat-icon>{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+    </button>
+  </div>
+
+  <!-- Divider -->
+  <div class="sidebar__divider"></div>
+
+  <!-- Navigation -->
+  <nav class="sidebar__nav">
+    <ul class="sidebar__nav-list" role="list">
+      <li *ngFor="let item of navItems()" class="sidebar__nav-item">
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="sidebar__nav-link--active"
+          [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
+          class="sidebar__nav-link"
+          (click)="onNavClick()"
+          [matTooltip]="collapsed ? item.label : ''"
+          matTooltipPosition="right"
+          [attr.aria-label]="item.label"
+        >
+          <span class="sidebar__nav-icon">
+            <mat-icon>{{ item.icon }}</mat-icon>
+          </span>
+          <span class="sidebar__nav-label" *ngIf="!collapsed">{{ item.label }}</span>
+          <span
+            *ngIf="item.badge && !collapsed"
+            class="sidebar__nav-badge"
+          >{{ item.badge }}</span>
+          <span class="sidebar__nav-active-bar"></span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Spacer -->
+  <div class="sidebar__spacer"></div>
+
+  <!-- Divider -->
+  <div class="sidebar__divider"></div>
+
+  <!-- User Section -->
+  <div class="sidebar__user" *ngIf="currentUser()">
+    <app-user-avatar [user]="currentUser()" size="sm"></app-user-avatar>
+    <div class="sidebar__user-info" *ngIf="!collapsed">
+      <span class="sidebar__user-name">{{ currentUser()?.displayName }}</span>
+      <app-status-badge
+        [label]="roleLabel"
+        [variant]="roleBadgeVariant"
+        size="sm"
+      ></app-status-badge>
+    </div>
+  </div>
+
+  <!-- Logout -->
+  <button
+    class="sidebar__logout"
+    (click)="logout()"
+    [matTooltip]="collapsed ? 'Logout' : ''"
+    matTooltipPosition="right"
+    aria-label="Logout"
+  >
+    <mat-icon class="sidebar__logout-icon">logout</mat-icon>
+    <span *ngIf="!collapsed">Logout</span>
+  </button>
+</aside>

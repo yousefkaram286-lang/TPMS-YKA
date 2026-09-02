@@ -1,0 +1,374 @@
+@use '@angular/material' as mat;
+@use 'styles/variables' as *;
+@use 'styles/animations' as *;
+@use 'styles/forms' as *;
+@use 'styles/buttons' as *;
+
+// Material theme configuration (Indigo + Sky)
+$tpms-primary: mat.define-palette((
+  50: #EEF2FF,
+  100: #E0E7FF,
+  200: #C7D2FE,
+  300: #A5B4FC,
+  400: #818CF8,
+  500: #6366F1,
+  600: #4F46E5,
+  700: #4338CA,
+  800: #3730A3,
+  900: #312E81,
+  A100: #E0E7FF,
+  A200: #818CF8,
+  A400: #6366F1,
+  A700: #4338CA,
+  contrast: (
+    50: #0F172A,
+    100: #0F172A,
+    200: #0F172A,
+    300: #0F172A,
+    400: #FFFFFF,
+    500: #FFFFFF,
+    600: #FFFFFF,
+    700: #FFFFFF,
+    800: #FFFFFF,
+    900: #FFFFFF,
+    A100: #0F172A,
+    A200: #FFFFFF,
+    A400: #FFFFFF,
+    A700: #FFFFFF,
+  )
+));
+$tpms-accent: mat.define-palette(mat.$light-blue-palette, 600, 300, 900);
+$tpms-warn: mat.define-palette(mat.$red-palette, 500);
+$tpms-theme: mat.define-light-theme((
+  color: (
+    primary: $tpms-primary,
+    accent: $tpms-accent,
+    warn: $tpms-warn,
+  ),
+  typography: mat.define-typography-config(),
+  density: -1, // Slightly denser material components
+));
+
+@include mat.core();
+@include mat.all-component-themes($tpms-theme);
+
+// Typography imports (Inter & Outfit)
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+@import url('https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined'); // For more modern icons if needed
+
+// CSS Reset & Base
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-primary);
+  background: var(--background);
+  color-scheme: var(--color-scheme, light);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-theme), color var(--transition-theme);
+}
+
+// ── Background Effects (Subtle, Premium) ───────────────────────────────
+body {
+  position: relative;
+  overflow-x: hidden;
+
+  &::before,
+  &::after {
+    content: '';
+    position: fixed;
+    z-index: -1;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    will-change: transform;
+    opacity: 0.6;
+  }
+
+  &::before {
+    width: 50vmax;
+    height: 50vmax;
+    top: -20vmax;
+    right: -10vmax;
+    background: radial-gradient(circle at center, var(--blob-primary), transparent 70%);
+  }
+
+  &::after {
+    width: 60vmax;
+    height: 60vmax;
+    bottom: -30vmax;
+    left: -15vmax;
+    background: radial-gradient(circle at center, var(--blob-accent), transparent 70%);
+  }
+}
+
+// Glassmorphism helpers
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+// Typography
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 1rem 0;
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: -0.02em; // Modern tight tracking for headings
+}
+
+p {
+  margin: 0 0 1rem 0;
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  &:hover { color: var(--primary-light); text-decoration: underline; }
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+::selection {
+  background: var(--primary-100);
+  color: var(--primary-dark);
+}
+
+[data-theme="dark"] ::selection {
+  background: rgba(99, 102, 241, 0.4);
+  color: #FFFFFF;
+}
+
+// Utility Classes
+.bg-surface { background: var(--surface); }
+.bg-background { background: var(--background); }
+.text-primary { color: var(--primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.text-danger { color: var(--error); }
+.text-success { color: var(--success); }
+
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+.mb-8 { margin-bottom: var(--space-8); }
+
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: var(--space-2); }
+.gap-4 { gap: var(--space-4); }
+
+// Global Page Content styling for animations
+.page-content {
+  animation: fadeSlideUp 0.4s cubic-bezier(0.2, 0, 0, 1) both;
+  will-change: opacity, transform;
+}
+
+// ============================================================
+// Theme transition utilities
+// ============================================================
+* {
+  transition: background-color var(--transition-theme), 
+              border-color var(--transition-theme), 
+              color var(--transition-theme),
+              box-shadow var(--transition-theme);
+}
+
+// Exclude certain elements from theme transitions for performance
+img, 
+video, 
+canvas,
+iframe,
+.mat-mdc-menu-panel {
+  transition: none !important;
+}
+
+// ============================================================
+// GLOBAL: Table action buttons — always horizontal
+// ============================================================
+.table-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.actions-col {
+  width: 120px !important;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.actions-col-wide {
+  width: 148px !important;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+// ============================================================
+// Table row animations (Refined, no scale)
+// ============================================================
+.mat-mdc-row {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  
+  &:hover {
+    background-color: var(--surface-alt) !important;
+  }
+}
+
+// Dark mode table adjustments
+[data-theme="dark"] .mat-mdc-row {
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
+}
+
+// ============================================================
+// Scrollbar styling (Minimal, elegant)
+// ============================================================
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-theme);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+// Dark mode scrollbar adjustments
+[data-theme="dark"] {
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  // Material dialog & panel dark mode override
+  .mdc-dialog__surface, 
+  .mat-mdc-dialog-surface,
+  .mat-mdc-dialog-container,
+  .mat-mdc-select-panel,
+  .mat-mdc-menu-panel,
+  .mat-mdc-table,
+  .mdc-data-table__content {
+    background-color: var(--surface) !important;
+    --mdc-dialog-container-color: var(--surface);
+  }
+
+  // MDC menu token overrides
+  .mat-mdc-menu-panel {
+    --mat-menu-container-color: var(--surface);
+    --mat-menu-item-label-text-color: var(--text-primary);
+    --mat-menu-item-icon-color: var(--text-secondary);
+    --mat-menu-item-hover-state-layer-color: transparent;
+    --mat-menu-item-focus-state-layer-color: transparent;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: var(--shadow-xl) !important;
+
+    .mat-mdc-menu-item:hover:not([disabled]) {
+      background: var(--primary-50) !important; // Use the very subtle tinted bg
+
+      .mat-icon { color: var(--primary) !important; }
+      .mdc-list-item__primary-text { color: var(--primary) !important; }
+    }
+
+    .mat-divider {
+      border-top-color: var(--border-subtle) !important;
+    }
+  }
+  
+  .mat-mdc-select-value-text,
+  .mat-mdc-option .mdc-list-item__primary-text,
+  .mat-mdc-menu-item .mdc-list-item__primary-text,
+  .mat-mdc-dialog-title,
+  .mat-mdc-header-cell,
+  .mat-mdc-cell,
+  .mdc-data-table__header-cell,
+  .mdc-data-table__cell,
+  .mdc-tab__text-label {
+    color: var(--text-primary) !important;
+  }
+  
+  .mat-mdc-header-cell,
+  .mdc-data-table__header-cell {
+    color: var(--text-secondary) !important;
+    border-bottom-color: var(--border) !important;
+  }
+
+  .mat-mdc-cell,
+  .mdc-data-table__cell {
+    border-bottom-color: var(--border-subtle) !important;
+  }
+
+  .mdc-tab-indicator__content--underline {
+    border-color: var(--primary) !important;
+  }
+  
+  .mat-mdc-tab-link.mdc-tab--active .mdc-tab__text-label {
+    color: var(--primary) !important;
+  }
+}
+
+// ============================================================
+// GLOBAL: Hide native number input spinners
+// ============================================================
+/* Chrome, Safari, Edge, Opera */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
