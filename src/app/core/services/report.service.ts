@@ -186,13 +186,20 @@ export class ReportService {
   private readonly ERROR: [number, number, number] = [185, 74, 72];
   private readonly LIGHT_BG: [number, number, number] = [248, 246, 243];
 
+  // Embedded Arabic-capable PDF font family. The full TTF base64 payload is
+  // lazy-loaded (pdf-arabic-font.ts) only on first PDF generation so it does
+  // not bloat the initial bundle; the family name itself is just a string.
+  private readonly ARABIC_FONT = 'Amiri';
+
   // ─── Public Entry Point ──────────────────────────────────────────────────
 
   generate(params: ReportParams): void {
     if (params.format === 'xlsx') {
       this.generateExcel(params);
     } else {
-      this.generatePdf(params);
+      // PDF embedding font is lazy-loaded (keeps the heavy TTF base64 out of
+      // the initial bundle). Void-returned for callers; failures are logged.
+      void this.generatePdf(params);
     }
   }
 
@@ -1651,15 +1658,30 @@ export class ReportService {
   // PDF GENERATION
   // ═══════════════════════════════════════════════════════════════════════════
 
-  private generatePdf(p: ReportParams): void {
-    const doc = this.buildPdfDoc(p);
-    const filename = this.buildFilename(p, 'pdf');
-    doc.save(filename);
+  private async generatePdf(p: ReportParams): Promise<void> {
+    try {
+      const fonts = await import('../utils/pdf-arabic-font');
+      const doc = this.buildPdfDoc(p, fonts);
+      const filename = this.buildFilename(p, 'pdf');
+      doc.save(filename);
+    } catch (err) {
+      console.error('Failed to generate PDF report', err);
+    }
   }
 
-  private buildPdfDoc(p: ReportParams): jsPDF {
+  private buildPdfDoc(
+    p: ReportParams,
+    fonts: typeof import('../utils/pdf-arabic-font')
+  ): jsPDF {
     const landscape = p.type === 'daily' || p.type === 'monthly' || p.type === 'quality';
     const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+
+    // Embed the Arabic-capable font family so report cells render Arabic
+    // (helvetica is a base-14 standard font with no Arabic glyphs). jsPDF
+    // auto-shapes Arabic strings to presentation forms inside doc.text() /
+    // autoTable cells; Amiri supplies both those forms and full Basic Latin,
+    // so English + numbers render unchanged and Arabic renders correctly.
+    this.registerPdfFonts(doc, fonts);
 
     switch (p.type) {
       case 'production': this.buildPdfProduction(doc, p); break;
@@ -1671,6 +1693,17 @@ export class ReportService {
     }
 
     return doc;
+  }
+
+  /** Registers the embedded Amiri font family (regular + bold) on a jsPDF doc. */
+  private registerPdfFonts(
+    doc: jsPDF,
+    fonts: typeof import('../utils/pdf-arabic-font')
+  ): void {
+    doc.addFileToVFS(fonts.PDF_FONT_AMIRI_REGULAR_VFS, fonts.PDF_FONT_AMIRI_REGULAR_BASE64);
+    doc.addFont(fonts.PDF_FONT_AMIRI_REGULAR_VFS, this.ARABIC_FONT, 'normal');
+    doc.addFileToVFS(fonts.PDF_FONT_AMIRI_BOLD_VFS, fonts.PDF_FONT_AMIRI_BOLD_BASE64);
+    doc.addFont(fonts.PDF_FONT_AMIRI_BOLD_VFS, this.ARABIC_FONT, 'bold');
   }
 
   // ─── PDF Header ────────────────────────────────────────────────────────────
@@ -1799,7 +1832,7 @@ export class ReportService {
         textColor: this.TEXT_DARK,
         lineColor: this.TABLE_BORDER,
         lineWidth: 0.2,
-        font: 'helvetica'
+        font: this.ARABIC_FONT
       },
       headStyles: {
         fillColor: this.TABLE_HEADER_BG,
