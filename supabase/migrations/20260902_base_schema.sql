@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   name              text NOT NULL,
   name_ar           text,
   type              text,
-  pieces_per_press  integer,
+  pieces_per_press  numeric,
   product_area      numeric,
   standard_strength numeric NOT NULL DEFAULT 0,
   standard_height   numeric,
