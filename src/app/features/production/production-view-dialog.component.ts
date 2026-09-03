@@ -5,7 +5,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { Production } from '../../core/models/production.model';
-import { ProductionSession } from '../../core/models/production-session.model';
+import { ProductionSession, ProductionDowntimeEvent } from '../../core/models/production-session.model';
+import { ProductionUtil } from '../../core/utils/production.util';
 
 export interface ProductionViewDialogData {
   record: Production;
@@ -13,7 +14,6 @@ export interface ProductionViewDialogData {
   productName: string;
   lineName: string;
   shiftName: string;
-  machineName: string;
 }
 
 @Component({
@@ -44,10 +44,6 @@ export interface ProductionViewDialogData {
             <div class="detail-item">
               <span class="detail-label">Line</span>
               <span class="detail-value">{{ data.lineName }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Machine</span>
-              <span class="detail-value">{{ data.machineName || '—' }}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">Supervisor</span>
@@ -104,36 +100,29 @@ export interface ProductionViewDialogData {
           </div>
         </div>
 
-        <!-- Section D: Daily Line Time (if session exists and has entries) -->
-        <div class="section" *ngIf="data.session && data.session.dailyLineTime && data.session.dailyLineTime.length > 0">
-          <div class="section-label">Daily Line Time</div>
+        <!-- Section D: Downtime Events -->
+        <div class="section"
+          *ngIf="data.session && (hasDowntimeEvents || (data.session.dailyLineTime && data.session.dailyLineTime.length > 0))">
+          <div class="section-label">Downtime</div>
           <div class="line-time-list">
             <div class="line-time-entry"
-              *ngFor="let entry of data.session.dailyLineTime"
-              [class.has-downtime]="entry.downtimeMinutes > 0">
+              *ngFor="let event of downtimeEventsForDisplay"
+              [class.has-downtime]="event.durationMinutes > 0">
               <div class="entry-line-name">
-                <mat-icon class="entry-icon">route</mat-icon>
-                {{ entry.lineName || entry.lineId }}
+                <mat-icon class="entry-icon">schedule</mat-icon>
+                {{ event.durationMinutes }} min{{ data.lineName ? (' — ' + data.lineName) : '' }}
               </div>
               <div class="entry-details">
-                <div class="entry-detail" *ngIf="entry.overtimeHours > 0">
-                  <span class="entry-label">Overtime:</span>
-                  <span class="entry-val overtime-val">{{ entry.overtimeHours }} hrs</span>
-                </div>
-                <div class="entry-detail" *ngIf="entry.downtimeMinutes > 0">
-                  <span class="entry-label">Downtime:</span>
-                  <span class="entry-val downtime-val">{{ entry.downtimeMinutes }} min</span>
-                </div>
-                <div class="entry-detail" *ngIf="entry.downtimeReason">
+                <div class="entry-detail" *ngIf="event.reason">
                   <span class="entry-label">Reason:</span>
-                  <span class="entry-val">{{ entry.downtimeReason }}</span>
+                  <span class="entry-val">{{ event.reason }}</span>
                 </div>
-                <div class="entry-detail" *ngIf="entry.notes">
+                <div class="entry-detail" *ngIf="event.notes">
                   <span class="entry-label">Notes:</span>
-                  <span class="entry-val notes-val">{{ entry.notes }}</span>
+                  <span class="entry-val notes-val">{{ event.notes }}</span>
                 </div>
-                <div class="entry-detail no-events" *ngIf="entry.overtimeHours === 0 && entry.downtimeMinutes === 0 && !entry.notes">
-                  No events recorded
+                <div class="entry-detail no-events" *ngIf="event.durationMinutes === 0 && !event.reason && !event.notes">
+                  No downtime events recorded
                 </div>
               </div>
             </div>
@@ -349,4 +338,34 @@ export class ProductionViewDialogComponent {
     @Inject(MAT_DIALOG_DATA) public data: ProductionViewDialogData,
     private dialogRef: MatDialogRef<ProductionViewDialogComponent>
   ) {}
+
+  /**
+   * Downtime events for display. New sessions carry granular events; historical
+   * scalar-only sessions fall back to the legacy per-line aggregate.
+   */
+  get downtimeEventsForDisplay(): ProductionDowntimeEvent[] {
+    const session = this.data.session;
+    if (!session) return [];
+    if (session.downtimeEvents && session.downtimeEvents.length > 0) {
+      return session.downtimeEvents;
+    }
+    if (session.dailyLineTime && session.dailyLineTime.length > 0) {
+      return session.dailyLineTime
+        .filter(lt => lt.downtimeMinutes > 0)
+        .map(lt => ({
+          durationMinutes: lt.downtimeMinutes,
+          reason: lt.downtimeReason || '',
+          notes: lt.notes || ''
+        }));
+    }
+    return [];
+  }
+
+  get hasDowntimeEvents(): boolean {
+    return this.downtimeEventsForDisplay.length > 0;
+  }
+
+  get totalDowntimeMinutes(): number {
+    return ProductionUtil.sumDowntime(this.downtimeEventsForDisplay);
+  }
 }

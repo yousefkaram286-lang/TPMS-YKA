@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS public.production_sessions (
   overtime         boolean NOT NULL DEFAULT false,
   overtime_hours   numeric NOT NULL DEFAULT 0,
   daily_line_time  jsonb NOT NULL DEFAULT '[]'::jsonb,
+  downtime_events  jsonb,
   notes            text NOT NULL DEFAULT '',
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz

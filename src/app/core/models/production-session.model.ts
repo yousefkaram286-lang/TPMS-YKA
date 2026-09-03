@@ -16,6 +16,17 @@ export interface DailyLineTimeEntry {
 }
 
 /**
+ * One downtime event for the SELECTED production line. A Production session is
+ * for ONE line, so all events belong to that single line. Multiple events are
+ * summed into DailyLineTimeEntry.downtimeMinutes for Dashboard/Report compat.
+ */
+export interface ProductionDowntimeEvent {
+  durationMinutes: number;
+  reason: string;
+  notes: string;
+}
+
+/**
  * Session-level metadata for a production form submission.
  * One session groups all Production records saved together in one form submit.
  * The Production records reference this session via sessionId.
@@ -36,8 +47,9 @@ export interface ProductionSession {
    */
   releasedOutput?: number;           // deprecated legacy — new sessions omit this field
   overtime: boolean;
-  overtimeHours: number;             // 0 when overtime = false
-  dailyLineTime: DailyLineTimeEntry[]; // per-line downtime/overtime entries
+  overtimeHours: number;             // 0 when overtime = false — SINGLE authoritative overtime source
+  dailyLineTime: DailyLineTimeEntry[]; // per-line downtime/overtime entries (compat aggregate)
+  downtimeEvents?: ProductionDowntimeEvent[]; // NEW: granular downtime events for the selected line
   notes: string;                     // session-level notes
   createdAt: string;
   updatedAt?: string;

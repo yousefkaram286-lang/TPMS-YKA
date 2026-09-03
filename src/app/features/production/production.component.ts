@@ -18,31 +18,16 @@ import { ProductService } from '../../core/services/product.service';
 import { LineService } from '../../core/services/line.service';
 import { LineProductService } from '../../core/services/line-product.service';
 import { ShiftService } from '../../core/services/shift.service';
-import { MachineService } from '../../core/services/machine.service';
-import { ProductMachineService } from '../../core/services/product-machine.service';
 import { Production } from '../../core/models/production.model';
-import { ProductionSession, DailyLineTimeEntry } from '../../core/models/production-session.model';
+import { ProductionSession, ProductionDowntimeEvent } from '../../core/models/production-session.model';
 import { Product } from '../../core/models/product.model';
 import { Line } from '../../core/models/line.model';
 import { Shift } from '../../core/models/shift.model';
-import { Machine } from '../../core/models/machine.model';
-import { ProductMachineConfig } from '../../core/models/product-machine.model';
 import { LineProductMapping } from '../../core/models/line-product.model';
 import { ProductionViewDialogComponent } from './production-view-dialog.component';
 import { ProductionUtil, SubmissionGuard } from '../../core/utils/production.util';
 import { MasterDataUtil } from '../../core/utils/master-data.util';
-
-const DOWNTIME_REASONS = [
-  'Machine Breakdown',
-  'Maintenance',
-  'Material Shortage',
-  'Electrical Issue',
-  'Operator Issue',
-  'Changeover',
-  'No Raw Material',
-  'Quality Issue',
-  'Other'
-];
+import { toLocalCalendarString } from '../../core/utils/date.util';
 
 @Component({
   selector: 'app-production',
@@ -105,14 +90,6 @@ const DOWNTIME_REASONS = [
                   <option *ngFor="let line of activeLines" [value]="line.id">{{ line.name }}</option>
                 </select>
                 <div class="invalid-feedback" *ngIf="isInvalid('lineId')">Line is required.</div>
-              </div>
-
-              <div class="form-group">
-                <label>Machine</label>
-                <select formControlName="machineId" class="form-control" (change)="onMachineChange()" [class.is-invalid]="isInvalid('machineId')">
-                  <option value="" disabled>Select Machine</option>
-                  <option *ngFor="let machine of filteredMachines" [value]="machine.id">{{ machine.name }}</option>
-                </select>
               </div>
 
               <div class="form-group">
@@ -195,34 +172,37 @@ const DOWNTIME_REASONS = [
               </div>
             </div>
 
-            <div formArrayName="dailyLineTime" class="line-time-list">
-              <div class="line-time-header">
-                <div class="col-lt-line">Line</div>
-                <div class="col-lt-ot">OT Hours</div>
-                <div class="col-lt-dt">Downtime (min)</div>
-                <div class="col-lt-reason">Reason</div>
-                <div class="col-lt-notes">Notes</div>
+            <div class="sub-section-label">Downtime Events <span class="sub-hint">— multiple allowed for the selected line</span></div>
+
+            <div formArrayName="downtimeEvents" class="line-time-list">
+              <div class="line-time-header dte-header">
+                <div class="col-dte-duration">Duration (min)</div>
+                <div class="col-dte-reason">Reason</div>
+                <div class="col-dte-notes">Notes</div>
+                <div class="col-dte-actions"></div>
               </div>
-              
-              <div class="line-time-row" *ngFor="let lt of dailyLineTime.controls; let i = index" [formGroupName]="i">
-                <div class="col-lt-line">
-                  <span class="line-name-display">{{ lt.get('lineName')?.value || lt.get('lineId')?.value }}</span>
+
+              <div class="line-time-row dte-row" *ngFor="let ev of downtimeEvents.controls; let i = index" [formGroupName]="i">
+                <div class="col-dte-duration form-group mb-0">
+                   <input type="number" formControlName="durationMinutes" class="form-control" min="0" [class.is-invalid]="ev.get('durationMinutes')?.value < 0">
                 </div>
-                <div class="col-lt-ot form-group mb-0">
-                   <input type="number" formControlName="overtimeHours" class="form-control" min="0" step="0.5">
+                <div class="col-dte-reason form-group mb-0">
+                   <input type="text" formControlName="reason" class="form-control" placeholder="Free-text reason (e.g. Breakdown)">
                 </div>
-                <div class="col-lt-dt form-group mb-0">
-                   <input type="number" formControlName="downtimeMinutes" class="form-control" min="0" (input)="onDowntimeChange(i)">
-                </div>
-                <div class="col-lt-reason form-group mb-0">
-                   <select formControlName="downtimeReason" class="form-control">
-                     <option value="">-- Select Reason --</option>
-                     <option *ngFor="let reason of downtimeReasons" [value]="reason">{{ reason }}</option>
-                   </select>
-                </div>
-                <div class="col-lt-notes form-group mb-0">
+                <div class="col-dte-notes form-group mb-0">
                    <input type="text" formControlName="notes" class="form-control" placeholder="Optional notes">
                 </div>
+                <div class="col-dte-actions">
+                  <button type="button" mat-icon-button color="warn" (click)="removeDowntimeEvent(i)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="products-footer" style="margin-top: var(--space-2); padding-top: var(--space-2);">
+                <button type="button" mat-button color="primary" (click)="addDowntimeEvent()">
+                  <mat-icon>add</mat-icon> Add Downtime Event
+                </button>
               </div>
             </div>
 
@@ -251,6 +231,18 @@ const DOWNTIME_REASONS = [
                <div class="summary-item">
                   <span class="s-label">Overtime</span>
                   <span class="s-value overtime">{{ productionForm.get('overtimeHours')?.value || 0 }} hrs</span>
+               </div>
+               <div class="summary-item">
+                  <span class="s-label">Available</span>
+                  <span class="s-value">{{ getAvailableMinutes() }} min</span>
+               </div>
+               <div class="summary-item">
+                  <span class="s-label">Actual</span>
+                  <span class="s-value">{{ getActualRunMinutes() }} min</span>
+               </div>
+               <div class="summary-item">
+                  <span class="s-label">Efficiency</span>
+                  <span class="s-value">{{ getEfficiencyPercent() | number:'1.1-1' }}%</span>
                </div>
             </div>
 
@@ -584,18 +576,37 @@ const DOWNTIME_REASONS = [
     }
     
     /* ── Line Time List ─────────────────────────────── */
+    .sub-section-label {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--text-primary);
+      margin: var(--space-2) 0 var(--space-2);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+
+      .sub-hint {
+        font-size: var(--text-xs);
+        font-weight: var(--weight-regular);
+        color: var(--text-tertiary);
+      }
+    }
+
     .line-time-list {
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
     }
 
-    .line-time-header {
+    .line-time-header, .line-time-row {
       display: grid;
-      grid-template-columns: 1fr 100px 120px 2fr 2fr;
+      grid-template-columns: 140px 2fr 2fr 48px;
       gap: var(--space-4);
       align-items: center;
       padding: var(--space-2) var(--space-3);
+    }
+
+    .line-time-header {
       border-radius: var(--radius-md);
       background: var(--surface-alt);
       font-size: var(--text-xs);
@@ -606,22 +617,11 @@ const DOWNTIME_REASONS = [
     }
 
     .line-time-row {
-      display: grid;
-      grid-template-columns: 1fr 100px 120px 2fr 2fr;
-      gap: var(--space-4);
-      align-items: center;
-      padding: var(--space-2) var(--space-1);
       border-radius: var(--radius-md);
       transition: background var(--transition-fast);
       &:hover { background: var(--surface-alt); }
     }
     
-    .line-name-display {
-      font-size: var(--text-sm);
-      font-weight: var(--weight-medium);
-      color: var(--text-primary);
-      padding-left: var(--space-2);
-    }
 
     /* ── Summary Panel ─────────────────────────────── */
     .summary-panel {
@@ -800,8 +800,6 @@ export class ProductionComponent implements OnInit {
   private productService = inject(ProductService);
   private lineService = inject(LineService);
   private shiftService = inject(ShiftService);
-  private machineService = inject(MachineService);
-  private pmService = inject(ProductMachineService);
   private lineProductService = inject(LineProductService);
 
   productionForm!: FormGroup;
@@ -810,23 +808,17 @@ export class ProductionComponent implements OnInit {
   private pendingSessionId: string | null = null;
   saveError = '';
   private submissionGuard = new SubmissionGuard();
-  
-  downtimeReasons = DOWNTIME_REASONS;
 
   // Master Data
   activeProducts: Product[] = [];
   activeLines: Line[] = [];
   activeShifts: Shift[] = [];
-  allMachines: Machine[] = [];
-  filteredMachines: Machine[] = [];
-  configs: ProductMachineConfig[] = [];
   lineProducts: LineProductMapping[] = [];
   
   // Data Maps for fast lookup
   productsMap = new Map<string, Product>();
   linesMap = new Map<string, Line>();
   shiftsMap = new Map<string, Shift>();
-  machinesMap = new Map<string, Machine>();
   sessionsMap = new Map<string, ProductionSession>();
 
   // History Data
@@ -840,8 +832,8 @@ export class ProductionComponent implements OnInit {
     return this.productionForm.get('items') as FormArray;
   }
   
-  get dailyLineTime(): FormArray {
-    return this.productionForm.get('dailyLineTime') as FormArray;
+  get downtimeEvents(): FormArray {
+    return this.productionForm.get('downtimeEvents') as FormArray;
   }
 
   ngOnInit(): void {
@@ -854,14 +846,13 @@ export class ProductionComponent implements OnInit {
       date: [new Date(), Validators.required],
       shiftId: [''],
       lineId: ['', Validators.required],
-      machineId: [''],
       supervisor: [''],
       items: this.fb.array([]),
       
       // Session fields
       overtime: [false],
       overtimeHours: [{value: 0, disabled: true}, [Validators.min(0)]],
-      dailyLineTime: this.fb.array([]),
+      downtimeEvents: this.fb.array([]),
       notes: ['']
     });
 
@@ -888,22 +879,24 @@ export class ProductionComponent implements OnInit {
     }
   }
   
-  createLineTimeItem(line: Line): FormGroup {
+  /**
+   * Creates one downtime event FormGroup for the SELECTED line. Events are
+   * free-form (durationMinutes / reason / notes) — no invented classifications.
+   */
+  createDowntimeEvent(event?: ProductionDowntimeEvent): FormGroup {
     return this.fb.group({
-      lineId: [line.id],
-      lineName: [line.name],
-      overtimeHours: [0, [Validators.min(0)]],
-      downtimeMinutes: [0, [Validators.min(0)]],
-      downtimeReason: [''],
-      notes: ['']
+      durationMinutes: [event?.durationMinutes ?? 0, [Validators.min(0)]],
+      reason: [event?.reason ?? ''],
+      notes: [event?.notes ?? '']
     });
   }
-  
-  private buildLineTimeControls(): void {
-    this.dailyLineTime.clear();
-    this.activeLines.forEach(line => {
-      this.dailyLineTime.push(this.createLineTimeItem(line));
-    });
+
+  addDowntimeEvent(): void {
+    this.downtimeEvents.push(this.createDowntimeEvent());
+  }
+
+  removeDowntimeEvent(index: number): void {
+    this.downtimeEvents.removeAt(index);
   }
 
   onOvertimeChange(): void {
@@ -917,14 +910,6 @@ export class ProductionComponent implements OnInit {
     }
   }
 
-  onDowntimeChange(index: number): void {
-    const row = this.dailyLineTime.at(index);
-    const minutes = row.get('downtimeMinutes')?.value || 0;
-    if (minutes === 0) {
-      row.get('downtimeReason')?.setValue('');
-    }
-  }
-
   isInvalid(controlName: string): boolean {
     const control = this.productionForm.get(controlName);
     return !!(control && control.invalid && (control.dirty || control.touched));
@@ -932,23 +917,15 @@ export class ProductionComponent implements OnInit {
 
   onLineChange(): void {
     const lineId = this.productionForm.get('lineId')?.value;
-    this.filteredMachines = this.allMachines.filter(m => m.lineId === lineId && m.active);
     this.applyLineProductFilter(lineId);
-    
-    const machineCtrl = this.productionForm.get('machineId');
-    if (machineCtrl) {
-      const currentMachine = this.filteredMachines.find(m => m.id === machineCtrl.value);
-      if (!currentMachine) {
-         machineCtrl.setValue('');
-      }
-    }
 
-    // Reset items because machine config might change
+    // Reset items because the available products change per line
     this.items.controls.forEach((_, i) => {
       if (!this.isProductAllowed(this.items.at(i).get('productId')?.value)) {
         this.items.at(i).get('productId')?.setValue('');
+        this.items.at(i).get('piecesPerPress')?.setValue(0);
       }
-      this.updateRowConfig(i);
+      this.calculateRowProduced(i);
     });
   }
 
@@ -977,10 +954,6 @@ export class ProductionComponent implements OnInit {
       return true; // empty selection never needs resetting
     }
     return this.activeProducts.some(p => p.id === productId);
-  }
-
-  onMachineChange(): void {
-    this.items.controls.forEach((_, i) => this.updateRowConfig(i));
   }
 
   onProductChange(index: number): void {
@@ -1036,11 +1009,31 @@ export class ProductionComponent implements OnInit {
   }
   
   getTotalDowntime(): number {
-    let total = 0;
-    this.dailyLineTime.controls.forEach(row => {
-      total += (row.get('downtimeMinutes')?.value || 0);
-    });
-    return total;
+    return ProductionUtil.sumDowntime(
+      this.downtimeEvents.controls.map(c => ({ durationMinutes: c.get('durationMinutes')?.value }))
+    );
+  }
+
+  getOvertimeHours(): number {
+    return Number(this.productionForm.get('overtimeHours')?.value) || 0;
+  }
+
+  getAvailableMinutes(): number {
+    return ProductionUtil.availableMinutes(this.getOvertimeHours());
+  }
+
+  getActualRunMinutes(): number {
+    return ProductionUtil.actualRunMinutes(
+      this.getOvertimeHours(),
+      this.downtimeEvents.controls.map(c => ({ durationMinutes: c.get('durationMinutes')?.value }))
+    );
+  }
+
+  getEfficiencyPercent(): number {
+    return ProductionUtil.efficiencyPercent(
+      this.getOvertimeHours(),
+      this.downtimeEvents.controls.map(c => ({ durationMinutes: c.get('durationMinutes')?.value }))
+    );
   }
 
   saveProduction(): void {
@@ -1165,7 +1158,6 @@ export class ProductionComponent implements OnInit {
         supervisor: (formValue.supervisor || '').trim(),
         piecesPerPress: item.piecesPerPress,
         presses: item.presses,
-        machineId: formValue.machineId || undefined,
         createdAt
       });
     });
@@ -1174,6 +1166,23 @@ export class ProductionComponent implements OnInit {
   private buildSessionRecord(sessionId: string, isoDate: string, formValue: any): ProductionSession {
     const existing = this.editingSessionId ? this.sessionsMap.get(this.editingSessionId) : undefined;
 
+    // Downtime is captured as MULTIPLE events for the single selected line.
+    const events: ProductionDowntimeEvent[] = (formValue.downtimeEvents || [])
+      .map((ev: any): ProductionDowntimeEvent => ({
+        durationMinutes: Number(ev.durationMinutes) || 0,
+        reason: (ev.reason || '').trim(),
+        notes: (ev.notes || '').trim()
+      }))
+      .filter((ev: ProductionDowntimeEvent) => ev.durationMinutes > 0);
+
+    const totalDowntime = ProductionUtil.sumDowntime(events);
+    const firstReason = events.find(ev => ev.reason)?.reason || '';
+    const firstNotes = events.find(ev => ev.notes)?.notes || '';
+
+    // SINGLE authoritative overtime source: the user-entered overtimeHours.
+    // Stored directly; converted to minutes only inside calculation helpers.
+    const overtimeHours = formValue.overtimeHours || 0;
+
     const sessionRecord: ProductionSession = {
       id: sessionId,
       date: isoDate,
@@ -1181,15 +1190,16 @@ export class ProductionComponent implements OnInit {
       lineId: formValue.lineId,
       supervisor: (formValue.supervisor || '').trim(),
       overtime: formValue.overtime,
-      overtimeHours: formValue.overtimeHours || 0,
-      dailyLineTime: formValue.dailyLineTime.map((lt: any) => ({
-        lineId: lt.lineId,
-        lineName: lt.lineName,
-        overtimeHours: lt.overtimeHours || 0,
-        downtimeMinutes: lt.downtimeMinutes || 0,
-        downtimeReason: lt.downtimeReason,
-        notes: lt.notes
-      })),
+      overtimeHours: overtimeHours,
+      dailyLineTime: [{
+        lineId: formValue.lineId,
+        lineName: this.linesMap.get(formValue.lineId)?.name || '',
+        overtimeHours: overtimeHours,
+        downtimeMinutes: totalDowntime,
+        downtimeReason: firstReason,
+        notes: firstNotes
+      }],
+      downtimeEvents: events,
       notes: formValue.notes || '',
       createdAt: existing?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1320,14 +1330,6 @@ export class ProductionComponent implements OnInit {
         notes: session.notes
      });
      
-     // Trigger line change to update machines array
-     this.onLineChange();
-     
-     // Patch machine after array is updated (all items in a session share machine in TPMS form)
-     if (sessionItems.length > 0 && sessionItems[0].machineId) {
-        this.productionForm.patchValue({ machineId: sessionItems[0].machineId });
-     }
-     
      // Enable/disable overtime hours
      this.onOvertimeChange();
      
@@ -1344,22 +1346,13 @@ export class ProductionComponent implements OnInit {
         this.items.push(group);
      });
      
-     // Populate daily line time
-     this.dailyLineTime.clear();
-     if (session.dailyLineTime && session.dailyLineTime.length > 0) {
-        session.dailyLineTime.forEach(lt => {
-           const group = this.createLineTimeItem(this.linesMap.get(lt.lineId) || {id: lt.lineId, name: lt.lineName || lt.lineId} as Line);
-           group.patchValue({
-              overtimeHours: lt.overtimeHours,
-              downtimeMinutes: lt.downtimeMinutes,
-              downtimeReason: lt.downtimeReason,
-              notes: lt.notes
-           });
-           this.dailyLineTime.push(group);
-        });
-     } else {
-        this.buildLineTimeControls();
-     }
+     // Populate downtime events for the selected line. Historical scalar-only
+     // sessions are transformed into one compatibility event so legacy downtime
+     // is never shown as zero nor lost on a later Save (PROD-BIZ-12 / 13).
+     this.downtimeEvents.clear();
+     ProductionUtil.legacyDowntimeEvents(session).forEach(ev => {
+        this.downtimeEvents.push(this.createDowntimeEvent(ev));
+     });
      
      window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1412,8 +1405,7 @@ export class ProductionComponent implements OnInit {
            session,
            productName: this.getProductName(record.productId),
            lineName: this.getLineName(record.lineId),
-           shiftName: this.getShiftName(record.shiftId),
-           machineName: this.getMachineName(record.machineId || '')
+           shiftName: this.getShiftName(record.shiftId)
         }
      });
   }
@@ -1450,16 +1442,14 @@ export class ProductionComponent implements OnInit {
       date: new Date(),
       shiftId: '',
       lineId: '',
-      machineId: '',
       supervisor: '',
       overtime: false,
       overtimeHours: {value: 0, disabled: true},
       notes: ''
     });
     
+    this.downtimeEvents.clear();
     this.saveError = '';
-    this.buildLineTimeControls();
-    this.filteredMachines = [];
     this.productionForm.markAsPristine();
     this.productionForm.markAsUntouched();
   }
@@ -1483,25 +1473,20 @@ export class ProductionComponent implements OnInit {
       this.productService.getAll(),
       this.lineService.getAll(),
       this.shiftService.getAll(),
-      this.machineService.getAll(),
-      this.pmService.getAll(),
       this.lineProductService.getAll()
     ]).subscribe({
-      next: ([products, lines, shifts, machines, configs, lineProducts]) => {
+      next: ([products, lines, shifts, lineProducts]) => {
         this.activeProducts = products.filter(p => p.active);
         this.activeLines = lines.filter(l => l.active);
         this.activeShifts = shifts.filter(s => s.active);
-        this.allMachines = machines;
-        this.configs = configs;
         this.lineProducts = lineProducts;
 
         // Populate maps
         products.forEach(p => this.productsMap.set(p.id, p));
         lines.forEach(l => this.linesMap.set(l.id, l));
         shifts.forEach(s => this.shiftsMap.set(s.id, s));
-        machines.forEach(m => this.machinesMap.set(m.id, m));
         
-        this.buildLineTimeControls();
+        this.downtimeEvents.clear();
         this.loadHistory();
       },
       error: (err) => {
@@ -1546,13 +1531,8 @@ export class ProductionComponent implements OnInit {
     return this.shiftsMap.get(id)?.name || 'Unknown Shift';
   }
 
-  getMachineName(id: string): string {
-    if (!id) return '—';
-    return this.machinesMap.get(id)?.name || 'Unknown Machine';
-  }
-
   private formatDate(date: Date): string {
-    return date.toISOString().split('T')[0];
+    return toLocalCalendarString(date);
   }
 
   private generateId(prefix: string): string {

@@ -30,6 +30,11 @@ export class ProductionSessionService {
         downtimeReason: lt.downtimeReason,
         notes: lt.notes
       })),
+      downtimeEvents: (row.downtime_events || []).map((ev: any) => ({
+        durationMinutes: ev.durationMinutes,
+        reason: ev.reason,
+        notes: ev.notes
+      })),
       notes: row.notes || '',
       createdAt: row.created_at,
       updatedAt: row.updated_at !== null ? row.updated_at : undefined
@@ -48,6 +53,7 @@ export class ProductionSessionService {
       overtime: session.overtime,
       overtime_hours: session.overtimeHours,
       daily_line_time: session.dailyLineTime, // JSONB structure stays the same for easy parsing
+      downtime_events: session.downtimeEvents && session.downtimeEvents.length > 0 ? session.downtimeEvents : null,
       notes: session.notes,
       created_at: session.createdAt,
       updated_at: session.updatedAt ?? null

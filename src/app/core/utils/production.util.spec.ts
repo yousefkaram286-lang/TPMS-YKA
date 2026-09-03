@@ -1,6 +1,140 @@
 import { ProductionUtil, SubmissionGuard } from './production.util';
 
+describe('ProductionUtil legacy edit compatibility (PROD-BIZ-13)', () => {
+
+  it('loads real granular downtimeEvents unchanged when present', () => {
+    const events = ProductionUtil.legacyDowntimeEvents({
+      downtimeEvents: [{ durationMinutes: 25, reason: 'Changeover', notes: 'a' }],
+      dailyLineTime: [{ downtimeMinutes: 40, downtimeReason: 'Breakdown', notes: 'example' }]
+    });
+    expect(events).toEqual([{ durationMinutes: 25, reason: 'Changeover', notes: 'a' }]);
+  });
+
+  it('legacy scalar-only session → ONE compatibility event (edit must not show zero / lose downtime)', () => {
+    // Exact review scenario: downtimeEvents is null/[] (predates the field),
+    // dailyLineTime[0] carries the old scalar downtime.
+    const events = ProductionUtil.legacyDowntimeEvents({
+      downtimeEvents: [],
+      dailyLineTime: [{
+        downtimeMinutes: 40,
+        downtimeReason: 'Breakdown',
+        notes: 'example'
+      }]
+    });
+    expect(events).toEqual([{
+      durationMinutes: 40,
+      reason: 'Breakdown',
+      notes: 'example'
+    }]);
+  });
+
+  it('legacy scalar-only session with reason/notes missing → empty reason/notes, downtime preserved', () => {
+    const events = ProductionUtil.legacyDowntimeEvents({
+      downtimeEvents: null,
+      dailyLineTime: [{ downtimeMinutes: 40, downtimeReason: '', notes: '' }]
+    });
+    expect(events).toEqual([{ durationMinutes: 40, reason: '', notes: '' }]);
+  });
+
+  it('no downtime at all → empty event list (form shows none, nothing invented)', () => {
+    expect(ProductionUtil.legacyDowntimeEvents({ downtimeEvents: [], dailyLineTime: [{ downtimeMinutes: 0 }] })).toEqual([]);
+    expect(ProductionUtil.legacyDowntimeEvents(null)).toEqual([]);
+    expect(ProductionUtil.legacyDowntimeEvents(undefined)).toEqual([]);
+    expect(ProductionUtil.legacyDowntimeEvents({})).toEqual([]);
+  });
+
+  it('is a read/edit transformation — it never mutates or migrates the input session', () => {
+    const session = {
+      downtimeEvents: [] as { durationMinutes: number }[],
+      dailyLineTime: [{ downtimeMinutes: 40, downtimeReason: 'Breakdown', notes: 'example' }]
+    };
+    const snapshot = JSON.stringify(session);
+    ProductionUtil.legacyDowntimeEvents(session);
+    expect(JSON.stringify(session)).toBe(snapshot);
+  });
+});
+
 describe('ProductionUtil', () => {
+
+  // ─── Production business simplification: time calculations ─────────────
+  // One selected line per session; downtime captured as MULTIPLE events;
+  // single authoritative overtime in HOURS (converted to minutes only for
+  // Available/Actual/Efficiency).
+
+  it('PROD-BIZ-03. sums multiple downtime events into a single total', () => {
+    const events = [
+      { durationMinutes: 30 },
+      { durationMinutes: 15 },
+      { durationMinutes: 5 }
+    ];
+    expect(ProductionUtil.sumDowntime(events)).toBe(50);
+  });
+
+  it('PROD-BIZ-03b. a single downtime event is treated as its own total', () => {
+    expect(ProductionUtil.sumDowntime([{ durationMinutes: 45 }])).toBe(45);
+  });
+
+  it('PROD-BIZ-03c. ignores non-finite/negative event durations', () => {
+    expect(ProductionUtil.sumDowntime([
+      { durationMinutes: 10 },
+      { durationMinutes: -5 },
+      { durationMinutes: NaN },
+      { durationMinutes: 20 }
+    ])).toBe(30);
+    expect(ProductionUtil.sumDowntime(null)).toBe(0);
+    expect(ProductionUtil.sumDowntime(undefined)).toBe(0);
+    expect(ProductionUtil.sumDowntime([])).toBe(0);
+  });
+
+  it('PROD-BIZ-05a. Available = 390 + OvertimeMinutes (overtime in hours ×60)', () => {
+    // 1.5 hours overtime → 90 min overtime → 390 + 90 = 480
+    expect(ProductionUtil.availableMinutes(1.5)).toBe(480);
+    // no overtime → base 390
+    expect(ProductionUtil.availableMinutes(0)).toBe(390);
+    expect(ProductionUtil.availableMinutes(undefined)).toBe(390);
+  });
+
+  it('PROD-BIZ-05b. Actual = max(0, Available − TotalDowntime)', () => {
+    // Available 480, downtime 50 → Actual 430
+    expect(ProductionUtil.actualRunMinutes(1.5, [
+      { durationMinutes: 30 }, { durationMinutes: 20 }
+    ])).toBe(430);
+    // downtime exceeds available → floor at 0 (never negative)
+    expect(ProductionUtil.actualRunMinutes(0, [{ durationMinutes: 999 }])).toBe(0);
+  });
+
+  it('PROD-BIZ-05c. Efficiency = Actual / Available × 100', () => {
+    // Available 480, Actual 430 → 89.583...
+    expect(ProductionUtil.efficiencyPercent(1.5, [
+      { durationMinutes: 30 }, { durationMinutes: 20 }
+    ])).toBeCloseTo(430 / 480 * 100, 5);
+    // no overtime, no downtime → 100%
+    expect(ProductionUtil.efficiencyPercent(0, [])).toBe(100);
+    // fully down → 0%
+    expect(ProductionUtil.efficiencyPercent(0, [{ durationMinutes: 390 }])).toBe(0);
+  });
+
+  it('PROD-BIZ-08. overtime is a SINGLE authoritative source — stored as hours, never round-tripped', () => {
+    // overtimeHours is stored verbatim; only converted to minutes inside the
+    // Available/Actual/Efficiency helpers. There is no stored overtimeMinutes.
+    expect(ProductionUtil.availableMinutes(2)).toBe(390 + 2 * 60);
+    // Available time returned is in minutes (as required by the rule).
+    expect(ProductionUtil.availableMinutes(2)).toBe(510);
+  });
+
+  it('PROD-BIZ-12. legacy scalar-only sessions still aggregate from dailyLineTime', () => {
+    // Historical session has NO granular events → fall back to per-line scalar.
+    expect(ProductionUtil.downtimeMinutesOf({ downtimeEvents: [], dailyLineTime: [
+      { downtimeMinutes: 25 }, { downtimeMinutes: 15 }
+    ]})).toBe(40);
+    // granular events take precedence when present
+    expect(ProductionUtil.downtimeMinutesOf({ downtimeEvents: [
+      { durationMinutes: 10 }
+    ], dailyLineTime: [{ downtimeMinutes: 25 }] })).toBe(10);
+    // missing session / no data
+    expect(ProductionUtil.downtimeMinutesOf(null)).toBe(0);
+    expect(ProductionUtil.downtimeMinutesOf({})).toBe(0);
+  });
 
   // ─── Calculation regression ─────────────────────────────────────────────
   it('regression: 500 presses × 10.5 pieces/per press = 5250', () => {
