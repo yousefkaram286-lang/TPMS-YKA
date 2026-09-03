@@ -23,6 +23,7 @@ import { UnitCostService } from '../../core/services/unit-cost.service';
 import { MaterialService } from '../../core/services/material.service';
 import { SubmissionGuard } from '../../core/utils/production.util';
 import { MaterialConversionUtil } from '../../core/utils/material-conversion.util';
+import { toLocalCalendarString } from '../../core/utils/date.util';
 
 import { MaterialRecord, MaterialTransactionItem } from '../../core/models/material-record.model';
 import { Product } from '../../core/models/product.model';
@@ -103,15 +104,7 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
               </div>
 
               <div class="form-group">
-                <label>Shift (optional)</label>
-                <select formControlName="shiftId" class="form-control">
-                  <option value="">None</option>
-                  <option *ngFor="let shift of activeShifts" [value]="shift.id">{{ shift.name }}</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label>Product (optional)</label>
+                <label>Product (optional — reference only)</label>
                 <select formControlName="productId" class="form-control" (change)="onProductChange()">
                   <option value="">None — enter actual values directly</option>
                   <option *ngFor="let product of activeProducts" [value]="product.id">{{ product.name }}</option>
@@ -123,11 +116,6 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
                 <label>Mix Count * (mixes)</label>
                 <input type="number" formControlName="mixCount" class="form-control" (input)="onMixCountChange()" [class.is-invalid]="isInvalid('mixCount')" min="1">
                 <div class="invalid-feedback" *ngIf="isInvalid('mixCount')">Mix Count is required and must be > 0.</div>
-              </div>
-
-              <div class="form-group">
-                <label>Operator (optional)</label>
-                <input type="text" formControlName="operator" class="form-control" placeholder="Operator name">
               </div>
             </div>
 
@@ -653,7 +641,6 @@ export class MaterialsComponent implements OnInit {
   // Master Data
   activeProducts: Product[] = [];
   activeLines: Line[] = [];
-  activeShifts: Shift[] = [];
   unitCosts: UnitCost[] = [];
   activeMaterials: Material[] = [];
 
@@ -679,10 +666,8 @@ export class MaterialsComponent implements OnInit {
     this.materialsForm = this.fb.group({
       date: [new Date(), Validators.required],
       lineId: ['', Validators.required],
-      shiftId: [''],
       productId: [''],
       mixCount: [null, [Validators.required, Validators.min(1)]],
-      operator: [''],
       notes: [''],
       materials: this.fb.array([])
     });
@@ -734,7 +719,6 @@ export class MaterialsComponent implements OnInit {
     });
 
     this.shiftService.getAll().subscribe(shifts => {
-      this.activeShifts = shifts.filter(s => s.active);
       shifts.forEach(s => this.shiftsMap.set(s.id, s));
       this.checkMasterDataLoaded();
     });
@@ -972,10 +956,8 @@ export class MaterialsComponent implements OnInit {
       id: `material_sub_${idForThisAttempt}`,
       date: this.formatDate(formValue.date),
       lineId: formValue.lineId,
-      shiftId: formValue.shiftId || undefined,
       productId: formValue.productId || undefined,
       mixCount: formValue.mixCount,
-      operator: (formValue.operator || '').trim() || undefined,
       notes: formValue.notes,
       materials: materialsArray,
       totalCost: this.getTotalCost(),
@@ -1008,12 +990,9 @@ export class MaterialsComponent implements OnInit {
   }
 
   private formatDate(d: Date): string {
-    // Local calendar date (YYYY-MM-DD) — toISOString() would shift the day
-    // by the UTC offset.
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    // Local plant calendar date (YYYY-MM-DD) — toISOString() would shift the
+    // day by the UTC offset. Reuses the shared date utility.
+    return toLocalCalendarString(d);
   }
 
   deleteRecord(record: MaterialRecord): void {
