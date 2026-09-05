@@ -34,11 +34,11 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
           </span>
         </div>
         <div class="detail-item" *ngIf="data.record.samples?.length">
-          <span class="detail-label">Product Area (m²):</span>
+          <span class="detail-label">Product Area (cm²):</span>
           <span class="detail-value font-medium">{{ data.record.productAreaSnapshot ?? '—' }}</span>
         </div>
         <div class="detail-item" *ngIf="data.record.samples?.length">
-          <span class="detail-label">Compression Standard:</span>
+          <span class="detail-label">Compression Standard (kg/cm²):</span>
           <span class="detail-value font-medium">{{ data.record.compressionStandardSnapshot ?? '—' }}</span>
         </div>
       </div>
@@ -55,8 +55,8 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
                 <th>Act Wt (kg)</th>
                 <th>Std Wt (kg)</th>
                 <th>Wt Diff (kg)</th>
-                <th>Load (kN)</th>
-                <th>Compression</th>
+                <th>Load (kg)</th>
+                <th>Compression (kg/cm²)</th>
                 <th>Result</th>
               </tr>
             </thead>
@@ -100,11 +100,11 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
         <div class="block-title">Legacy measurement</div>
         <div class="details-grid legacy-grid">
           <div class="detail-item">
-            <span class="detail-label">Load (kN):</span>
+            <span class="detail-label">Load (kg):</span>
             <span class="detail-value font-medium">{{ data.record.load ?? '—' }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Compression:</span>
+            <span class="detail-label">Compression (kg/cm²):</span>
             <span class="detail-value font-medium">{{ data.record.compression ?? (data.record.strength ?? '—') }}</span>
           </div>
           <div class="detail-item">

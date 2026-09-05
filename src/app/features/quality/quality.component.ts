@@ -111,11 +111,11 @@ import { forkJoin } from 'rxjs';
                 <span class="summary-value font-medium">{{ selectedLineName || '—' }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">Product Area (m²)</span>
+                <span class="summary-label">Product Area (cm²)</span>
                 <span class="summary-value font-medium">{{ previewProductArea != null ? previewProductArea : '—' }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">Compression Standard</span>
+                <span class="summary-label">Compression Standard (kg/cm²)</span>
                 <span class="summary-value font-medium">{{ previewCompressionStandard != null ? previewCompressionStandard : '—' }}</span>
               </div>
               <div class="summary-item">
@@ -136,10 +136,10 @@ import { forkJoin } from 'rxjs';
                       <th>Actual Wt (kg)</th>
                       <th>Std Wt (kg)</th>
                       <th>Wt Diff (kg)</th>
-                      <th>Load (kN)</th>
-                      <th>Area</th>
-                      <th>Compression</th>
-                      <th>Comp Std</th>
+                      <th>Load (kg)</th>
+                      <th>Area (cm²)</th>
+                      <th>Compression (kg/cm²)</th>
+                      <th>Comp Std (kg/cm²)</th>
                       <th>Result</th>
                     </tr>
                   </thead>
@@ -297,7 +297,7 @@ import { forkJoin } from 'rxjs';
                 </ng-container>
 
                 <ng-container matColumnDef="avgCompression">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Avg Compression </th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Avg Compression (kg/cm²) </th>
                   <td mat-cell *matCellDef="let element">
                     <span *ngIf="avgCompressionOf(element) != null">{{ avgCompressionOf(element) | number:'1.2-2' }}</span>
                     <span *ngIf="avgCompressionOf(element) == null" class="no-result">CONFIGURATION REQUIRED</span>

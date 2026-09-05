@@ -16,11 +16,11 @@ const NOW = '2026-01-01T00:00:00.000Z';
 
 const PRODUCTS: Product[] = [
   {
-    id: 'prd-001', name: 'Block 20', productArea: 0.2, standardStrength: 15,
+    id: 'prd-001', name: 'Block 20', productArea: 300, standardStrength: 180,
     standardHeight: 200, standardWeight: 99, active: true, createdAt: NOW
   },
   {
-    id: 'prd-002', name: 'Block 15', productArea: 0.2, standardStrength: 12,
+    id: 'prd-002', name: 'Block 15', productArea: 300, standardStrength: 180,
     standardHeight: 200, standardWeight: 99, active: true, createdAt: NOW
   }
 ];
@@ -32,14 +32,14 @@ const LINES: Line[] = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** 3.2 kN ÷ 0.2 m² = 16 ≥ 15 → PASS (mirrors QualityCalculationUtil). */
+/** 54000 kg ÷ 300 cm² = 180 ≥ 180 → PASS (mirrors QualityCalculationUtil). */
 function makeSample(overrides: Partial<QualitySample> = {}): QualitySample {
-  const evaluation = QualityCalculationUtil.evaluateSample(3.2, 0.2, 15);
+  const evaluation = QualityCalculationUtil.evaluateSample(54000, 300, 180);
   return {
     sampleNumber: 1,
     actualHeight: 200,
     actualWeight: 100,
-    load: 3.2,
+    load: 54000,
     compression: evaluation.compression as number,
     compressionResult: evaluation.compressionResult,
     heightDifference: QualityCalculationUtil.heightDifference(200, 200),
@@ -48,7 +48,7 @@ function makeSample(overrides: Partial<QualitySample> = {}): QualitySample {
   };
 }
 
-/** A valid three-sample Quality event: 16 ≥ 15 → PASS on every sample. */
+/** A valid three-sample Quality event: 180 ≥ 180 → PASS on every sample. */
 function makePackedTest(overrides: Partial<QualityTest> = {}): QualityTest {
   return {
     id: 'quality_test_sub_qt-ok',
@@ -59,14 +59,14 @@ function makePackedTest(overrides: Partial<QualityTest> = {}): QualityTest {
     lineId: 'lin-001',
     lineName: 'Line 1 - Heavy',
     testDate: '2026-08-29',
-    productAreaSnapshot: 0.2,
-    compressionStandardSnapshot: 15,
+    productAreaSnapshot: 300,
+    compressionStandardSnapshot: 180,
     standardHeightSnapshot: 200,
     standardWeightSnapshot: 99,
     samples: [
-      makeSample({ sampleNumber: 1, actualHeight: 200, actualWeight: 100, load: 3.2 }),
-      makeSample({ sampleNumber: 2, actualHeight: 201, actualWeight: 100, load: 3.2 }),
-      makeSample({ sampleNumber: 3, actualHeight: 199, actualWeight: 100, load: 3.2 })
+      makeSample({ sampleNumber: 1, actualHeight: 200, actualWeight: 100, load: 54000 }),
+      makeSample({ sampleNumber: 2, actualHeight: 201, actualWeight: 100, load: 54000 }),
+      makeSample({ sampleNumber: 3, actualHeight: 199, actualWeight: 100, load: 54000 })
     ],
     decisionSource: 'AUTO_CALCULATED',
     createdAt: '2026-08-29T08:00:00.000Z',
@@ -84,8 +84,8 @@ function dbRow(overrides: any = {}): any {
     line_id: 'lin-001',
     line_name: 'Line 1 - Heavy',
     test_date: '2026-08-29',
-    product_area_snapshot: 0.2,
-    compression_standard_snapshot: 15,
+    product_area_snapshot: 300,
+    compression_standard_snapshot: 180,
     standard_height_snapshot: 200,
     standard_weight_snapshot: 99,
     production_record_id: null,
@@ -254,8 +254,8 @@ describe('QualityService (three-sample Compression model, Supabase)', () => {
       expect(saved.id).toBe('quality_test_sub_qt-ok');
       expect(saved.samples!.length).toBe(3);
       expect(saved.samples!.every(s => s.compressionResult === 'PASS')).toBeTrue();
-      expect(saved.productAreaSnapshot).toBe(0.2);
-      expect(saved.compressionStandardSnapshot).toBe(15);
+      expect(saved.productAreaSnapshot).toBe(300);
+      expect(saved.compressionStandardSnapshot).toBe(180);
       expect(mock.store.size).toBe(1);
       done();
     });
@@ -336,9 +336,9 @@ describe('QualityService (three-sample Compression model, Supabase)', () => {
     const { svc } = buildService();
     const record = makePackedTest();
     record.samples = [
-      makeSample({ sampleNumber: 1, actualHeight: 205, actualWeight: 110, load: 3.1, compression: 15.5, compressionResult: 'PASS' }),
-      makeSample({ sampleNumber: 2, actualHeight: 210, actualWeight: 112, load: 3.08, compression: 15.4, compressionResult: 'PASS' }),
-      makeSample({ sampleNumber: 3, actualHeight: 208, actualWeight: 109, load: 2.99, compression: 14.95, compressionResult: 'FAIL' })
+      makeSample({ sampleNumber: 1, actualHeight: 205, actualWeight: 110, load: 75280, compression: 250.93, compressionResult: 'PASS' }),
+      makeSample({ sampleNumber: 2, actualHeight: 210, actualWeight: 112, load: 74510, compression: 248.37, compressionResult: 'PASS' }),
+      makeSample({ sampleNumber: 3, actualHeight: 208, actualWeight: 109, load: 43976, compression: 146.59, compressionResult: 'FAIL' })
     ];
     // The UI submits per-sample compression results only — no overall `result`.
     expect(record.result).toBeUndefined();
@@ -375,7 +375,7 @@ describe('QualityService (three-sample Compression model, Supabase)', () => {
     const { svc } = buildService();
     const record = makePackedTest();
     record.samples = record.samples!.map((s, i) => makeSample({
-      sampleNumber: i + 1, compression: 16, compressionResult: 'PENDING' as QualitySample['compressionResult']
+      sampleNumber: i + 1, compression: 180, compressionResult: 'PENDING' as QualitySample['compressionResult']
     }));
     svc.createIdempotent(record).subscribe({
       next: () => fail('should have rejected PENDING sample'),
@@ -440,20 +440,20 @@ describe('QualityService (three-sample Compression model, Supabase)', () => {
     const { svc, mock } = buildService();
     // Record created EARLIER under the old master.
     mock.store.set('quality_test_sub_qt-ok', dbRow({
-      product_area_snapshot: 0.2,
-      compression_standard_snapshot: 15,
+      product_area_snapshot: 300,
+      compression_standard_snapshot: 180,
       standard_height_snapshot: 200,
       standard_weight_snapshot: 99
     }));
     // Product master changed AFTER the test was saved (mock ProductService provides
-    // 0.2/15/200/99 in PRODUCTS but the point is the read path never consults it).
+    // 300/180/200/99 in PRODUCTS but the point is the read path never consults it).
 
     svc.getById('quality_test_sub_qt-ok').subscribe(rec => {
-      expect(rec!.productAreaSnapshot).toBe(0.2);
-      expect(rec!.compressionStandardSnapshot).toBe(15);
+      expect(rec!.productAreaSnapshot).toBe(300);
+      expect(rec!.compressionStandardSnapshot).toBe(180);
       expect(rec!.standardHeightSnapshot).toBe(200);
       expect(rec!.standardWeightSnapshot).toBe(99);
-      expect(rec!.samples![0].compression).toBe(16); // never recomputed from master
+      expect(rec!.samples![0].compression).toBe(180); // never recomputed from master
       done();
     });
   });
@@ -565,22 +565,22 @@ describe('QualityService (three-sample Compression model, Supabase)', () => {
   it('regression 3+7: the stored Area snapshot is the source of truth for Compression', (done) => {
     const { svc } = buildService();
     const record = makePackedTest();
-    record.productAreaSnapshot = 0.25;
+    record.productAreaSnapshot = 300;
     record.samples = record.samples!.map((s, i) =>
-      makeSample({ sampleNumber: i + 1, load: 4, compression: 16, compressionResult: 'PASS' })
+      makeSample({ sampleNumber: i + 1, load: 54000, compression: 180, compressionResult: 'PASS' })
     );
     svc.createIdempotent(record).subscribe(saved => {
-      expect(saved.productAreaSnapshot).toBe(0.25);
-      expect(saved.samples![0].compression).toBe(16); // 4 ÷ 0.25
+      expect(saved.productAreaSnapshot).toBe(300);
+      expect(saved.samples![0].compression).toBe(180); // 54000 ÷ 300
       done();
     });
   });
 
   it('calculateCompression delegates to the authoritative Load ÷ Area rule', () => {
     const { svc } = buildService();
-    expect(svc.calculateCompression(3.2, 0.2)).toBe(16);
-    expect(svc.calculateCompression(2.0, 0.25)).toBe(8);
-    expect(svc.calculateCompression(3.2, 0)).toBeUndefined();
-    expect(svc.calculateCompression(0, 0.2)).toBeUndefined();
+    expect(svc.calculateCompression(54000, 300)).toBe(180);
+    expect(svc.calculateCompression(62000, 436.32)).toBeCloseTo(142.1, 2);
+    expect(svc.calculateCompression(54000, 0)).toBeUndefined();
+    expect(svc.calculateCompression(0, 300)).toBeUndefined();
   });
 });
