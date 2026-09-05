@@ -27,7 +27,7 @@ import { LineProductMapping } from '../../core/models/line-product.model';
 import { ProductionViewDialogComponent } from './production-view-dialog.component';
 import { ProductionUtil, SubmissionGuard } from '../../core/utils/production.util';
 import { MasterDataUtil } from '../../core/utils/master-data.util';
-import { toLocalCalendarString } from '../../core/utils/date.util';
+import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/date.util';
 
 @Component({
   selector: 'app-production',
@@ -1321,7 +1321,7 @@ export class ProductionComponent implements OnInit {
      
      // Populate header and session data
      this.productionForm.patchValue({
-        date: new Date(session.date),
+        date: parseLocalCalendarDate(session.date) ?? new Date(),
         shiftId: session.shiftId,
         lineId: session.lineId,
         supervisor: session.supervisor,

@@ -27,6 +27,7 @@ import { OutputRelease } from '../../core/models/output-release.model';
 import { Product } from '../../core/models/product.model';
 import { Line } from '../../core/models/line.model';
 import { SubmissionGuard } from '../../core/utils/production.util';
+import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/date.util';
 
 @Component({
   selector: 'app-output-release',
@@ -811,7 +812,7 @@ export class OutputReleaseComponent implements OnInit {
     this.pendingSubmissionId = null; // editing is a fresh logical operation
     this.editingId = record.id;
     this.releaseForm.patchValue({
-      releaseDate:      new Date(record.releaseDate),
+      releaseDate:      parseLocalCalendarDate(record.releaseDate) ?? new Date(),
       releasedQuantity: record.releasedQuantity,
       productId:        record.productId || '',
       lineId:           record.lineId || '',
@@ -982,6 +983,6 @@ export class OutputReleaseComponent implements OnInit {
   }
 
   private formatDate(d: Date): string {
-    return d.toISOString().split('T')[0];
+    return toLocalCalendarString(d);
   }
 }
