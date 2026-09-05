@@ -599,7 +599,7 @@ export class ReportDialogComponent {
               <div class="stat-card__info">
                 <p class="stat-card__label">Sample Pass Rate</p>
                 <h3 class="stat-card__value">{{ stats.passRate | number:'1.1-1' }}%</h3>
-                <p class="stat-card__sub">{{ stats.qualitySamples > 0 ? 'of ' + stats.qualitySamples + ' samples tested' : 'no data' }}</p>
+                <p class="stat-card__sub">{{ (stats.qualityPassed + stats.qualityFailed) > 0 ? 'of ' + (stats.qualityPassed + stats.qualityFailed) + ' assessed samples passed' : 'no data' }}</p>
               </div>
             </div>
           </app-card>

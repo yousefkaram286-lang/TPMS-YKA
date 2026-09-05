@@ -347,6 +347,68 @@ describe('DashboardService', () => {
     expect(cfgStats.qualityFailed).toBe(0);
   });
 
+  // ─── Quality pass-rate denominator (Assessed = Passed + Failed) ────────────
+
+  it('dash PASS-RATE case 1: 2 passed + 1 failed → assessed 3, pass rate 66.67%', () => {
+    const failSample = makeSample({ sampleNumber: 3, load: 2.6 });
+    failSample.compression = QualityCalculationUtil.calculateCompression(2.6, 0.2) as number;
+    failSample.compressionResult = QualityCalculationUtil.evaluate(failSample.compression, 15);
+    const qts = [makeQuality({ samples: [makeSample({ sampleNumber: 1 }), makeSample({ sampleNumber: 2 }), failSample] })];
+
+    const stats = svc.calcStats({ ...baseData(), qualityTests: qts });
+    expect(stats.qualitySamples).toBe(3);
+    expect(stats.qualityPassed).toBe(2);
+    expect(stats.qualityFailed).toBe(1);
+    expect(stats.qualityPassed + stats.qualityFailed).toBe(3); // assessed
+    expect(stats.passRate).toBeCloseTo(66.67, 2);
+  });
+
+  it('dash PASS-RATE case 2: 2 passed + 0 failed + 1 CONFIGURATION_REQUIRED → assessed 2, pass rate 100%', () => {
+    const configSample = makeSample({ compressionResult: CONFIGURATION_REQUIRED, compression: undefined as unknown as number });
+    const qts = [makeQuality({ samples: [makeSample({ sampleNumber: 1 }), makeSample({ sampleNumber: 2 }), configSample] })];
+
+    const stats = svc.calcStats({ ...baseData(), qualityTests: qts });
+    expect(stats.qualitySamples).toBe(3); // recorded count unchanged
+    expect(stats.qualityPassed).toBe(2);
+    expect(stats.qualityFailed).toBe(0);
+    expect(stats.qualityPassed + stats.qualityFailed).toBe(2); // assessed
+    expect(stats.passRate).toBe(100); // CONFIGURATION_REQUIRED NOT in denominator
+  });
+
+  it('dash PASS-RATE case 3: 0 passed + 0 failed + 3 CONFIGURATION_REQUIRED → assessed 0, pass rate 0 (no NaN/Infinity)', () => {
+    const configSample = (n: number) => makeSample({ sampleNumber: n, compressionResult: CONFIGURATION_REQUIRED, compression: undefined as unknown as number });
+    const qts = [makeQuality({ samples: [configSample(1), configSample(2), configSample(3)] })];
+
+    const stats = svc.calcStats({ ...baseData(), qualityTests: qts });
+    expect(stats.qualitySamples).toBe(3);
+    expect(stats.qualityPassed).toBe(0);
+    expect(stats.qualityFailed).toBe(0);
+    expect(stats.qualityPassed + stats.qualityFailed).toBe(0); // assessed
+    expect(stats.passRate).toBe(0);
+    expect(Number.isFinite(stats.passRate)).toBeTrue();
+    expect(Number.isNaN(stats.passRate)).toBeFalse();
+  });
+
+  it('dash PASS-RATE case 4: 3 passed → assessed 3, pass rate 100%', () => {
+    const qts = [makeQuality()];
+
+    const stats = svc.calcStats({ ...baseData(), qualityTests: qts });
+    expect(stats.qualitySamples).toBe(3);
+    expect(stats.qualityPassed).toBe(3);
+    expect(stats.qualityFailed).toBe(0);
+    expect(stats.qualityPassed + stats.qualityFailed).toBe(3); // assessed
+    expect(stats.passRate).toBe(100);
+  });
+
+  it('dash PASS-RATE: CONFIGURATION_REQUIRED does not reduce a fully-passing denominator', () => {
+    const configSample = makeSample({ compressionResult: CONFIGURATION_REQUIRED, compression: undefined as unknown as number });
+    const qts = [makeQuality({ samples: [makeSample({ sampleNumber: 1 }), makeSample({ sampleNumber: 2 }), configSample] })];
+
+    const stats = svc.calcStats({ ...baseData(), qualityTests: qts });
+    expect(stats.passRate).toBe(100);
+    expect(stats.qualitySamples).toBe(3); // still reported as 3 recorded samples
+  });
+
   it('regression 16: Time Efficiency uses the authoritative EfficiencyUtil only', () => {
     const sessions = [makeSession()];
     const expected = EfficiencyUtil.calculateAggregateEfficiency(sessions[0].dailyLineTime).timeEfficiency;

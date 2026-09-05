@@ -283,7 +283,8 @@ export class DashboardService {
       }
     });
 
-    const passRate = qualitySamples > 0 ? (qualityPassed / qualitySamples) * 100 : 0;
+    const assessed = qualityPassed + qualityFailed;
+    const passRate = assessed > 0 ? (qualityPassed / assessed) * 100 : 0;
     const totalCost = filtered.materials.reduce((s, m) => s + (m.totalCost || 0), 0);
 
     // Calculate Efficiency
