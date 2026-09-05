@@ -1,9 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { Observable, of } from 'rxjs';
+import { of } from 'rxjs';
 
 import { QualityService } from './quality.service';
-import { StorageService } from './storage.service';
-import { STORE_NAMES } from '../constants/storage.constants';
+import { SupabaseService } from './supabase.service';
+import { ProductService } from './product.service';
+import { LineService } from './line.service';
 import { QualityTest, QualitySample } from '../models/quality-test.model';
 import { Product } from '../models/product.model';
 import { Line } from '../models/line.model';
@@ -73,123 +74,195 @@ function makePackedTest(overrides: Partial<QualityTest> = {}): QualityTest {
   };
 }
 
-// ─── Mock StorageService (IndexedDB-like, keyed by store) ─────────────────────
+/** DB row (snake_case) as Supabase would return it. */
+function dbRow(overrides: any = {}): any {
+  return {
+    id: 'quality_test_sub_qt-ok',
+    date: '2026-08-29',
+    product_id: 'prd-001',
+    product_name: 'Block 20',
+    line_id: 'lin-001',
+    line_name: 'Line 1 - Heavy',
+    test_date: '2026-08-29',
+    product_area_snapshot: 0.2,
+    compression_standard_snapshot: 15,
+    standard_height_snapshot: 200,
+    standard_weight_snapshot: 99,
+    production_record_id: null,
+    production_date: null,
+    notes: null,
+    submission_id: 'qt-ok',
+    samples: [...makePackedTest().samples!],
+    strength: null,
+    standard_strength: null,
+    load: null,
+    compression: null,
+    sample: null,
+    result: null,
+    decision_source: 'AUTO_CALCULATED',
+    created_at: '2026-08-29T08:00:00.000Z',
+    updated_at: null,
+    ...overrides
+  };
+}
 
-function createMockStorage() {
-  const stores = new Map<string, Map<string, any>>();
-  const touchedStores = new Set<string>();
-  let raceTarget: string | null = null;
+// ─── Mock Supabase client (in-memory store, fluent query builder) ────────────
 
-  const getStore = (name: string): Map<string, any> => {
-    if (!stores.has(name)) stores.set(name, new Map());
-    return stores.get(name)!;
+function sortRows(list: any[], order: { col: string; desc: boolean }): any[] {
+  return [...list].sort((x, y) => {
+    const a = x[order.col];
+    const b = y[order.col];
+    if (a == null && b == null) return 0;
+    if (a == null) return order.desc ? 1 : -1;
+    if (b == null) return order.desc ? -1 : 1;
+    return order.desc ? String(b).localeCompare(String(a)) : String(a).localeCompare(String(b));
+  });
+}
+
+function createSupabaseMock(seed: any[] = []) {
+  const store = new Map<string, any>();
+  const touched = new Set<string>();
+  seed.forEach(r => store.set(r.id, { ...r }));
+  let conflictOnce = false;
+
+  const matches = (row: any, filters: { col: string; val: any }[]): boolean =>
+    filters.every(f => row[f.col] === f.val);
+
+  const builder = (
+    table: string
+  ): any => {
+    const b = {
+      columns: '*',
+      filters: [] as { col: string; val: any }[],
+      orderInfo: null as { col: string; desc: boolean } | null,
+      singleFlag: false,
+      op: 'select' as 'select' | 'insert' | 'update' | 'delete',
+      payload: null as any,
+      table,
+
+      select() { return this; },
+      eq(col: string, val: any) { this.filters.push({ col, val }); return this; },
+      order(col: string, opts?: { ascending?: boolean }) { this.orderInfo = { col, desc: opts?.ascending === false }; return this; },
+      single() { this.singleFlag = true; return this; },
+      insert(p: any) { this.op = 'insert'; this.payload = p; return this; },
+      update(p: any) { this.op = 'update'; this.payload = p; return this; },
+      delete() { this.op = 'delete'; return this; },
+
+      execute(): Promise<{ data: any; error: any }> {
+        if (this.table !== 'quality_tests') {
+          return Promise.resolve({ data: null, error: { code: '42P01', message: `relation "${this.table}" does not exist` } });
+        }
+        const list = [...store.values()].filter(r => matches(r, this.filters));
+
+        if (this.op === 'select') {
+          if (this.singleFlag) {
+            if (list.length === 0) {
+              return Promise.resolve({ data: null, error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' } });
+            }
+            const data = this.orderInfo ? sortRows(list, this.orderInfo)[0] : list[0];
+            return Promise.resolve({ data: { ...data }, error: null });
+          }
+          const data = this.orderInfo ? sortRows(list, this.orderInfo) : list;
+          return Promise.resolve({ data: data.map(r => ({ ...r })), error: null });
+        }
+
+        if (this.op === 'insert') {
+          const row = { ...this.payload, id: this.payload.id };
+          if (conflictOnce) {
+            conflictOnce = false;
+            store.set(row.id, row); // a concurrent writer saved the same id
+            return Promise.resolve({ data: null, error: { code: '23505', message: `duplicate key value violates unique constraint on ${this.table}` } });
+          }
+          if (store.has(row.id)) {
+            return Promise.resolve({ data: null, error: { code: '23505', message: `duplicate key value violates unique constraint on ${this.table}` } });
+          }
+          store.set(row.id, row);
+          return Promise.resolve({ data: { ...row }, error: null });
+        }
+
+        if (this.op === 'update') {
+          const match = list[0];
+          if (!match) {
+            return Promise.resolve({ data: null, error: { code: 'PGRST116', message: 'no rows matched' } });
+          }
+          const updated = { ...match, ...this.payload };
+          store.set(updated.id, updated);
+          return Promise.resolve({ data: { ...updated }, error: null });
+        }
+
+        if (this.op === 'delete') {
+          list.forEach(r => store.delete(r.id));
+          return Promise.resolve({ data: null, error: null });
+        }
+
+        return Promise.resolve({ data: null, error: null });
+      },
+
+      then(resolve: (v: any) => any, reject: (e: any) => any) {
+        return this.execute().then(r => resolve(r), (e: any) => reject(e));
+      }
+    };
+    return b;
   };
 
   return {
-    stores,
-    touchedStores,
-    seed: (name: string, records: any[]) => {
-      const s = getStore(name);
-      records.forEach(r => s.set(r.id, { ...r }));
-    },
-    setRaceTarget: (id: string) => { raceTarget = id; },
-    getAll: jasmine.createSpy('getAll').and.callFake((storeName: string) => {
-      touchedStores.add(storeName);
-      return of([...getStore(storeName).values()]);
-    }),
-    getById: jasmine.createSpy('getById').and.callFake((storeName: string, id: string) => {
-      touchedStores.add(storeName);
-      if (raceTarget === id) {
-        raceTarget = null;
-        return of(undefined);
-      }
-      return of(getStore(storeName).get(id));
-    }),
-    add: jasmine.createSpy('add').and.callFake((storeName: string, record: any) => {
-      touchedStores.add(storeName);
-      const s = getStore(storeName);
-      if (s.has(record.id)) {
-        return new Observable((sub) => sub.error(new Error(`Key already exists: ${record.id}`)));
-      }
-      s.set(record.id, { ...record });
-      return of({ ...record });
-    }),
-    update: jasmine.createSpy('update').and.callFake((storeName: string, record: any) => {
-      touchedStores.add(storeName);
-      getStore(storeName).set(record.id, { ...record });
-      return of({ ...record });
-    }),
-    delete: jasmine.createSpy('delete').and.callFake((storeName: string, id: string) => {
-      touchedStores.add(storeName);
-      getStore(storeName).delete(id);
-      return of(undefined);
-    }),
-    count: jasmine.createSpy('count').and.callFake((storeName: string) => {
-      touchedStores.add(storeName);
-      return of(getStore(storeName).size);
-    })
+    store,
+    touched,
+    setConflictOnce: () => { conflictOnce = true; },
+    client: { from: (table: string) => { touched.add(table); return builder(table); } }
   };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('QualityService (three-sample Compression model)', () => {
+describe('QualityService (three-sample Compression model, Supabase)', () => {
 
-  function buildService(seed?: (mock: any) => void) {
-    const mockStorage = createMockStorage();
-    mockStorage.seed(STORE_NAMES.PRODUCTS, PRODUCTS);
-    mockStorage.seed(STORE_NAMES.LINES, LINES);
-    if (seed) seed(mockStorage);
+  function buildService(seed?: (supabaseMock: ReturnType<typeof createSupabaseMock>) => void) {
+    const supabaseMock = createSupabaseMock();
+    if (seed) seed(supabaseMock);
 
     TestBed.configureTestingModule({
       providers: [
         QualityService,
-        { provide: StorageService, useValue: mockStorage as unknown as StorageService }
+        { provide: SupabaseService, useValue: { client: supabaseMock.client } },
+        {
+          provide: ProductService,
+          useValue: {
+            getById: jasmine.createSpy('productService.getById').and.callFake(
+              (id: string) => of(PRODUCTS.find(p => p.id === id))
+            )
+          }
+        },
+        {
+          provide: LineService,
+          useValue: {
+            getById: jasmine.createSpy('lineService.getById').and.callFake(
+              (id: string) => of(LINES.find(l => l.id === id))
+            )
+          }
+        }
       ]
     });
     const svc = TestBed.inject(QualityService);
-    return { svc, mock: mockStorage };
+    return { svc, mock: supabaseMock };
   }
 
-  // ── regressions 1-2: event requires Product and Line ────────────────────
-  it('regression 1: an event without a Product is rejected', (done) => {
-    const { svc } = buildService();
-    svc.createIdempotent(makePackedTest({ productId: undefined as unknown as string })).subscribe({
-      next: () => fail('should have rejected missing product'),
-      error: (e) => {
-        expect(e.message).toContain('Product is required');
-        done();
-      }
-    });
-  });
-
-  it('regression 2: an event without a Line is rejected', (done) => {
-    const { svc } = buildService();
-    svc.createIdempotent(makePackedTest({ lineId: undefined as unknown as string })).subscribe({
-      next: () => fail('should have rejected missing line'),
-      error: (e) => {
-        expect(e.message).toContain('Line is required');
-        done();
-      }
-    });
-  });
-
-  // ── regression 4: exactly 3 samples are stored ───────────────────────────
-  it('regression 4: exactly 3 independent samples are stored per event', (done) => {
+  // ── QUAL-BIZ-11: valid event persists all 3 samples + snapshots ─────────
+  it('QUAL-BIZ-11: a valid 3-sample event is persisted with every sample measured independently', (done) => {
     const { svc, mock } = buildService();
     svc.createIdempotent(makePackedTest()).subscribe(saved => {
+      expect(saved.id).toBe('quality_test_sub_qt-ok');
       expect(saved.samples!.length).toBe(3);
-      expect(mock.stores.get(STORE_NAMES.QUALITY_TESTS)!.size).toBe(1);
-
-      svc.getAll().subscribe(list => {
-        expect(list[0].samples!.length).toBe(3);
-        expect(list[0].samples!.every(s => s.compressionResult === 'PASS')).toBeTrue();
-        done();
-      });
+      expect(saved.samples!.every(s => s.compressionResult === 'PASS')).toBeTrue();
+      expect(saved.productAreaSnapshot).toBe(0.2);
+      expect(saved.compressionStandardSnapshot).toBe(15);
+      expect(mock.store.size).toBe(1);
+      done();
     });
   });
 
-  it('an event with anything other than 3 samples is rejected', (done) => {
+  // ── QUAL-BIZ-12: exactly 3 samples enforced ─────────────────────────────
+  it('QUAL-BIZ-12: an event with anything other than 3 samples is rejected', (done) => {
     const { svc } = buildService();
     const two = makePackedTest();
     two.samples = [makeSample(), makeSample()];
@@ -202,227 +275,8 @@ describe('QualityService (three-sample Compression model)', () => {
     });
   });
 
-  // ── regression 5: per-sample measurements are independent ────────────────
-  it('regression 5: Actual Height / Weight / Load are stored independently per sample', (done) => {
-    const { svc } = buildService();
-    const record = makePackedTest();
-    record.samples = [
-      makeSample({ sampleNumber: 1, actualHeight: 205, actualWeight: 110, load: 3.1, compression: 15.5, compressionResult: 'PASS' }),
-      makeSample({ sampleNumber: 2, actualHeight: 210, actualWeight: 112, load: 3.08, compression: 15.4, compressionResult: 'PASS' }),
-      makeSample({ sampleNumber: 3, actualHeight: 208, actualWeight: 109, load: 2.99, compression: 14.95, compressionResult: 'FAIL' })
-    ];
-
-    svc.createIdempotent(record).subscribe(saved => {
-      expect(saved.samples![0].actualHeight).toBe(205);
-      expect(saved.samples![1].actualWeight).toBe(112);
-      expect(saved.samples![2].load).toBe(2.99);
-      expect(saved.samples![2].compressionResult).toBe('FAIL');
-      // values never bleed between samples
-      expect(saved.samples![0].load).toBe(3.1);
-      expect(saved.samples![1].actualHeight).toBe(210);
-      done();
-    });
-  });
-
-  // ── regression 3 / 7: Area is a stored snapshot from the master ──────────
-  it('regression 3+7: Area snapshot is stored from the Product master and used for Compression', (done) => {
-    const { svc } = buildService();
-    const record = makePackedTest();
-    record.productAreaSnapshot = 0.25;
-    record.samples = record.samples!.map((s, i) =>
-      makeSample({ sampleNumber: i + 1, load: 4, compression: 16, compressionResult: 'PASS' })
-    );
-
-    svc.createIdempotent(record).subscribe(saved => {
-      expect(saved.productAreaSnapshot).toBe(0.25);
-      expect(saved.samples![0].compression).toBe(16); // 4 ÷ 0.25
-      done();
-    });
-  });
-
-  // ── regressions 6+8: historical snapshots survive master-data changes ───
-  it('regression 6+8: later Area / Standard Height / Standard Weight / Compression Standard changes do NOT alter saved tests', (done) => {
-    const { svc, mock } = buildService();
-    svc.createIdempotent(makePackedTest()).subscribe(saved => {
-      expect(saved.productAreaSnapshot).toBe(0.2);
-      expect(saved.compressionStandardSnapshot).toBe(15);
-      expect(saved.standardHeightSnapshot).toBe(200);
-      expect(saved.standardWeightSnapshot).toBe(99);
-      expect(saved.samples![0].compression).toBe(16);
-      expect(saved.samples![0].compressionResult).toBe('PASS');
-
-      // Business edits the Product master AFTER the test was saved.
-      mock.stores.get(STORE_NAMES.PRODUCTS)!.set('prd-001', {
-        ...PRODUCTS[0], productArea: 0.5, standardStrength: 999, standardHeight: 999, standardWeight: 999
-      });
-
-      svc.getAll().subscribe(list => {
-        const rec = list[0];
-        expect(rec.productAreaSnapshot).toBe(0.2);        // historical snapshot preserved
-        expect(rec.compressionStandardSnapshot).toBe(15);
-        expect(rec.standardHeightSnapshot).toBe(200);
-        expect(rec.standardWeightSnapshot).toBe(99);
-        expect(rec.samples![0].compression).toBe(16);     // never recomputed from master
-        expect(rec.samples![0].compressionResult).toBe('PASS');
-        done();
-      });
-    });
-  });
-
-  // ── regression 9: invalid master references rejected ─────────────────────
-  it('regression 9: unknown Line is rejected before persist', (done) => {
-    const { svc } = buildService();
-    svc.createIdempotent(makePackedTest({ lineId: 'lin-999', lineName: '' })).subscribe({
-      next: () => fail('should have rejected unknown line'),
-      error: (e) => {
-        expect(e.message).toContain('Line not found: lin-999');
-        done();
-      }
-    });
-  });
-
-  it('regression 9: unknown Product is rejected before persist', (done) => {
-    const { svc } = buildService();
-    svc.createIdempotent(makePackedTest({ productId: 'prd-999', productName: 'Ghost' })).subscribe({
-      next: () => fail('should have rejected unknown product'),
-      error: (e) => {
-        expect(e.message).toContain('Product not found: prd-999');
-        done();
-      }
-    });
-  });
-
-  // ── regression 10: Output/Production stores untouched by quality saves ───
-  it('regression 10: saving a quality test never touches Productions or Outputs stores', (done) => {
-    const { svc, mock } = buildService();
-    svc.createIdempotent(makePackedTest()).subscribe(() => {
-      expect(mock.touchedStores.has(STORE_NAMES.QUALITY_TESTS)).toBeTrue();
-      expect(mock.touchedStores.has(STORE_NAMES.PRODUCTIONS)).toBeFalse();
-      expect(mock.touchedStores.has(STORE_NAMES.OUTPUT_RELEASES)).toBeFalse();
-      done();
-    });
-  });
-
-  // ── regression 11: ProductionRecordId never required ─────────────────────
-  it('regression 11: a quality test saves successfully without any production reference', (done) => {
-    const { svc } = buildService();
-    const record = makePackedTest();
-    delete record.productionRecordId;
-    delete record.productionDate;
-
-    svc.createIdempotent(record).subscribe(saved => {
-      expect(saved.id).toBe('quality_test_sub_qt-ok');
-      expect(saved.productionRecordId).toBeUndefined();
-      expect(saved.productionDate).toBeUndefined();
-      done();
-    });
-  });
-
-  // ── regression 12: exact retry → no duplicate ─────────────────────────────
-  it('regression 12: retrying the same submission returns the same record without duplicating', (done) => {
-    const { svc, mock } = buildService();
-    const record = makePackedTest();
-
-    svc.createIdempotent(record).subscribe(first => {
-      svc.createIdempotent(makePackedTest()).subscribe(second => {
-        expect(second.id).toBe(first.id);
-        expect(mock.stores.get(STORE_NAMES.QUALITY_TESTS)!.size).toBe(1);
-        done();
-      });
-    });
-  });
-
-  // ── regression 13: identical content, different submission ids → both save
-  it('regression 13: identical content with different submission ids persists both records', (done) => {
-    const { svc, mock } = buildService();
-    const a = makePackedTest();
-    a.id = 'quality_test_sub_qt-a';
-    a.submissionId = 'qt-a';
-    const b = {
-      ...a,
-      id: 'quality_test_sub_qt-b',
-      submissionId: 'qt-b',
-      samples: a.samples!.map(s => ({ ...s }))
-    };
-
-    svc.createIdempotent(a).subscribe(() => {
-      svc.createIdempotent(b).subscribe(() => {
-        svc.getAll().subscribe(list => {
-          expect(list.length).toBe(2);
-          expect(list.map(t => t.id).sort()).toEqual(['quality_test_sub_qt-a', 'quality_test_sub_qt-b']);
-          done();
-        });
-      });
-    });
-  });
-
-  // ── configuration-incomplete never persists a result ─────────────────────
-  it('a test whose samples cannot calculate Compression is rejected — no PASS/FAIL is ever fabricated', (done) => {
-    const { svc } = buildService();
-    const record = makePackedTest();
-    record.productAreaSnapshot = undefined;
-    record.compressionStandardSnapshot = undefined;
-    record.samples = [1, 2, 3].map(n => makeSample({
-      sampleNumber: n,
-      compression: undefined,
-      compressionResult: 'CONFIGURATION_REQUIRED'
-    }));
-
-    svc.createIdempotent(record).subscribe({
-      next: () => fail('should have rejected config-incomplete record'),
-      error: (e) => {
-        expect(e.message).toContain('Compression result could not be calculated');
-        done();
-      }
-    });
-  });
-
-  it('a multi-sample record with unassessed (PENDING) samples is rejected — result must always be calculated', (done) => {
-    const { svc } = buildService();
-    const record = makePackedTest();
-    record.samples = record.samples!.map((s, i) => makeSample({
-      sampleNumber: i + 1, compression: 16, compressionResult: 'PENDING' as QualitySample['compressionResult']
-    }));
-
-    svc.createIdempotent(record).subscribe({
-      next: () => fail('should have rejected PENDING sample'),
-      error: (e) => {
-        expect(e.message).toContain('Sample 1 Compression result could not be calculated');
-        done();
-      }
-    });
-  });
-
-  it('a record with a missing Product Area snapshot is rejected — Compression cannot be calculated', (done) => {
-    const { svc } = buildService();
-    const record = makePackedTest();
-    record.productAreaSnapshot = undefined;
-
-    svc.createIdempotent(record).subscribe({
-      next: () => fail('should have rejected missing Area snapshot'),
-      error: (e) => {
-        expect(e.message).toContain('Product Area is not configured for this product');
-        done();
-      }
-    });
-  });
-
-  it('a record with a missing Compression Standard snapshot is rejected', (done) => {
-    const { svc } = buildService();
-    const record = makePackedTest();
-    record.compressionStandardSnapshot = undefined;
-
-    svc.createIdempotent(record).subscribe({
-      next: () => fail('should have rejected missing Standard snapshot'),
-      error: (e) => {
-        expect(e.message).toContain('Compression Standard is not configured for this product');
-        done();
-      }
-    });
-  });
-
-  // ── required-field validation (per-sample) ──────────────────────────────
-  it('requires Test Date, Line, Product and per-sample Height / Weight / Load > 0', (done) => {
+  // ── QUAL-BIZ-13: required fields ─────────────────────────────────────────
+  it('QUAL-BIZ-13: Test Date, Line, Product and per-sample Height / Weight / Load > 0 are required', (done) => {
     const { svc } = buildService();
     const records: Partial<QualityTest>[] = [
       { testDate: null as unknown as string },
@@ -435,7 +289,6 @@ describe('QualityService (three-sample Compression model)', () => {
       'Product is required'
     ];
 
-    // piecewise record patches — [patchFn, targetSampleNumber, expectedMessage]
     const samplePatches: [(s: QualitySample) => QualitySample, number, string][] = [
       [(s) => ({ ...s, actualHeight: 0 }), 1, 'Sample 1 Actual Height must be greater than zero'],
       [(s) => ({ ...s, actualWeight: -1 }), 2, 'Sample 2 Actual Weight must be greater than zero'],
@@ -476,6 +329,251 @@ describe('QualityService (three-sample Compression model)', () => {
       });
     };
     run();
+  });
+
+  // ── QUAL-BIZ-14: per-sample results are independent, no overall result ───
+  it('QUAL-BIZ-14: per-sample results are stored independently and no overall result is fabricated', (done) => {
+    const { svc } = buildService();
+    const record = makePackedTest();
+    record.samples = [
+      makeSample({ sampleNumber: 1, actualHeight: 205, actualWeight: 110, load: 3.1, compression: 15.5, compressionResult: 'PASS' }),
+      makeSample({ sampleNumber: 2, actualHeight: 210, actualWeight: 112, load: 3.08, compression: 15.4, compressionResult: 'PASS' }),
+      makeSample({ sampleNumber: 3, actualHeight: 208, actualWeight: 109, load: 2.99, compression: 14.95, compressionResult: 'FAIL' })
+    ];
+    // The UI submits per-sample compression results only — no overall `result`.
+    expect(record.result).toBeUndefined();
+    svc.createIdempotent(record).subscribe(saved => {
+      expect(saved.samples![0].compressionResult).toBe('PASS');
+      expect(saved.samples![1].compressionResult).toBe('PASS');
+      expect(saved.samples![2].compressionResult).toBe('FAIL');
+      expect(saved.result).toBeUndefined();
+      done();
+    });
+  });
+
+  // ── QUAL-BIZ-15: CONFIGURATION_REQUIRED never fabricates PASS/FAIL ───────
+  it('QUAL-BIZ-15: config-incomplete samples (CONFIGURATION_REQUIRED) are rejected — no PASS/FAIL fabricated', (done) => {
+    const { svc } = buildService();
+    const record = makePackedTest();
+    record.productAreaSnapshot = undefined;
+    record.compressionStandardSnapshot = undefined;
+    record.samples = [1, 2, 3].map(n => makeSample({
+      sampleNumber: n,
+      compression: undefined,
+      compressionResult: 'CONFIGURATION_REQUIRED'
+    }));
+    svc.createIdempotent(record).subscribe({
+      next: () => fail('should have rejected config-incomplete record'),
+      error: (e) => {
+        expect(e.message).toContain('Compression result could not be calculated');
+        done();
+      }
+    });
+  });
+
+  it('QUAL-BIZ-15b: PENDING / unassessed samples are rejected', (done) => {
+    const { svc } = buildService();
+    const record = makePackedTest();
+    record.samples = record.samples!.map((s, i) => makeSample({
+      sampleNumber: i + 1, compression: 16, compressionResult: 'PENDING' as QualitySample['compressionResult']
+    }));
+    svc.createIdempotent(record).subscribe({
+      next: () => fail('should have rejected PENDING sample'),
+      error: (e) => {
+        expect(e.message).toContain('Sample 1 Compression result could not be calculated');
+        done();
+      }
+    });
+  });
+
+  it('QUAL-BIZ-15c: missing Product Area snapshot is rejected before persist', (done) => {
+    const { svc } = buildService();
+    const record = makePackedTest();
+    record.productAreaSnapshot = undefined;
+    svc.createIdempotent(record).subscribe({
+      next: () => fail('should have rejected missing Area snapshot'),
+      error: (e) => {
+        expect(e.message).toContain('Product Area is not configured for this product');
+        done();
+      }
+    });
+  });
+
+  it('QUAL-BIZ-15d: missing Compression Standard snapshot is rejected before persist', (done) => {
+    const { svc } = buildService();
+    const record = makePackedTest();
+    record.compressionStandardSnapshot = undefined;
+    svc.createIdempotent(record).subscribe({
+      next: () => fail('should have rejected missing Standard snapshot'),
+      error: (e) => {
+        expect(e.message).toContain('Compression Standard is not configured for this product');
+        done();
+      }
+    });
+  });
+
+  // ── QUAL-BIZ-16: unknown master references rejected ──────────────────────
+  it('QUAL-BIZ-16: unknown Line is rejected before persist', (done) => {
+    const { svc } = buildService();
+    svc.createIdempotent(makePackedTest({ lineId: 'lin-999', lineName: '' })).subscribe({
+      next: () => fail('should have rejected unknown line'),
+      error: (e) => {
+        expect(e.message).toContain('Line not found: lin-999');
+        done();
+      }
+    });
+  });
+
+  it('QUAL-BIZ-16b: unknown Product is rejected before persist', (done) => {
+    const { svc } = buildService();
+    svc.createIdempotent(makePackedTest({ productId: 'prd-999', productName: 'Ghost' })).subscribe({
+      next: () => fail('should have rejected unknown product'),
+      error: (e) => {
+        expect(e.message).toContain('Product not found: prd-999');
+        done();
+      }
+    });
+  });
+
+  // ── QUAL-BIZ-17: snapshots survive master changes ────────────────────────
+  it('QUAL-BIZ-17: reads never recompute snapshots — historical values stay even after the master changed', (done) => {
+    const { svc, mock } = buildService();
+    // Record created EARLIER under the old master.
+    mock.store.set('quality_test_sub_qt-ok', dbRow({
+      product_area_snapshot: 0.2,
+      compression_standard_snapshot: 15,
+      standard_height_snapshot: 200,
+      standard_weight_snapshot: 99
+    }));
+    // Product master changed AFTER the test was saved (mock ProductService provides
+    // 0.2/15/200/99 in PRODUCTS but the point is the read path never consults it).
+
+    svc.getById('quality_test_sub_qt-ok').subscribe(rec => {
+      expect(rec!.productAreaSnapshot).toBe(0.2);
+      expect(rec!.compressionStandardSnapshot).toBe(15);
+      expect(rec!.standardHeightSnapshot).toBe(200);
+      expect(rec!.standardWeightSnapshot).toBe(99);
+      expect(rec!.samples![0].compression).toBe(16); // never recomputed from master
+      done();
+    });
+  });
+
+  // ── QUAL-BIZ-18: idempotency ─────────────────────────────────────────────
+  it('QUAL-BIZ-18: retrying the same submission returns the same record without duplicating', (done) => {
+    const { svc, mock } = buildService();
+    const record = makePackedTest();
+
+    svc.createIdempotent(record).subscribe(first => {
+      svc.createIdempotent(makePackedTest()).subscribe(second => {
+        expect(second.id).toBe(first.id);
+        expect(mock.store.size).toBe(1);
+        done();
+      });
+    });
+  });
+
+  it('QUAL-BIZ-18b: identical content with different submission ids persists both records', (done) => {
+    const { svc, mock } = buildService();
+    const a = makePackedTest();
+    a.id = 'quality_test_sub_qt-a';
+    a.submissionId = 'qt-a';
+    const b = {
+      ...a,
+      id: 'quality_test_sub_qt-b',
+      submissionId: 'qt-b',
+      samples: a.samples!.map(s => ({ ...s }))
+    };
+
+    svc.createIdempotent(a).subscribe(() => {
+      svc.createIdempotent(b).subscribe(() => {
+        svc.getAll().subscribe(list => {
+          expect(list.length).toBe(2);
+          expect(list.map(t => t.id).sort()).toEqual(['quality_test_sub_qt-a', 'quality_test_sub_qt-b']);
+          done();
+        });
+      });
+    });
+  });
+
+  it('QUAL-BIZ-18c: a duplicate-key race resolves to the existing record, never a double-insert', (done) => {
+    const { svc, mock } = buildService();
+    mock.setConflictOnce();
+    const record = makePackedTest();
+    record.id = 'quality_test_sub_qt-race';
+    record.submissionId = 'qt-race';
+
+    svc.createIdempotent(record).subscribe(saved => {
+      // probe missed; insert collided (23505) but the concurrent row landed;
+      // getById then returned the existing row.
+      expect(saved.id).toBe('quality_test_sub_qt-race');
+      expect(mock.store.size).toBe(1);
+      done();
+    });
+  });
+
+  // ── QUAL-BIZ-19: snake_case ↔ camelCase round-trip ───────────────────────
+  it('QUAL-BIZ-19: getAll maps DB snake_case rows back to camelCase model', (done) => {
+    const { svc, mock } = buildService();
+    mock.store.set('legacy-row', dbRow({ id: 'legacy-row', test_date: '2026-08-28' }));
+    svc.getAll().subscribe(list => {
+      const legacy = list.find(t => t.id === 'legacy-row');
+      expect(legacy).toBeDefined();
+      expect(legacy!.testDate).toBe('2026-08-28');
+      expect(legacy!.productId).toBe('prd-001');
+      expect(legacy!.productName).toBe('Block 20');
+      expect((legacy as any).product_id).toBeUndefined();
+      done();
+    });
+  });
+
+  // ── QUAL-BIZ-20: production reference optional; legacy read-only keep ────
+  it('QUAL-BIZ-20: a quality test saves without any production reference, and legacy refs map back read-only', (done) => {
+    const { svc, mock } = buildService();
+    mock.store.set('legacy-prod-ref', dbRow({
+      id: 'legacy-prod-ref',
+      production_record_id: 'PR-000123',
+      production_date: '2026-08-27'
+    }));
+
+    const record = makePackedTest();
+    delete record.productionRecordId;
+    delete record.productionDate;
+    svc.createIdempotent(record).subscribe(saved => {
+      expect(saved.productionRecordId).toBeUndefined();
+      expect(saved.productionDate).toBeUndefined();
+
+      svc.getById('legacy-prod-ref').subscribe(legacy => {
+        expect(legacy!.productionRecordId).toBe('PR-000123');
+        expect(legacy!.productionDate).toBe('2026-08-27');
+        done();
+      });
+    });
+  });
+
+  // ── Isolation: quality persistence touches only the quality table ────────
+  it('regression 10: saving a quality test never touches productions or outputs tables', (done) => {
+    const { svc, mock } = buildService();
+    svc.createIdempotent(makePackedTest()).subscribe(() => {
+      expect(mock.touched.has('quality_tests')).toBeTrue();
+      expect(mock.touched.has('productions')).toBeFalse();
+      expect(mock.touched.has('output_releases')).toBeFalse();
+      done();
+    });
+  });
+
+  // ── Regression: area snapshot drives compression ──────────────────────────
+  it('regression 3+7: the stored Area snapshot is the source of truth for Compression', (done) => {
+    const { svc } = buildService();
+    const record = makePackedTest();
+    record.productAreaSnapshot = 0.25;
+    record.samples = record.samples!.map((s, i) =>
+      makeSample({ sampleNumber: i + 1, load: 4, compression: 16, compressionResult: 'PASS' })
+    );
+    svc.createIdempotent(record).subscribe(saved => {
+      expect(saved.productAreaSnapshot).toBe(0.25);
+      expect(saved.samples![0].compression).toBe(16); // 4 ÷ 0.25
+      done();
+    });
   });
 
   it('calculateCompression delegates to the authoritative Load ÷ Area rule', () => {

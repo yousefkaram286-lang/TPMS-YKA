@@ -26,10 +26,9 @@ import { Product } from '../../core/models/product.model';
 import { Line } from '../../core/models/line.model';
 import { MasterDataUtil } from '../../core/utils/master-data.util';
 import { QualityCalculationUtil, resolveQualitySnapshotBasis } from '../../core/utils/quality-calculation.util';
+import { toLocalCalendarString } from '../../core/utils/date.util';
 import { SubmissionGuard } from '../../core/utils/production.util';
 import { forkJoin } from 'rxjs';
-
-type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
 
 @Component({
   selector: 'app-quality',
@@ -96,30 +95,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
               </div>
 
               <div class="form-group">
-                <label>Test Date *</label>
-                <div class="date-input-wrapper">
-                  <input matInput [matDatepicker]="testDatePicker" formControlName="testDate" class="form-control" [class.is-invalid]="isInvalid('testDate')">
-                  <mat-datepicker-toggle matIconSuffix [for]="testDatePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #testDatePicker></mat-datepicker>
-                </div>
-                <div class="invalid-feedback" *ngIf="isInvalid('testDate')">Test Date is required.</div>
-              </div>
-
-              <div class="form-group">
-                <label>Production Reference</label>
-                <input type="text" formControlName="productionRecordId" class="form-control" placeholder="Optional production record ref">
-              </div>
-
-              <div class="form-group">
-                <label>Production Date</label>
-                <div class="date-input-wrapper">
-                  <input matInput [matDatepicker]="prodDatePicker" formControlName="productionDate" class="form-control">
-                  <mat-datepicker-toggle matIconSuffix [for]="prodDatePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #prodDatePicker></mat-datepicker>
-                </div>
-              </div>
-
-              <div class="form-group">
                 <label>Notes</label>
                 <input type="text" formControlName="notes" class="form-control" placeholder="Optional notes">
               </div>
@@ -144,10 +119,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
                 <span class="summary-value font-medium">{{ previewCompressionStandard != null ? previewCompressionStandard : '—' }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">Standard Height</span>
-                <span class="summary-value font-medium">{{ previewStandardHeight != null ? previewStandardHeight : '—' }}</span>
-              </div>
-              <div class="summary-item">
                 <span class="summary-label">Standard Weight (kg)</span>
                 <span class="summary-value font-medium">{{ previewStandardWeight != null ? previewStandardWeight : '—' }}</span>
               </div>
@@ -162,8 +133,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
                     <tr>
                       <th>Sample</th>
                       <th>Actual Height</th>
-                      <th>Std Height</th>
-                      <th>Ht Diff</th>
                       <th>Actual Wt (kg)</th>
                       <th>Std Wt (kg)</th>
                       <th>Wt Diff (kg)</th>
@@ -183,8 +152,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
                           [class.is-invalid]="sampleInvalid(i, 'actualHeight')">
                         <div class="invalid-feedback" *ngIf="sampleInvalid(i, 'actualHeight')">H &gt; 0</div>
                       </td>
-                      <td class="readonly-cell">{{ previewStandardHeight != null ? previewStandardHeight : '—' }}</td>
-                      <td class="readonly-cell">{{ computedSamples[i].heightDifference ?? '—' }}</td>
                       <td>
                         <input type="number" min="0.01" step="0.1" formControlName="actualWeight"
                           class="form-control sample-input"
@@ -218,8 +185,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
                     <tr class="averages-row">
                       <td class="sample-label">AVERAGE FOR THIS LINE / TEST EVENT</td>
                       <td class="avg-cell">{{ avgActualHeight ?? '—' }}</td>
-                      <td></td>
-                      <td class="avg-cell">{{ avgHeightDiff ?? '—' }}</td>
                       <td class="avg-cell">{{ avgActualWeight ?? '—' }}</td>
                       <td></td>
                       <td class="avg-cell">{{ avgWeightDiff ?? '—' }}</td>
@@ -292,15 +257,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
                 <option *ngFor="let line of activeLines" [value]="line.id">{{ line.name }}</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label>Result Filter:</label>
-              <select [(ngModel)]="resultFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Results</option>
-                <option value="PASS">PASS</option>
-                <option value="FAIL">FAIL</option>
-                <option value="CONFIGURATION_REQUIRED">CONFIGURATION REQUIRED</option>
-              </select>
-            </div>
             <button type="button" class="btn-text" (click)="clearFilters()">Clear Filters</button>
           </div>
 
@@ -335,11 +291,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
                   </td>
                 </ng-container>
 
-                <ng-container matColumnDef="testDate">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Test Date </th>
-                  <td mat-cell *matCellDef="let element"> {{element.testDate | date:'shortDate'}} </td>
-                </ng-container>
-
                 <ng-container matColumnDef="samples">
                   <th mat-header-cell *matHeaderCellDef> Samples </th>
                   <td mat-cell *matCellDef="let element"> {{ element.samples?.length ?? 1 }} </td>
@@ -350,18 +301,6 @@ type EventResult = 'PASS' | 'FAIL' | 'CONFIGURATION_REQUIRED' | 'PENDING';
                   <td mat-cell *matCellDef="let element">
                     <span *ngIf="avgCompressionOf(element) != null">{{ avgCompressionOf(element) | number:'1.2-2' }}</span>
                     <span *ngIf="avgCompressionOf(element) == null" class="no-result">CONFIGURATION REQUIRED</span>
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="result">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Result </th>
-                  <td mat-cell *matCellDef="let element">
-                    <app-status-badge
-                      [label]="eventResult(element)"
-                      [variant]="eventResult(element) === 'PASS' ? 'success' : eventResult(element) === 'FAIL' ? 'error' : 'warning'"
-                      [icon]="eventResult(element) === 'PASS' ? 'check_circle' : eventResult(element) === 'FAIL' ? 'cancel' : 'help'"
-                      size="sm">
-                    </app-status-badge>
                   </td>
                 </ng-container>
 
@@ -771,7 +710,6 @@ export class QualityComponent implements OnInit, OnDestroy {
   avgActualWeight: number | undefined;
   avgLoad: number | undefined;
   avgCompression: number | undefined;
-  avgHeightDiff: number | undefined;
   avgWeightDiff: number | undefined;
 
   configMessages: string[] = [];
@@ -783,20 +721,18 @@ export class QualityComponent implements OnInit, OnDestroy {
   dataSource = new MatTableDataSource<QualityTest>();
   loadingHistory = true;
   searchTerm = '';
-  historyColumns: string[] = ['date', 'product', 'line', 'testDate', 'samples', 'avgCompression', 'result', 'actions'];
+  historyColumns: string[] = ['date', 'product', 'line', 'samples', 'avgCompression', 'actions'];
 
   // Filters
   dateFilter = '';
   productFilter = '';
   lineFilter = '';
-  resultFilter = '';
 
   get activeFilters(): string[] {
     const filters: string[] = [];
     if (this.dateFilter) filters.push('date');
     if (this.productFilter) filters.push('product');
     if (this.lineFilter) filters.push('line');
-    if (this.resultFilter) filters.push('result');
     return filters;
   }
 
@@ -819,9 +755,6 @@ export class QualityComponent implements OnInit, OnDestroy {
       date: [new Date(), Validators.required],
       productId: ['', Validators.required],
       lineId: ['', Validators.required],
-      testDate: [new Date(), Validators.required],
-      productionRecordId: [''],
-      productionDate: [null],
       notes: [''],
       samples: this.fb.array([this.createSampleGroup(), this.createSampleGroup(), this.createSampleGroup()])
     });
@@ -896,9 +829,6 @@ export class QualityComponent implements OnInit, OnDestroy {
       if (!MasterDataUtil.isConfiguredPositive(this.previewCompressionStandard)) {
         messages.push('Compression Standard is not configured for this product.');
       }
-      if (!MasterDataUtil.isConfiguredPositive(this.previewStandardHeight)) {
-        messages.push('Standard Height is not configured — Height Difference will not be calculated.');
-      }
       if (!MasterDataUtil.isConfiguredPositive(this.previewStandardWeight)) {
         messages.push('Standard Weight is not configured — Weight Difference will not be calculated.');
       }
@@ -914,7 +844,6 @@ export class QualityComponent implements OnInit, OnDestroy {
     const product = this.selectedProduct;
     const area = this.previewProductArea;
     const std = this.previewCompressionStandard;
-    const stdHeight = this.previewStandardHeight;
     const stdWeight = this.previewStandardWeight;
 
     this.computedSamples = this.sampleGroups().map((group, i) => {
@@ -928,8 +857,6 @@ export class QualityComponent implements OnInit, OnDestroy {
         load,
         compression: evaluation.compression != null ? QualityCalculationUtil.roundToDecimals(evaluation.compression) : NaN,
         compressionResult: evaluation.compressionResult,
-        heightDifference: QualityCalculationUtil.heightDifference(
-          typeof raw.actualHeight === 'number' ? raw.actualHeight : NaN, stdHeight),
         weightDifference: QualityCalculationUtil.weightDifference(
           typeof raw.actualWeight === 'number' ? raw.actualWeight : NaN, stdWeight)
       };
@@ -940,10 +867,7 @@ export class QualityComponent implements OnInit, OnDestroy {
     this.avgLoad = QualityCalculationUtil.average(this.computedSamples.map(s => s.load));
     this.avgCompression = QualityCalculationUtil.averageCompression(
       this.computedSamples.map(s => Number.isFinite(s.compression) ? s.compression : undefined));
-    const stdHeightValid = MasterDataUtil.isConfiguredPositive(this.previewStandardHeight);
     const stdWeightValid = MasterDataUtil.isConfiguredPositive(this.previewStandardWeight);
-    this.avgHeightDiff = stdHeightValid && this.avgActualHeight != null
-      ? QualityCalculationUtil.roundToDecimals(this.avgActualHeight - (this.previewStandardHeight as number)) : undefined;
     this.avgWeightDiff = stdWeightValid && this.avgActualWeight != null
       ? QualityCalculationUtil.roundToDecimals(this.avgActualWeight - (this.previewStandardWeight as number)) : undefined;
   }
@@ -974,21 +898,21 @@ export class QualityComponent implements OnInit, OnDestroy {
     }
     const submissionId = this.pendingSubmissionId ?? this.editingId!;
 
+    const submittedDate = this.formatDate(formValue.date);
+
     const test: QualityTest = {
       id: this.editingId || `quality_test_sub_${submissionId}`,
       submissionId: this.editingId ? undefined : submissionId,
-      date: this.formatDate(formValue.date),
+      date: submittedDate,
       productId: formValue.productId,
       productName: product?.name ?? this.editingOriginal?.productName ?? 'Unknown Product',
       lineId: formValue.lineId,
       lineName: line?.name ?? '',
-      testDate: this.formatDate(formValue.testDate),
+      testDate: submittedDate,
       productAreaSnapshot: this.previewProductArea,
       compressionStandardSnapshot: this.previewCompressionStandard,
       standardHeightSnapshot: this.previewStandardHeight,
       standardWeightSnapshot: this.previewStandardWeight,
-      productionRecordId: (formValue.productionRecordId || '').trim() || undefined,
-      productionDate: formValue.productionDate ? this.formatDate(formValue.productionDate) : undefined,
       notes: (formValue.notes || '').trim() || undefined,
       samples,
       decisionSource: 'AUTO_CALCULATED',
@@ -1017,17 +941,6 @@ export class QualityComponent implements OnInit, OnDestroy {
     });
   }
 
-  eventResult(test: QualityTest): EventResult {
-    if (!test.samples || test.samples.length === 0) {
-      return test.result ?? 'PENDING';
-    }
-    const allPass = test.samples.every(s => s.compressionResult === 'PASS');
-    const anyFail = test.samples.some(s => s.compressionResult === 'FAIL');
-    if (allPass) return 'PASS';
-    if (anyFail) return 'FAIL';
-    return 'CONFIGURATION_REQUIRED';
-  }
-
   avgCompressionOf(test: QualityTest): number | undefined {
     if (!test.samples?.length) {
       return test.compression ?? test.strength;
@@ -1045,9 +958,6 @@ export class QualityComponent implements OnInit, OnDestroy {
       date: new Date(record.date),
       productId: record.productId,
       lineId: record.lineId ?? '',
-      testDate: new Date(record.testDate),
-      productionRecordId: record.productionRecordId ?? '',
-      productionDate: record.productionDate ? new Date(record.productionDate) : null,
       notes: record.notes ?? ''
     });
 
@@ -1124,9 +1034,6 @@ export class QualityComponent implements OnInit, OnDestroy {
       date: new Date(),
       productId: '',
       lineId: '',
-      testDate: new Date(),
-      productionRecordId: '',
-      productionDate: null,
       notes: ''
     });
     (this.qualityForm.get('samples') as FormArray).controls.forEach(group => {
@@ -1146,7 +1053,6 @@ export class QualityComponent implements OnInit, OnDestroy {
       const matchesSearch = !this.searchTerm ||
         record.productName.toLowerCase().includes(searchLower) ||
         sampleText.includes(searchLower) ||
-        this.eventResult(record).toLowerCase().includes(searchLower) ||
         lineName.toLowerCase().includes(searchLower);
 
       let matchesDate = true;
@@ -1171,9 +1077,8 @@ export class QualityComponent implements OnInit, OnDestroy {
 
       const matchesProduct = !this.productFilter || record.productId === this.productFilter;
       const matchesLine = !this.lineFilter || record.lineId === this.lineFilter;
-      const matchesResult = !this.resultFilter || this.eventResult(record) === this.resultFilter;
 
-      return matchesSearch && matchesDate && matchesProduct && matchesLine && matchesResult;
+      return matchesSearch && matchesDate && matchesProduct && matchesLine;
     });
 
     this.dataSource.data = this.filteredHistory;
@@ -1183,7 +1088,6 @@ export class QualityComponent implements OnInit, OnDestroy {
     this.dateFilter = '';
     this.productFilter = '';
     this.lineFilter = '';
-    this.resultFilter = '';
     this.applyFilter();
   }
 
@@ -1253,6 +1157,6 @@ export class QualityComponent implements OnInit, OnDestroy {
   }
 
   private formatDate(date: Date): string {
-    return date.toISOString().split('T')[0];
+    return toLocalCalendarString(date);
   }
 }

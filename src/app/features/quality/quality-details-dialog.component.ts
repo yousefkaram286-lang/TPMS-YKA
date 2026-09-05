@@ -26,10 +26,6 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
           <span class="detail-label">Date:</span>
           <span class="detail-value">{{ data.record.date | date:'shortDate' }}</span>
         </div>
-        <div class="detail-item">
-          <span class="detail-label">Test Date:</span>
-          <span class="detail-value">{{ data.record.testDate | date:'shortDate' }}</span>
-        </div>
         <div class="detail-item" *ngIf="data.record.productionRecordId || data.record.productionDate">
           <span class="detail-label">Production Reference:</span>
           <span class="detail-value">
@@ -56,8 +52,6 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
               <tr>
                 <th>Sample</th>
                 <th>Act Ht</th>
-                <th>Std Ht</th>
-                <th>Ht Diff</th>
                 <th>Act Wt (kg)</th>
                 <th>Std Wt (kg)</th>
                 <th>Wt Diff (kg)</th>
@@ -70,8 +64,6 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
               <tr *ngFor="let s of data.record.samples; let i = index">
                 <td class="sample-label">Sample {{ i + 1 }}</td>
                 <td>{{ s.actualHeight }}</td>
-                <td class="snapshot">{{ data.record.standardHeightSnapshot ?? '—' }}</td>
-                <td>{{ s.heightDifference ?? '—' }}</td>
                 <td>{{ s.actualWeight }}</td>
                 <td class="snapshot">{{ data.record.standardWeightSnapshot ?? '—' }}</td>
                 <td>{{ s.weightDifference ?? '—' }}</td>
@@ -89,8 +81,6 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
               <tr class="averages-row" *ngIf="(data.record.samples?.length ?? 0) === 3">
                 <td class="sample-label">AVERAGE (this test event)</td>
                 <td>{{ avg.height }}</td>
-                <td></td>
-                <td>{{ avg.heightDiff }}</td>
                 <td>{{ avg.weight }}</td>
                 <td></td>
                 <td>{{ avg.weightDiff }}</td>
@@ -212,7 +202,7 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
   `]
 })
 export class QualityDetailsDialogComponent {
-  avg: { height?: number; weight?: number; load?: number; compression?: number; heightDiff?: number; weightDiff?: number } = {};
+  avg: { height?: number; weight?: number; load?: number; compression?: number; weightDiff?: number } = {};
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: {
@@ -226,7 +216,6 @@ export class QualityDetailsDialogComponent {
       this.avg.load = QualityCalculationUtil.average(samples.map(s => s.load));
       this.avg.compression = QualityCalculationUtil.averageCompression(
         samples.map(s => Number.isFinite(s.compression) ? s.compression : undefined));
-      this.avg.heightDiff = QualityCalculationUtil.average(samples.map(s => s.heightDifference).filter((d): d is number => d != null));
       this.avg.weightDiff = QualityCalculationUtil.average(samples.map(s => s.weightDifference).filter((d): d is number => d != null));
     }
   }

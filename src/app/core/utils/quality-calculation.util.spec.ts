@@ -168,6 +168,83 @@ describe('QualityCalculationUtil (Compression = Load ÷ Area)', () => {
   });
 });
 
+// ═══════════ QUAL-BIZ BUSINESS RULES (pure, runnable without DB) ═══════════
+
+describe('QUAL-BIZ business rules (QualityCalculationUtil)', () => {
+
+  it('QUAL-BIZ-01. Compression is Load ÷ Product Area in factory field units', () => {
+    // Solid-12 field truth: Load 37 kN ÷ Area 0.2 m² = 185 kg/cm²
+    expect(QualityCalculationUtil.calculateCompression(37, 0.2)).toBe(185);
+    // Toblat block: Load 16 kN ÷ 0.16 m² = 100
+    expect(QualityCalculationUtil.calculateCompression(16, 0.16)).toBe(100);
+  });
+
+  it('QUAL-BIZ-02. PASS boundary: Compression equal to Standard counts as PASS', () => {
+    expect(QualityCalculationUtil.evaluate(180, 180)).toBe('PASS');
+    expect(QualityCalculationUtil.evaluateSample(36, 0.2, 180).compressionResult).toBe('PASS');
+  });
+
+  it('QUAL-BIZ-03. FAIL below Standard: 179 < 180 → FAIL', () => {
+    expect(QualityCalculationUtil.evaluate(179, 180)).toBe('FAIL');
+    expect(QualityCalculationUtil.evaluateSample(35.8, 0.2, 180).compressionResult).toBe('FAIL');
+  });
+
+  it('QUAL-BIZ-04. Per-sample PASS/FAIL is independent — three samples never share a verdict', () => {
+    const a = QualityCalculationUtil.evaluateSample(37, 0.2, 180); // 185 → PASS
+    const b = QualityCalculationUtil.evaluateSample(36, 0.2, 180); // 180 → PASS
+    const c = QualityCalculationUtil.evaluateSample(30, 0.2, 180); // 150 → FAIL
+    expect([a.compressionResult, b.compressionResult, c.compressionResult]).toEqual(['PASS', 'PASS', 'FAIL']);
+    // No overall verdict is produced by the util layer — only a numeric average.
+    expect(QualityCalculationUtil.averageCompression([185, 180, 150])).toBe(171.67);
+  });
+
+  it('QUAL-BIZ-05. CONFIGURATION_REQUIRED is a real PENDING state — never PASS/FAIL', () => {
+    expect(CONFIGURATION_REQUIRED).toBe('CONFIGURATION_REQUIRED');
+    expect(QualityCalculationUtil.evaluateSample(37, 0, 180).compressionResult).toBe(CONFIGURATION_REQUIRED);
+    expect(QualityCalculationUtil.evaluateSample(37, 0.2, 0).compressionResult).toBe(CONFIGURATION_REQUIRED);
+    expect(QualityCalculationUtil.evaluateSample(37, 0.2, 180).compressionResult).not.toBe(CONFIGURATION_REQUIRED);
+  });
+
+  it('QUAL-BIZ-06. Non-finite or non-positive Load never fabricates a Compression value', () => {
+    expect(QualityCalculationUtil.calculateCompression(NaN, 0.2)).toBeUndefined();
+    expect(QualityCalculationUtil.calculateCompression(0, 0.2)).toBeUndefined();
+    expect(QualityCalculationUtil.calculateCompression(-5, 0.2)).toBeUndefined();
+  });
+
+  it('QUAL-BIZ-07. Average Compression needs all three samples; partial averages are never invented', () => {
+    expect(QualityCalculationUtil.averageCompression([180, 190, 185])).toBe(185);
+    expect(QualityCalculationUtil.averageCompression([180, 190, undefined])).toBeUndefined();
+    expect(QualityCalculationUtil.averageCompression([])).toBeUndefined();
+    expect(QualityCalculationUtil.averageCompression([180, 190, 'x'] as unknown as number[])).toBeUndefined();
+  });
+
+  it('QUAL-BIZ-08. Height/Weight differences are reference-only, and only when the standard is configured', () => {
+    expect(QualityCalculationUtil.heightDifference(205, 200)).toBe(5);
+    expect(QualityCalculationUtil.heightDifference(205, undefined)).toBeUndefined();
+    expect(QualityCalculationUtil.weightDifference(101, 99)).toBe(2);
+    expect(QualityCalculationUtil.weightDifference(101, 0)).toBeUndefined();
+  });
+
+  it('QUAL-BIZ-09. Snapshot basis: new events take the current master; edits keep historical snapshots', () => {
+    const historical = { productArea: 0.2, compressionStandard: 180, standardHeight: 200, standardWeight: 99 };
+    const current = { productArea: 0.25, compressionStandard: 190, standardHeight: 210, standardWeight: 110 };
+    const basis = resolveQualitySnapshotBasis({
+      isEdit: true, productChanged: false, historical, current
+    });
+    expect(basis.productArea).toBe(0.2);
+    expect(basis.compressionStandard).toBe(180);
+    const fresh = resolveQualitySnapshotBasis({
+      isEdit: false, productChanged: false, historical, current
+    });
+    expect(fresh.compressionStandard).toBe(190);
+  });
+
+  it('QUAL-BIZ-10. roundToDecimals removes FP noise at 2 decimals', () => {
+    expect(QualityCalculationUtil.roundToDecimals(185.00000000004, 2)).toBe(185);
+    expect(QualityCalculationUtil.roundToDecimals(14.95, 2)).toBe(14.95);
+  });
+});
+
 // ═══════════ QUAL HISTORICAL-INTEGRITY (CURRENT master → NEW, SNAPSHOTS → EXISTING) ═══════════
 
 describe('Quality snapshot historical integrity (resolveQualitySnapshotBasis)', () => {
