@@ -11,9 +11,13 @@
 // ── Layout ──────────────────────────────────────────────
 .users-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 35%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
   gap: var(--space-6);
   align-items: start;
+
+  @media (min-width: 1280px) {
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  }
 
   @media (max-width: 1100px) {
     grid-template-columns: 1fr;
@@ -335,7 +339,7 @@
 
 .tpms-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 820px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -359,7 +363,7 @@
       transition: background var(--transition-fast);
 
       td {
-        padding: 13px var(--space-3);
+        padding: 11px var(--space-3);
         font-size: var(--text-sm);
         color: var(--text-primary);
         border-bottom: 1px solid var(--border-subtle);
@@ -376,12 +380,12 @@
   }
 
   // Column balance — no text collision, username gets enough room.
-  .col-user     { width: 24%; }
+  .col-user     { width: 22%; }
   .col-username { width: 20%; }
-  .col-role     { width: 12%; }
-  .col-status   { width: 13%; }
+  .col-role     { width: 11%; }
+  .col-status   { width: 12%; }
   .col-created  { width: 13%; }
-  .col-actions  { width: 18%; }
+  .col-actions  { width: 22%; }
 
   // Actions stay reachable: pin the column to the right edge of the scroll
   // container so Edit / Activate / Deactivate are always visible.
@@ -454,7 +458,7 @@
 
 .username-text {
   display: block;
-  max-width: 150px;
+  max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: var(--weight-normal);
@@ -554,15 +558,33 @@
   gap: var(--space-2);
 }
 
+// Edit control in each row: clearly visible but compact icon button.
+.tpms-table .btn-icon-only {
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface);
+
+  &:hover:not(:disabled) {
+    background: var(--primary-50);
+    color: var(--primary);
+    border-color: var(--primary-100);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 .action-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
+  gap: 5px;
+  padding: 5px 10px;
   font-family: var(--font-sans);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   border: 1px solid;
   border-radius: var(--radius-full);
   cursor: pointer;
@@ -570,9 +592,9 @@
   white-space: nowrap;
 
   mat-icon {
-    font-size: 15px;
-    width: 15px;
-    height: 15px;
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
   }
 
