@@ -143,6 +143,7 @@
               <th class="col-role">Role</th>
               <th class="col-status">Status</th>
               <th class="col-created">Created</th>
+              <th class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -174,10 +175,154 @@
               <td class="col-created">
                 <span class="created-text">{{ u.createdAt ? (u.createdAt | date: 'mediumDate') : '—' }}</span>
               </td>
+              <td class="col-actions">
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="btn-icon-only btn-sm"
+                    (click)="openEdit(u)"
+                    [attr.aria-label]="'Edit ' + (u.displayName || u.username)"
+                    [title]="'Edit ' + (u.displayName || u.username)"
+                    [disabled]="busyUser === u.id"
+                  >
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    type="button"
+                    class="action-toggle"
+                    [ngClass]="u.active ? 'action-toggle--deactivate' : 'action-toggle--activate'"
+                    (click)="toggleActive(u)"
+                    [disabled]="busyUser === u.id || (u.active && isSelf(u))"
+                    [title]="u.active && isSelf(u)
+                      ? 'You cannot deactivate your own account'
+                      : (u.active ? 'Deactivate ' + (u.displayName || u.username) : 'Activate ' + (u.displayName || u.username))"
+                  >
+                    <span class="action-toggle__spinner" *ngIf="busyUser === u.id"></span>
+                    <mat-icon *ngIf="busyUser !== u.id">{{ u.active ? 'block' : 'check_circle' }}</mat-icon>
+                    <span *ngIf="busyUser !== u.id">{{ u.active ? 'Deactivate' : 'Activate' }}</span>
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </app-card>
+  </div>
+
+  <!-- Edit User Dialog -->
+  <div class="edit-overlay" *ngIf="editingUser" (click)="closeEdit()">
+    <div
+      class="edit-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-user-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="edit-dialog__header">
+        <div>
+          <h3 id="edit-user-title">Edit User</h3>
+          <p class="edit-dialog__subtitle">{{ editingUser.displayName || editingUser.username }}</p>
+        </div>
+        <button
+          type="button"
+          class="btn-icon-only btn-sm"
+          (click)="closeEdit()"
+          [attr.aria-label]="'Close edit dialog'"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div *ngIf="editMessage" class="alert" [ngClass]="{'alert-success': editMessage.success, 'alert-error': !editMessage.success}">
+        <mat-icon>{{ editMessage.success ? 'check_circle' : 'error' }}</mat-icon>
+        {{ editMessage.text }}
+      </div>
+
+      <form [formGroup]="editForm" (ngSubmit)="saveEdit()" novalidate class="users-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-displayName">Display Name</label>
+            <input
+              type="text"
+              id="edit-displayName"
+              formControlName="displayName"
+              class="form-control"
+              autocomplete="off"
+              [class.is-invalid]="editForm.get('displayName')?.invalid && editForm.get('displayName')?.touched"
+            />
+            <div class="invalid-feedback" *ngIf="editForm.get('displayName')?.invalid && editForm.get('displayName')?.touched">
+              Display name is required.
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="edit-username">Username</label>
+            <input
+              type="text"
+              id="edit-username"
+              formControlName="username"
+              class="form-control"
+              autocomplete="off"
+              [class.is-invalid]="editForm.get('username')?.invalid && editForm.get('username')?.touched"
+            />
+            <div class="invalid-feedback" *ngIf="editForm.get('username')?.invalid && editForm.get('username')?.touched">
+              Username is required.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-role">Role</label>
+            <select
+              id="edit-role"
+              formControlName="role"
+              class="form-select"
+              [disabled]="isSelf(editingUser)"
+            >
+              <option value="User">User</option>
+              <option value="Admin">Admin</option>
+            </select>
+            <div class="edit-field-note" *ngIf="isSelf(editingUser)">
+              You cannot change your own role.
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <label class="form-checkbox" [class.is-disabled]="isSelf(editingUser)">
+              <input
+                type="checkbox"
+                formControlName="active"
+                [disabled]="isSelf(editingUser)"
+              />
+              <span>Active account (disabled accounts cannot log in)</span>
+            </label>
+            <div class="edit-field-note" *ngIf="isSelf(editingUser)">
+              You cannot deactivate your own account.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            (click)="closeEdit()"
+            [disabled]="saving"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn-primary"
+            [disabled]="editForm.invalid || saving"
+          >
+            <mat-icon *ngIf="!saving">save</mat-icon>
+            <span class="btn-spinner" *ngIf="saving"></span>
+            {{ saving ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>

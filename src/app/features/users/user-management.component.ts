@@ -6,6 +6,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { AppCardComponent } from '../../shared/components/app-card/app-card.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { UserManagementService } from '../../core/services/user-management.service';
+import { AuthService } from '../../core/services/auth.service';
 import { User } from '../../core/models/user.model';
 
 @Component({
@@ -18,10 +19,15 @@ import { User } from '../../core/models/user.model';
 export class UserManagementComponent implements OnInit {
   private fb = inject(FormBuilder);
   private userSvc = inject(UserManagementService);
+  private auth = inject(AuthService);
+
+  readonly currentUser = this.auth.currentUser;
 
   users: User[] = [];
   loading = true;
   creating = false;
+  saving = false;
+  busyUser: string | null = null;
 
   message: { success: boolean; text: string } | null = null;
 
@@ -30,6 +36,16 @@ export class UserManagementComponent implements OnInit {
     password: ['', [Validators.required, Validators.minLength(6)]],
     username: ['', [Validators.required]],
     displayName: ['']
+  });
+
+  editingUser: User | null = null;
+  editMessage: { success: boolean; text: string } | null = null;
+
+  editForm: FormGroup = this.fb.group({
+    displayName: ['', [Validators.required]],
+    username: ['', [Validators.required]],
+    role: ['User', [Validators.required]],
+    active: [true]
   });
 
   ngOnInit(): void {
@@ -70,5 +86,107 @@ export class UserManagementComponent implements OnInit {
         setTimeout(() => this.message = null, 3000);
       }
     }
+  }
+
+  // ── Edit / Activate / Deactivate ──────────────────────────────────
+
+  isSelf(user: User): boolean {
+    const me = this.currentUser();
+    return !!me && me.id === user.id;
+  }
+
+  openEdit(user: User): void {
+    this.editingUser = user;
+    this.editMessage = null;
+    this.editForm.setValue({
+      displayName: user.displayName || '',
+      username: user.username || '',
+      role: user.role,
+      active: user.active
+    });
+  }
+
+  closeEdit(): void {
+    this.editingUser = null;
+    this.editMessage = null;
+  }
+
+  async saveEdit(): Promise<void> {
+    const target = this.editingUser;
+    if (!target || this.editForm.invalid) return;
+
+    const { displayName, username, role, active } = this.editForm.value;
+
+    // Safety guard (UI-level, no RLS change): an admin must not lock
+    // themselves out by demoting or deactivating their own account.
+    if (this.isSelf(target) && (role !== 'Admin' || !active)) {
+      this.editMessage = {
+        success: false,
+        text: 'You cannot change the role of or deactivate your own account.'
+      };
+      return;
+    }
+
+    this.saving = true;
+    this.editMessage = null;
+
+    try {
+      const result = await this.userSvc.updateUser(target.id, {
+        displayName,
+        username,
+        role,
+        active
+      });
+
+      if (result.success) {
+        this.closeEdit();
+        await this.loadUsers();
+        this.message = { success: true, text: 'User updated successfully.' };
+        this.scheduleMessageClear();
+      } else {
+        this.editMessage = { success: false, text: result.error || 'Failed to update user.' };
+      }
+    } catch (err) {
+      this.editMessage = { success: false, text: 'An unexpected error occurred.' };
+    } finally {
+      this.saving = false;
+    }
+  }
+
+  async toggleActive(user: User): Promise<void> {
+    if (user.active && this.isSelf(user)) {
+      this.message = { success: false, text: 'You cannot deactivate your own account.' };
+      this.scheduleMessageClear();
+      return;
+    }
+    if (this.busyUser) return;
+
+    this.busyUser = user.id;
+    this.message = null;
+
+    const name = user.displayName || user.username || 'User';
+
+    try {
+      const result = await this.userSvc.updateUser(user.id, { active: !user.active });
+
+      if (result.success) {
+        await this.loadUsers();
+        this.message = {
+          success: true,
+          text: user.active ? `${name} has been deactivated.` : `${name} has been activated.`
+        };
+        this.scheduleMessageClear();
+      } else {
+        this.message = { success: false, text: result.error || 'Failed to update user status.' };
+      }
+    } catch (err) {
+      this.message = { success: false, text: 'An unexpected error occurred.' };
+    } finally {
+      this.busyUser = null;
+    }
+  }
+
+  private scheduleMessageClear(): void {
+    setTimeout(() => this.message = null, 4000);
   }
 }

@@ -368,11 +368,12 @@
   }
 
   // Column balance — no text collision, username gets enough room.
-  .col-user     { width: 30%; }
-  .col-username { width: 26%; }
-  .col-role     { width: 14%; }
-  .col-status   { width: 16%; }
-  .col-created  { width: 14%; }
+  .col-user     { width: 24%; }
+  .col-username { width: 20%; }
+  .col-role     { width: 12%; }
+  .col-status   { width: 13%; }
+  .col-created  { width: 13%; }
+  .col-actions  { width: 18%; }
 }
 
 .user-cell {
@@ -516,4 +517,175 @@
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+// ── Row actions ───────────────────────────────────────────
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.action-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.03em;
+  border: 1px solid;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform 0.15s ease;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &--deactivate {
+    background: var(--error-light);
+    color: var(--error-dark);
+    border-color: rgba(185, 74, 72, 0.35);
+
+    &:hover:not(:disabled) {
+      background: var(--error);
+      color: #fff;
+      border-color: transparent;
+    }
+  }
+
+  &--activate {
+    background: var(--success-light);
+    color: var(--success-dark);
+    border-color: rgba(16, 185, 129, 0.35);
+
+    &:hover:not(:disabled) {
+      background: var(--success);
+      color: #fff;
+      border-color: transparent;
+    }
+  }
+
+  :host-context([data-theme="dark"]) & {
+    &--deactivate {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    &--activate {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+  }
+}
+
+.action-toggle__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+// ── Edit dialog ───────────────────────────────────────────
+.edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  animation: editOverlayIn 0.2s ease;
+}
+
+.edit-dialog {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  animation: editDialogIn 0.22s ease;
+
+  h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  &__subtitle {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding-top: var(--space-5);
+    margin-top: var(--space-2);
+    border-top: 1px solid var(--border-subtle);
+
+    .btn-primary {
+      min-width: 150px;
+      height: 42px;
+      border-radius: var(--radius-md);
+    }
+  }
+
+  .form-checkbox.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+.edit-field-note {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: 6px;
+}
+
+@keyframes editOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes editDialogIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }

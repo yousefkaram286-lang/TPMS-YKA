@@ -21,6 +21,14 @@ export interface CreateUserResult {
   error?: string;
 }
 
+/** Whitelisted profile fields an admin may edit from the Users page. */
+export interface UpdateUserPatch {
+  username?: string;
+  displayName?: string;
+  role?: 'Admin' | 'User';
+  active?: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -76,5 +84,33 @@ export class UserManagementService {
     }
 
     return { success: true, email: body?.user?.email ?? input.email };
+  }
+
+  /**
+   * Updates ONLY the whitelisted profile fields of an existing user's
+   * profiles row. Email, password and id are never touched here — those
+   * belong to Supabase Auth and are out of scope for the Users page.
+   * RLS + guardian triggers still enforce that only Admins may change
+   * role / active (the client publishes only the user's JWT).
+   */
+  async updateUser(id: string, patch: UpdateUserPatch): Promise<CreateUserResult> {
+    const payload: Record<string, unknown> = {
+      ['updated_at']: new Date().toISOString()
+    };
+    if (patch.displayName !== undefined) payload['display_name'] = patch.displayName;
+    if (patch.username !== undefined) payload['username'] = patch.username;
+    if (patch.role !== undefined) payload['role'] = patch.role;
+    if (patch.active !== undefined) payload['active'] = patch.active;
+
+    const { error } = await this.supabaseService.client
+      .from('profiles')
+      .update(payload)
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
   }
 }
