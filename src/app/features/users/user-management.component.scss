@@ -11,7 +11,7 @@
 // ── Layout ──────────────────────────────────────────────
 .users-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 35%) 1fr;
+  grid-template-columns: minmax(320px, 35%) minmax(0, 1fr);
   gap: var(--space-6);
   align-items: start;
 
@@ -31,6 +31,12 @@
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
+
+  // Allow the list card to shrink inside the grid so the table's inner
+  // scroll area stays within the viewport (sticky Actions must stay on-screen).
+  &--list {
+    min-width: 0;
+  }
 
   &--create {
     // Keep the form compact and intentional.
