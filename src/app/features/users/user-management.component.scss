@@ -322,13 +322,15 @@
 
 // ── Table ───────────────────────────────────────────────
 .table-responsive {
+  width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .tpms-table {
   width: 100%;
-  min-width: 620px;
+  min-width: 900px;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
 
@@ -374,6 +376,26 @@
   .col-status   { width: 13%; }
   .col-created  { width: 13%; }
   .col-actions  { width: 18%; }
+
+  // Actions stay reachable: pin the column to the right edge of the scroll
+  // container so Edit / Activate / Deactivate are always visible.
+  th.col-actions,
+  td.col-actions {
+    position: sticky;
+    right: 0;
+    background: var(--surface);
+    border-left: 1px solid var(--border-subtle);
+    box-shadow: -10px 0 14px -10px rgba(15, 23, 42, 0.18);
+    z-index: 1;
+  }
+
+  thead th.col-actions {
+    z-index: 2;
+  }
+
+  tbody tr:hover td.col-actions {
+    background: var(--primary-50);
+  }
 }
 
 .user-cell {
