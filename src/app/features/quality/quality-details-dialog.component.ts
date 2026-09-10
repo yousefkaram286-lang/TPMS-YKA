@@ -1,8 +1,9 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { TranslationService } from '../../core/services/translation.service';
 import { QualityTest, QualitySample } from '../../core/models/quality-test.model';
 import { QualityCalculationUtil } from '../../core/utils/quality-calculation.util';
 
@@ -11,121 +12,123 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
   standalone: true,
   imports: [CommonModule, MatDialogModule, MatButtonModule, StatusBadgeComponent],
   template: `
-    <h2 mat-dialog-title>Quality Test Details</h2>
-    <mat-dialog-content>
-      <div class="details-grid">
-        <div class="detail-item">
-          <span class="detail-label">Product:</span>
-          <span class="detail-value font-medium text-primary">{{ data.record.productName }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Production Line:</span>
-          <span class="detail-value">{{ data.record.lineName || 'Not specified' }}</span>
-        </div>
-        <div class="detail-item" *ngIf="data.record.date">
-          <span class="detail-label">Date:</span>
-          <span class="detail-value">{{ data.record.date | date:'shortDate' }}</span>
-        </div>
-        <div class="detail-item" *ngIf="data.record.productionRecordId || data.record.productionDate">
-          <span class="detail-label">Production Reference:</span>
-          <span class="detail-value">
-            <span *ngIf="data.record.productionRecordId">{{ data.record.productionRecordId }}</span>
-            <span *ngIf="data.record.productionDate">{{ data.record.productionDate }}</span>
-          </span>
-        </div>
-        <div class="detail-item" *ngIf="data.record.samples?.length">
-          <span class="detail-label">Product Area (cm²):</span>
-          <span class="detail-value font-medium">{{ data.record.productAreaSnapshot ?? '—' }}</span>
-        </div>
-        <div class="detail-item" *ngIf="data.record.samples?.length">
-          <span class="detail-label">Compression Standard (kg/cm²):</span>
-          <span class="detail-value font-medium">{{ data.record.compressionStandardSnapshot ?? '—' }}</span>
-        </div>
-      </div>
-
-      <!-- Sample measurements -->
-      <div class="block" *ngIf="data.record.samples?.length">
-        <div class="block-title">Samples ({{ data.record.samples?.length }})</div>
-        <div class="table-responsive">
-          <table class="samples-table">
-            <thead>
-              <tr>
-                <th>Sample</th>
-                <th>Act Ht</th>
-                <th>Act Wt (kg)</th>
-                <th>Std Wt (kg)</th>
-                <th>Wt Diff (kg)</th>
-                <th>Load (kg)</th>
-                <th>Compression (kg/cm²)</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let s of data.record.samples; let i = index">
-                <td class="sample-label">Sample {{ i + 1 }}</td>
-                <td>{{ s.actualHeight }}</td>
-                <td>{{ s.actualWeight }}</td>
-                <td class="snapshot">{{ data.record.standardWeightSnapshot ?? '—' }}</td>
-                <td>{{ s.weightDifference ?? '—' }}</td>
-                <td>{{ s.load }}</td>
-                <td class="compression">{{ s.compression }}</td>
-                <td>
-                  <app-status-badge
-                    [label]="s.compressionResult"
-                    [variant]="s.compressionResult === 'PASS' ? 'success' : s.compressionResult === 'FAIL' ? 'error' : 'warning'"
-                    [icon]="s.compressionResult === 'PASS' ? 'check_circle' : s.compressionResult === 'FAIL' ? 'cancel' : 'help'"
-                    size="sm">
-                  </app-status-badge>
-                </td>
-              </tr>
-              <tr class="averages-row" *ngIf="(data.record.samples?.length ?? 0) === 3">
-                <td class="sample-label">AVERAGE (this test event)</td>
-                <td>{{ avg.height }}</td>
-                <td>{{ avg.weight }}</td>
-                <td></td>
-                <td>{{ avg.weightDiff }}</td>
-                <td>{{ avg.load }}</td>
-                <td>
-                  <span *ngIf="avg.compression != null">{{ avg.compression }}</span>
-                  <span *ngIf="avg.compression == null" class="no-result">CONFIGURATION REQUIRED</span>
-                </td>
-                <td class="avg-note">PASS/FAIL not averaged</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="block" *ngIf="!data.record.samples?.length">
-        <div class="block-title">Legacy measurement</div>
-        <div class="details-grid legacy-grid">
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
+      <h2 mat-dialog-title>{{ translation.translate('quality.view.title') }}</h2>
+      <mat-dialog-content>
+        <div class="details-grid">
           <div class="detail-item">
-            <span class="detail-label">Load (kg):</span>
-            <span class="detail-value font-medium">{{ data.record.load ?? '—' }}</span>
+            <span class="detail-label">{{ translation.translate('quality.view.product') }}</span>
+            <span class="detail-value font-medium text-primary">{{ data.record.productName }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Compression (kg/cm²):</span>
-            <span class="detail-value font-medium">{{ data.record.compression ?? (data.record.strength ?? '—') }}</span>
+            <span class="detail-label">{{ translation.translate('quality.view.line') }}</span>
+            <span class="detail-value">{{ data.record.lineName || translation.translate('quality.table.notSpecified') }}</span>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">Result:</span>
-            <span class="detail-value font-medium">{{ data.record.result ?? '—' }}</span>
+          <div class="detail-item" *ngIf="data.record.date">
+            <span class="detail-label">{{ translation.translate('quality.view.date') }}</span>
+            <span class="detail-value">{{ data.record.date | date:'shortDate' }}</span>
+          </div>
+          <div class="detail-item" *ngIf="data.record.productionRecordId || data.record.productionDate">
+            <span class="detail-label">{{ translation.translate('quality.view.productionReference') }}</span>
+            <span class="detail-value">
+              <span *ngIf="data.record.productionRecordId">{{ data.record.productionRecordId }}</span>
+              <span *ngIf="data.record.productionDate">{{ data.record.productionDate }}</span>
+            </span>
+          </div>
+          <div class="detail-item" *ngIf="data.record.samples?.length">
+            <span class="detail-label">{{ translation.translate('quality.view.productArea') }}</span>
+            <span class="detail-value font-medium">{{ data.record.productAreaSnapshot ?? '—' }}</span>
+          </div>
+          <div class="detail-item" *ngIf="data.record.samples?.length">
+            <span class="detail-label">{{ translation.translate('quality.view.compressionStandard') }}</span>
+            <span class="detail-value font-medium">{{ data.record.compressionStandardSnapshot ?? '—' }}</span>
           </div>
         </div>
-      </div>
 
-      <div class="block" *ngIf="data.record.notes">
-        <div class="block-title">Notes</div>
-        <div class="notes-text">{{ data.record.notes }}</div>
-      </div>
+        <!-- Sample measurements -->
+        <div class="block" *ngIf="data.record.samples?.length">
+          <div class="block-title">{{ translation.translate('quality.view.samples', { n: (data.record.samples?.length ?? 0) }) }}</div>
+          <div class="table-responsive">
+            <table class="samples-table">
+              <thead>
+                <tr>
+                  <th>{{ translation.translate('quality.view.table.sample') }}</th>
+                  <th>{{ translation.translate('quality.view.table.actHt') }}</th>
+                  <th>{{ translation.translate('quality.view.table.actWt') }}</th>
+                  <th>{{ translation.translate('quality.view.table.stdWt') }}</th>
+                  <th>{{ translation.translate('quality.view.table.wtDiff') }}</th>
+                  <th>{{ translation.translate('quality.view.table.load') }}</th>
+                  <th>{{ translation.translate('quality.view.table.compression') }}</th>
+                  <th>{{ translation.translate('quality.view.table.result') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let s of data.record.samples; let i = index">
+                  <td class="sample-label">{{ translation.translate('quality.table.sampleLabel', { n: i + 1 }) }}</td>
+                  <td>{{ s.actualHeight }}</td>
+                  <td>{{ s.actualWeight }}</td>
+                  <td class="snapshot">{{ data.record.standardWeightSnapshot ?? '—' }}</td>
+                  <td>{{ s.weightDifference ?? '—' }}</td>
+                  <td>{{ s.load }}</td>
+                  <td class="compression">{{ s.compression }}</td>
+                  <td>
+                    <app-status-badge
+                      [label]="resultLabel(s.compressionResult)"
+                      [variant]="s.compressionResult === 'PASS' ? 'success' : s.compressionResult === 'FAIL' ? 'error' : 'warning'"
+                      [icon]="s.compressionResult === 'PASS' ? 'check_circle' : s.compressionResult === 'FAIL' ? 'cancel' : 'help'"
+                      size="sm">
+                    </app-status-badge>
+                  </td>
+                </tr>
+                <tr class="averages-row" *ngIf="(data.record.samples?.length ?? 0) === 3">
+                  <td class="sample-label">{{ translation.translate('quality.view.table.averageLabel') }}</td>
+                  <td>{{ avg.height }}</td>
+                  <td>{{ avg.weight }}</td>
+                  <td></td>
+                  <td>{{ avg.weightDiff }}</td>
+                  <td>{{ avg.load }}</td>
+                  <td>
+                    <span *ngIf="avg.compression != null">{{ avg.compression }}</span>
+                    <span *ngIf="avg.compression == null" class="no-result">{{ translation.translate('quality.result.configRequired') }}</span>
+                  </td>
+                  <td class="avg-note">{{ translation.translate('quality.table.avgNote') }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div class="mt-2 text-tertiary text-xs" *ngIf="data.record.decisionSource">
-        Decision source: {{ data.record.decisionSource.replace('_', ' ') }}
-      </div>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Close</button>
-    </mat-dialog-actions>
+        <div class="block" *ngIf="!data.record.samples?.length">
+          <div class="block-title">{{ translation.translate('quality.view.legacy.title') }}</div>
+          <div class="details-grid legacy-grid">
+            <div class="detail-item">
+              <span class="detail-label">{{ translation.translate('quality.view.load') }}</span>
+              <span class="detail-value font-medium">{{ data.record.load ?? '—' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">{{ translation.translate('quality.view.compression') }}</span>
+              <span class="detail-value font-medium">{{ data.record.compression ?? (data.record.strength ?? '—') }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">{{ translation.translate('quality.view.result') }}</span>
+              <span class="detail-value font-medium">{{ resultLabel(data.record.result ?? undefined) || '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="block" *ngIf="data.record.notes">
+          <div class="block-title">{{ translation.translate('quality.view.notes') }}</div>
+          <div class="notes-text">{{ data.record.notes }}</div>
+        </div>
+
+        <div class="mt-2 text-tertiary text-xs" *ngIf="data.record.decisionSource">
+          {{ translation.translate('quality.view.decisionSource', { source: data.record.decisionSource.replace('_', ' ') }) }}
+        </div>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <button mat-button mat-dialog-close>{{ translation.translate('common.close') }}</button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
     .details-grid {
@@ -199,10 +202,30 @@ import { QualityCalculationUtil } from '../../core/utils/quality-calculation.uti
     .text-tertiary { color: var(--text-tertiary); }
     .text-xs { font-size: var(--text-xs); }
     .mt-2 { margin-top: 8px; }
+
+    .tpms-dir[dir="rtl"] .detail-label,
+    .tpms-dir[dir="rtl"] .block-title,
+    .tpms-dir[dir="rtl"] .samples-table th {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .samples-table th,
+    .tpms-dir[dir="rtl"] .samples-table td {
+      text-align: right;
+    }
   `]
 })
 export class QualityDetailsDialogComponent {
+  readonly translation = inject(TranslationService);
   avg: { height?: number; weight?: number; load?: number; compression?: number; weightDiff?: number } = {};
+
+  resultLabel(result: string | null | undefined): string {
+    if (result === 'PASS') return this.translation.translate('quality.result.pass');
+    if (result === 'FAIL') return this.translation.translate('quality.result.fail');
+    if (result === 'CONFIGURATION_REQUIRED') return this.translation.translate('quality.result.configRequired');
+    return result ?? '';
+  }
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: {

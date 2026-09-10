@@ -22,8 +22,8 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardComponent, data: { rtl: true } },
       { path: 'production', component: ProductionComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'output-release', component: OutputReleaseComponent, canActivate: [adminGuard] },
-      { path: 'materials', component: MaterialsComponent, canActivate: [adminGuard] },
-      { path: 'quality', component: QualityComponent, canActivate: [adminGuard] },
+      { path: 'materials', component: MaterialsComponent, canActivate: [adminGuard], data: { rtl: true } },
+      { path: 'quality', component: QualityComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'profile', loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent), canActivate: [adminGuard] },
       { path: 'users', loadComponent: () => import('./features/users/user-management.component').then(m => m.UserManagementComponent), canActivate: [adminGuard], data: { rtl: true } },
       { 

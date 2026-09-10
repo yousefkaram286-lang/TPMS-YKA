@@ -15,6 +15,7 @@ import { MaterialsDetailsDialogComponent } from './materials-details-dialog.comp
 import { MaterialsEditDialogComponent } from './materials-edit-dialog.component';
 
 import { MaterialsService } from '../../core/services/materials.service';
+import { TranslationService } from '../../core/services/translation.service';
 import { ProductService } from '../../core/services/product.service';
 import { LineService } from '../../core/services/line.service';
 import { ShiftService } from '../../core/services/shift.service';
@@ -70,8 +71,8 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
   template: `
     <div class="materials-container">
       <app-page-header
-        title="Materials"
-        subtitle="Daily actual mix usage — Line/day totals from MixCount × actual per mix"
+        [title]="translation.translate('materials.title')"
+        [subtitle]="translation.translate('materials.subtitle')"
         icon="inventory_2"
       ></app-page-header>
 
@@ -79,81 +80,81 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
         <!-- Entry Form Section -->
         <div class="card entry-card">
           <div class="card-header">
-            <h3>Material Entry (Line / Day)</h3>
+            <h3>{{ translation.translate('materials.entry.title') }}</h3>
           </div>
 
           <form [formGroup]="materialsForm" class="card-body tpms-form">
             <div class="form-row header-row">
               <div class="form-group">
-                <label>Date *</label>
+                <label>{{ translation.translate('materials.form.date') }} *</label>
                 <div class="date-input-wrapper">
                   <input matInput [matDatepicker]="picker" formControlName="date" class="form-control" [class.is-invalid]="isInvalid('date')">
                   <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                   <mat-datepicker #picker></mat-datepicker>
                 </div>
-                <div class="invalid-feedback" *ngIf="isInvalid('date')">Date is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('date')">{{ translation.translate('materials.form.date.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Line *</label>
+                <label>{{ translation.translate('materials.form.line') }} *</label>
                 <select formControlName="lineId" class="form-control" [class.is-invalid]="isInvalid('lineId')">
-                  <option value="" disabled>Select Line</option>
+                  <option value="" disabled>{{ translation.translate('materials.form.line.placeholder') }}</option>
                   <option *ngFor="let line of activeLines" [value]="line.id">{{ line.name }}</option>
                 </select>
-                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">Line is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">{{ translation.translate('materials.form.line.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Product (optional — reference only)</label>
+                <label>{{ translation.translate('materials.form.product.reference') }}</label>
                 <select formControlName="productId" class="form-control" (change)="onProductChange()">
-                  <option value="">None — enter actual values directly</option>
+                  <option value="">{{ translation.translate('materials.form.product.none') }}</option>
                   <option *ngFor="let product of activeProducts" [value]="product.id">{{ product.name }}</option>
                 </select>
-                <div class="invalid-feedback" *ngIf="isInvalid('productId')">Product is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('productId')">{{ translation.translate('materials.form.product.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Mix Count * (mixes)</label>
+                <label>{{ translation.translate('materials.form.mixCount') }}</label>
                 <input type="number" formControlName="mixCount" class="form-control" (input)="onMixCountChange()" [class.is-invalid]="isInvalid('mixCount')" min="1">
-                <div class="invalid-feedback" *ngIf="isInvalid('mixCount')">Mix Count is required and must be > 0.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('mixCount')">{{ translation.translate('materials.form.mixCount.required') }}</div>
               </div>
             </div>
 
             <!-- Warnings -->
             <div class="warning-alert mt-2" *ngIf="recipeInfo">
               <mat-icon>info</mat-icon>
-              <span>No standard recipe — enter actual per-mix values directly (recipe is reference only, never required).</span>
+              <span>{{ translation.translate('materials.warning.noRecipe') }}</span>
             </div>
 
             <div class="warning-alert mt-2" *ngIf="costWarnings.length > 0">
               <mat-icon>warning</mat-icon>
-              <span>{{ costWarnings.join(' · ') }} Cost is deferred for those materials.</span>
+              <span>{{ costWarnings.join(' · ') }} {{ translation.translate('materials.warning.costDeferred') }}</span>
             </div>
 
             <hr class="divider">
 
             <!-- Per-Mix Material Table -->
             <div class="recipe-section" *ngIf="materials.length > 0">
-              <h4 class="section-title">Actual Per Mix × Mix Count → Daily Total</h4>
+              <h4 class="section-title">{{ translation.translate('materials.section.actualVsTotal') }}</h4>
               <div class="table-responsive">
                 <table class="tpms-table materials-input-table">
                   <thead>
                     <tr>
-                      <th>Material</th>
-                      <th>Unit</th>
-                      <th>Standard / Mix</th>
-                      <th>Actual / Mix *</th>
-                      <th>Standard Daily</th>
-                      <th>Total Actual</th>
-                      <th>Variance</th>
-                      <th>Unit Cost</th>
-                      <th>Material Cost</th>
+                      <th>{{ translation.translate('materials.table.material') }}</th>
+                      <th>{{ translation.translate('materials.table.unit') }}</th>
+                      <th>{{ translation.translate('materials.table.standardPerMix') }}</th>
+                      <th>{{ translation.translate('materials.table.actualPerMix') }}</th>
+                      <th>{{ translation.translate('materials.table.standardDaily') }}</th>
+                      <th>{{ translation.translate('materials.table.totalActual') }}</th>
+                      <th>{{ translation.translate('materials.table.variance') }}</th>
+                      <th>{{ translation.translate('materials.table.unitCost') }}</th>
+                      <th>{{ translation.translate('materials.table.materialCost') }}</th>
                     </tr>
                   </thead>
                   <tbody formArrayName="materials">
                     <tr *ngFor="let item of materials.controls; let i = index" [formGroupName]="i">
                       <td><span class="font-medium">{{ item.get('materialName')?.value }}</span></td>
-                      <td>{{ item.get('unit')?.value }}</td>
+                      <td>{{ unitLabel(item.get('unit')?.value) }}</td>
                       <td>
                         <span>{{ formatPerMix(item.get('perMixStandard')?.value) }}</span>
                         <span *ngIf="!item.get('perMixStandard')?.value" class="text-muted">—</span>
@@ -171,15 +172,15 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
                         </span>
                       </td>
                       <td>
-                        <span *ngIf="item.get('dimensionOk')?.value">{{ item.get('unitCost')?.value | number:'1.2-4' }} / {{ item.get('unit')?.value }}</span>
-                        <span *ngIf="!item.get('dimensionOk')?.value" class="text-muted" title="Unit cost not compatible with operational unit">N/A</span>
+                        <span *ngIf="item.get('dimensionOk')?.value">{{ item.get('unitCost')?.value | number:'1.2-4' }} / {{ unitLabel(item.get('unit')?.value) }}</span>
+                        <span *ngIf="!item.get('dimensionOk')?.value" class="text-muted" [title]="translation.translate('materials.cost.notCompatibleTitle')">{{ translation.translate('materials.cost.na') }}</span>
                       </td>
                       <td>{{ item.get('totalCost')?.value | number:'1.2-2' }}</td>
                     </tr>
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colspan="8" class="text-right font-medium">Total Material Cost:</td>
+                      <td colspan="8" class="text-right font-medium">{{ translation.translate('materials.totalCost') }}</td>
                       <td class="font-bold text-lg text-primary">{{ getTotalCost() | number:'1.2-2' }}</td>
                     </tr>
                   </tfoot>
@@ -188,9 +189,9 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-secondary" (click)="confirmClear()">Clear</button>
+              <button type="button" class="btn-secondary" (click)="confirmClear()">{{ translation.translate('materials.actions.clear') }}</button>
               <button type="button" class="btn-primary" (click)="saveMaterials()" [disabled]="materialsForm.invalid || saving || materials.length === 0">
-                {{ saving ? 'Saving...' : 'Save Materials' }}
+                {{ saving ? translation.translate('materials.actions.saving') : translation.translate('materials.actions.save') }}
               </button>
             </div>
           </form>
@@ -199,76 +200,76 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
         <!-- History Section -->
         <div class="card history-card">
           <div class="card-header history-header">
-            <h3>Materials History</h3>
+            <h3>{{ translation.translate('materials.history.title') }}</h3>
             <div class="history-actions">
               <div class="search-bar">
                 <mat-icon class="search-icon">search</mat-icon>
-                <input type="text" placeholder="Search materials..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+                <input type="text" [placeholder]="translation.translate('materials.search.placeholder')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
               </div>
             </div>
           </div>
 
           <div class="card-body p-0">
-            <div *ngIf="loadingHistory" class="loading-state">Loading history...</div>
+            <div *ngIf="loadingHistory" class="loading-state">{{ translation.translate('materials.history.loading') }}</div>
 
             <app-empty-state
               *ngIf="!loadingHistory && !filteredHistory.length"
               icon="inventory_2"
-              title="No material records yet."
-              description="Start by recording your first material transaction."
+              [title]="translation.translate('materials.history.empty.title')"
+              [description]="translation.translate('materials.history.empty.description')"
               variant="neutral"
             ></app-empty-state>
 
             <div class="table-responsive" *ngIf="!loadingHistory && filteredHistory.length > 0">
               <table mat-table [dataSource]="filteredHistory" class="tpms-table history-table">
                 <ng-container matColumnDef="date">
-                  <th mat-header-cell *matHeaderCellDef> Date </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('materials.table.date') }} </th>
                   <td mat-cell *matCellDef="let element"> {{element.date | date:'shortDate'}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="line">
-                  <th mat-header-cell *matHeaderCellDef> Line </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('materials.table.line') }} </th>
                   <td mat-cell *matCellDef="let element"> <span class="font-medium text-primary">{{getLineName(element.lineId)}}</span> </td>
                 </ng-container>
 
                 <ng-container matColumnDef="shift">
-                  <th mat-header-cell *matHeaderCellDef> Shift </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('materials.table.shift') }} </th>
                   <td mat-cell *matCellDef="let element"> {{getShiftName(element.shiftId)}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="product">
-                  <th mat-header-cell *matHeaderCellDef> Product </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('materials.table.product') }} </th>
                   <td mat-cell *matCellDef="let element"> {{getProductName(element.productId)}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="mixCount">
-                  <th mat-header-cell *matHeaderCellDef> Mixes </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('materials.table.mixes') }} </th>
                   <td mat-cell *matCellDef="let element"> {{element.mixCount}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="totalCost">
-                  <th mat-header-cell *matHeaderCellDef> Total Cost </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('materials.table.totalCost') }} </th>
                   <td mat-cell *matCellDef="let element">
                     <span class="cost-badge">{{element.totalCost | number:'1.2-2'}}</span>
                   </td>
                 </ng-container>
 
                 <ng-container matColumnDef="operator">
-                  <th mat-header-cell *matHeaderCellDef> Operator </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('materials.table.operator') }} </th>
                   <td mat-cell *matCellDef="let element"> {{element.operator || '—'}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="actions">
-                  <th mat-header-cell *matHeaderCellDef class="actions-col actions-col-wide"> Actions </th>
+                  <th mat-header-cell *matHeaderCellDef class="actions-col actions-col-wide"> {{ translation.translate('materials.table.actions') }} </th>
                   <td mat-cell *matCellDef="let element" class="actions-col actions-col-wide">
                     <div class="table-actions">
-                      <button mat-icon-button class="action-btn" title="View Details" (click)="viewDetails(element)">
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('materials.action.view')" (click)="viewDetails(element)">
                         <mat-icon>visibility</mat-icon>
                       </button>
-                      <button mat-icon-button class="action-btn" title="Edit" (click)="editRecord(element)">
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('materials.action.edit')" (click)="editRecord(element)">
                         <mat-icon>edit</mat-icon>
                       </button>
-                      <button mat-icon-button class="action-btn delete-btn" title="Delete" (click)="deleteRecord(element)">
+                      <button mat-icon-button class="action-btn delete-btn" [title]="translation.translate('materials.action.delete')" (click)="deleteRecord(element)">
                         <mat-icon>delete</mat-icon>
                       </button>
                     </div>
@@ -605,6 +606,46 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
       .warning-alert { border-color: rgba(245, 158, 11, 0.2); }
     }
 
+    /* ── RTL Overrides ────────────────────────────── */
+    /* SCOPE: apply only inside the page's own tpms-dir[dir="rtl"]
+       wrapper (Arabic mode via the shell). Flex/grid rows mirror
+       automatically; these overrides cover physical positions and
+       latin-only text styling. */
+    .tpms-dir[dir="rtl"] .form-group label,
+    .tpms-dir[dir="rtl"] .section-title,
+    .tpms-dir[dir="rtl"] .materials-input-table th,
+    .tpms-dir[dir="rtl"] .history-table .mat-mdc-header-cell,
+    .tpms-dir[dir="rtl"] .details-table th {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .date-input-wrapper input {
+      padding-right: 14px;
+      padding-left: 40px;
+    }
+
+    .tpms-dir[dir="rtl"] .date-input-wrapper mat-datepicker-toggle {
+      right: auto;
+      left: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .form-actions {
+      justify-content: flex-start;
+    }
+
+    .tpms-dir[dir="rtl"] .materials-input-table tfoot .text-right {
+      text-align: left;
+    }
+
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+
     @keyframes fadeSlideUp {
       from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
@@ -612,6 +653,7 @@ const CANONICAL_MATERIALS: { name: string; unit: string }[] = [
   `]
 })
 export class MaterialsComponent implements OnInit {
+  readonly translation = inject(TranslationService);
   private fb = inject(FormBuilder);
   private dialog = inject(MatDialog);
   private materialsService = inject(MaterialsService);
@@ -855,10 +897,18 @@ export class MaterialsComponent implements OnInit {
       const materialId = row.get('materialId')?.value;
       if (!row.get('dimensionOk')?.value) {
         const cfg = materialId ? this.unitCosts.find(c => c.materialId === materialId) : undefined;
-        warnings.push(name + (cfg ? ` (unit cost in ${cfg.unit} ≠ ${unit})` : ' (no unit cost)'));
+        warnings.push(name + (cfg
+          ? ` (${this.translation.translate('materials.warning.costIncompatible', { cfgUnit: cfg.unit, opUnit: unit })})`
+          : ` (${this.translation.translate('materials.warning.noUnitCost')})`));
       }
     });
     this.costWarnings = warnings;
+  }
+
+  unitLabel(unit: string | undefined | null): string {
+    if (unit === 'kg') return this.translation.translate('materials.unit.kg');
+    if (unit === 'L' || unit === 'l') return this.translation.translate('materials.unit.liter');
+    return unit ?? '—';
   }
 
   getVarianceClass(variance: number): string {
@@ -895,10 +945,10 @@ export class MaterialsComponent implements OnInit {
   confirmClear(): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Clear material entry?',
-        message: 'All unsaved data will be lost.',
-        confirmText: 'Clear',
-        cancelText: 'Cancel',
+        title: this.translation.translate('materials.clear.title'),
+        message: this.translation.translate('materials.clear.message'),
+        confirmText: this.translation.translate('materials.clear.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'warning'
       }
     }).afterClosed().subscribe(confirm => {
@@ -998,10 +1048,10 @@ export class MaterialsComponent implements OnInit {
   deleteRecord(record: MaterialRecord): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Material Transaction?',
-        message: 'Are you sure you want to delete this material record?',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        title: this.translation.translate('materials.delete.title'),
+        message: this.translation.translate('materials.delete.message'),
+        confirmText: this.translation.translate('materials.delete.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'danger'
       }
     }).afterClosed().subscribe(confirm => {

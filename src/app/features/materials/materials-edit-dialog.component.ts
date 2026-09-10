@@ -1,8 +1,9 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { TranslationService } from '../../core/services/translation.service';
 import { MaterialRecord, MaterialTransactionItem } from '../../core/models/material-record.model';
 import { MaterialsService } from '../../core/services/materials.service';
 
@@ -11,73 +12,73 @@ import { MaterialsService } from '../../core/services/materials.service';
   standalone: true,
   imports: [CommonModule, MatDialogModule, MatButtonModule, ReactiveFormsModule],
   template: `
-    <h2 mat-dialog-title>Edit Materials Transaction</h2>
-    <mat-dialog-content>
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
+      <h2 mat-dialog-title>{{ translation.translate('materials.edit.title') }}</h2>
+      <mat-dialog-content>
 
-      <div class="info-banner">
-        Editing historical ACTUAL per-mix values only. The standard recipe
-        snapshot and mix count remain unchanged, and totals recalculate as
-        Actual-per-mix × MixCount.
-      </div>
-
-      <div class="details-grid mt-3">
-        <div class="detail-item">
-          <span class="detail-label">Product:</span>
-          <span class="detail-value font-medium text-primary">{{ data.productName }}</span>
+        <div class="info-banner">
+          {{ translation.translate('materials.edit.infoBanner') }}
         </div>
-        <div class="detail-item">
-          <span class="detail-label">Mix Count:</span>
-          <span class="detail-value">{{ data.record.mixCount }}</span>
+
+        <div class="details-grid mt-3">
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('materials.view.product') }}</span>
+            <span class="detail-value font-medium text-primary">{{ data.productName }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('materials.view.mixCount') }}</span>
+            <span class="detail-value">{{ data.record.mixCount }}</span>
+          </div>
         </div>
-      </div>
 
-      <form [formGroup]="editForm" class="mt-4">
-        <div class="table-responsive">
-          <table class="tpms-table edit-table">
-            <thead>
-              <tr>
-                <th>Material</th>
-                <th>Std / Mix</th>
-                <th>Actual / Mix *</th>
-                <th>Actual Total</th>
-                <th>Variance</th>
-                <th>Cost</th>
-              </tr>
-            </thead>
-            <tbody formArrayName="materials">
-              <tr *ngFor="let item of materials.controls; let i = index" [formGroupName]="i">
-                <td><span class="font-medium">{{ item.get('materialName')?.value }}</span></td>
-                <td>{{ item.get('perMixStandard')?.value }} {{ item.get('unit')?.value }}/mix</td>
-                <td>
-                  <input type="number" formControlName="perMixActual" class="form-control actual-input" (input)="onActualChange(i)" min="0"
-                         [class.is-invalid]="item.get('perMixActual')?.invalid && item.get('perMixActual')?.touched">
-                </td>
-                <td><span class="font-bold">{{ item.get('actualQuantity')?.value }} {{ item.get('unit')?.value }}</span></td>
-                <td>
-                  <span class="variance-badge" [ngClass]="getVarianceClass(item.get('variance')?.value)">
-                    {{ (item.get('variance')?.value > 0 ? '+' : '') + (item.get('variance')?.value ?? 0) }}
-                  </span>
-                </td>
-                <td>
-                  <span *ngIf="item.get('dimensionOk')?.value">{{ item.get('totalCost')?.value | number:'1.2-2' }}</span>
-                  <span *ngIf="!item.get('dimensionOk')?.value" class="text-muted">N/A</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <form [formGroup]="editForm" class="mt-4">
+          <div class="table-responsive">
+            <table class="tpms-table edit-table">
+              <thead>
+                <tr>
+                  <th>{{ translation.translate('materials.edit.table.material') }}</th>
+                  <th>{{ translation.translate('materials.edit.table.stdPerMix') }}</th>
+                  <th>{{ translation.translate('materials.edit.table.actualPerMix') }}</th>
+                  <th>{{ translation.translate('materials.edit.table.actualTotal') }}</th>
+                  <th>{{ translation.translate('materials.edit.table.variance') }}</th>
+                  <th>{{ translation.translate('materials.edit.table.cost') }}</th>
+                </tr>
+              </thead>
+              <tbody formArrayName="materials">
+                <tr *ngFor="let item of materials.controls; let i = index" [formGroupName]="i">
+                  <td><span class="font-medium">{{ item.get('materialName')?.value }}</span></td>
+                  <td>{{ item.get('perMixStandard')?.value }} {{ unitLabel(item.get('unit')?.value) }}{{ translation.translate('materials.unit.perMix') }}</td>
+                  <td>
+                    <input type="number" formControlName="perMixActual" class="form-control actual-input" (input)="onActualChange(i)" min="0"
+                           [class.is-invalid]="item.get('perMixActual')?.invalid && item.get('perMixActual')?.touched">
+                  </td>
+                  <td><span class="font-bold">{{ item.get('actualQuantity')?.value }} {{ unitLabel(item.get('unit')?.value) }}</span></td>
+                  <td>
+                    <span class="variance-badge" [ngClass]="getVarianceClass(item.get('variance')?.value)">
+                      {{ (item.get('variance')?.value > 0 ? '+' : '') + (item.get('variance')?.value ?? 0) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span *ngIf="item.get('dimensionOk')?.value">{{ item.get('totalCost')?.value | number:'1.2-2' }}</span>
+                    <span *ngIf="!item.get('dimensionOk')?.value" class="text-muted">{{ translation.translate('materials.cost.na') }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </form>
+
+        <div class="total-section mt-4">
+          <span class="total-label">{{ translation.translate('materials.totalCost') }}</span>
+          <span class="total-value">{{ getTotalCost() | number:'1.2-2' }}</span>
         </div>
-      </form>
 
-      <div class="total-section mt-4">
-        <span class="total-label">Total Material Cost:</span>
-        <span class="total-value">{{ getTotalCost() | number:'1.2-2' }}</span>
-      </div>
-
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button color="primary" (click)="save()" [disabled]="editForm.invalid">Save Changes</button>
-    </mat-dialog-actions>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <button mat-button mat-dialog-close>{{ translation.translate('common.cancel') }}</button>
+        <button mat-flat-button color="primary" (click)="save()" [disabled]="editForm.invalid">{{ translation.translate('materials.edit.saveChanges') }}</button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
     .info-banner {
@@ -123,9 +124,24 @@ import { MaterialsService } from '../../core/services/materials.service';
 
     .mt-3 { margin-top: var(--space-3); }
     .mt-4 { margin-top: var(--space-4); }
+
+    .tpms-dir[dir="rtl"] .detail-label,
+    .tpms-dir[dir="rtl"] .edit-table th {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .edit-table th {
+      text-align: right;
+    }
+
+    .tpms-dir[dir="rtl"] .total-section {
+      justify-content: flex-start;
+    }
   `]
 })
 export class MaterialsEditDialogComponent implements OnInit {
+  readonly translation = inject(TranslationService);
   editForm!: FormGroup;
 
   constructor(
@@ -137,6 +153,12 @@ export class MaterialsEditDialogComponent implements OnInit {
       productName: string;
     }
   ) {}
+
+  unitLabel(unit: string | null | undefined): string {
+    if (unit === 'kg') return this.translation.translate('materials.unit.kg');
+    if (unit === 'L' || unit === 'l') return this.translation.translate('materials.unit.liter');
+    return unit ?? '—';
+  }
 
   ngOnInit(): void {
     this.editForm = this.fb.group({

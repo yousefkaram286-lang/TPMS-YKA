@@ -19,6 +19,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 import { QualityDetailsDialogComponent } from './quality-details-dialog.component';
 
 import { QualityService } from '../../core/services/quality.service';
+import { TranslationService } from '../../core/services/translation.service';
 import { ProductService } from '../../core/services/product.service';
 import { LineService } from '../../core/services/line.service';
 import { QualityTest, QualitySample } from '../../core/models/quality-test.model';
@@ -52,8 +53,8 @@ import { forkJoin } from 'rxjs';
   template: `
     <div class="quality-container">
       <app-page-header
-        title="Quality"
-        subtitle="Three-sample quality testing per Line / Product"
+        [title]="translation.translate('quality.title')"
+        [subtitle]="translation.translate('quality.subtitle')"
         icon="verified"
       ></app-page-header>
 
@@ -61,103 +62,103 @@ import { forkJoin } from 'rxjs';
         <!-- Entry Form Section -->
         <div class="card entry-card">
           <div class="card-header">
-            <h3>Quality Test Event</h3>
+            <h3>{{ translation.translate('quality.entry.title') }}</h3>
           </div>
 
           <form [formGroup]="qualityForm" class="card-body tpms-form">
             <div class="form-row header-row">
               <div class="form-group">
-                <label>Date *</label>
+                <label>{{ translation.translate('quality.form.date') }} *</label>
                 <div class="date-input-wrapper">
                   <input matInput [matDatepicker]="datePicker" formControlName="date" class="form-control" [class.is-invalid]="isInvalid('date')">
                   <mat-datepicker-toggle matIconSuffix [for]="datePicker"></mat-datepicker-toggle>
                   <mat-datepicker #datePicker></mat-datepicker>
                 </div>
-                <div class="invalid-feedback" *ngIf="isInvalid('date')">Date is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('date')">{{ translation.translate('quality.form.date.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Product *</label>
+                <label>{{ translation.translate('quality.form.product') }} *</label>
                 <select formControlName="productId" class="form-control" (change)="onProductChange()" [class.is-invalid]="isInvalid('productId')">
-                  <option value="" disabled>Select Product</option>
+                  <option value="" disabled>{{ translation.translate('quality.form.product.placeholder') }}</option>
                   <option *ngFor="let product of activeProducts" [value]="product.id">{{ product.name }}</option>
                 </select>
-                <div class="invalid-feedback" *ngIf="isInvalid('productId')">Product is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('productId')">{{ translation.translate('quality.form.product.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Production Line *</label>
+                <label>{{ translation.translate('quality.form.line') }} *</label>
                 <select formControlName="lineId" class="form-control" [class.is-invalid]="isInvalid('lineId')">
-                  <option value="" disabled>Select Line</option>
+                  <option value="" disabled>{{ translation.translate('quality.form.line.placeholder') }}</option>
                   <option *ngFor="let line of activeLines" [value]="line.id">{{ line.name }}</option>
                 </select>
-                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">Production Line is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">{{ translation.translate('quality.form.line.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Notes</label>
-                <input type="text" formControlName="notes" class="form-control" placeholder="Optional notes">
+                <label>{{ translation.translate('quality.form.notes') }}</label>
+                <input type="text" formControlName="notes" class="form-control" [placeholder]="translation.translate('quality.form.notes.placeholder')">
               </div>
             </div>
 
             <!-- Product master summary (read-only, always visible above samples) -->
             <div class="master-summary">
               <div class="summary-item">
-                <span class="summary-label">Product</span>
+                <span class="summary-label">{{ translation.translate('quality.summary.product') }}</span>
                 <span class="summary-value font-medium text-primary">{{ selectedProduct?.name || '—' }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">Line</span>
+                <span class="summary-label">{{ translation.translate('quality.summary.line') }}</span>
                 <span class="summary-value font-medium">{{ selectedLineName || '—' }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">Product Area (cm²)</span>
+                <span class="summary-label">{{ translation.translate('quality.summary.productArea') }}</span>
                 <span class="summary-value font-medium">{{ previewProductArea != null ? previewProductArea : '—' }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">Compression Standard (kg/cm²)</span>
+                <span class="summary-label">{{ translation.translate('quality.summary.compressionStandard') }}</span>
                 <span class="summary-value font-medium">{{ previewCompressionStandard != null ? previewCompressionStandard : '—' }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">Standard Weight (kg)</span>
+                <span class="summary-label">{{ translation.translate('quality.summary.standardWeight') }}</span>
                 <span class="summary-value font-medium">{{ previewStandardWeight != null ? previewStandardWeight : '—' }}</span>
               </div>
             </div>
 
             <!-- Three-sample measurement table -->
             <div class="form-group">
-              <label>Exactly 3 samples — each tested independently</label>
+              <label>{{ translation.translate('quality.form.samples.hint') }}</label>
               <div class="table-responsive samples-table-wrap">
                 <table class="tpms-table samples-table">
                   <thead>
                     <tr>
-                      <th>Sample</th>
-                      <th>Actual Height</th>
-                      <th>Actual Wt (kg)</th>
-                      <th>Std Wt (kg)</th>
-                      <th>Wt Diff (kg)</th>
-                      <th>Load (kg)</th>
-                      <th>Area (cm²)</th>
-                      <th>Compression (kg/cm²)</th>
-                      <th>Comp Std (kg/cm²)</th>
-                      <th>Result</th>
+                      <th>{{ translation.translate('quality.table.sample') }}</th>
+                      <th>{{ translation.translate('quality.table.actualHeight') }}</th>
+                      <th>{{ translation.translate('quality.table.actualWt') }}</th>
+                      <th>{{ translation.translate('quality.table.stdWt') }}</th>
+                      <th>{{ translation.translate('quality.table.wtDiff') }}</th>
+                      <th>{{ translation.translate('quality.table.load') }}</th>
+                      <th>{{ translation.translate('quality.table.area') }}</th>
+                      <th>{{ translation.translate('quality.table.compression') }}</th>
+                      <th>{{ translation.translate('quality.table.compStd') }}</th>
+                      <th>{{ translation.translate('quality.table.result') }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr *ngFor="let g of sampleGroups(); let i = index" [formGroup]="g">
-                      <td class="sample-label">Sample {{ i + 1 }}</td>
+                      <td class="sample-label">{{ translation.translate('quality.table.sampleLabel', { n: i + 1 }) }}</td>
                       <td>
                         <input type="number" min="0.01" step="0.1" formControlName="actualHeight"
                           class="form-control sample-input"
                           [class.is-invalid]="sampleInvalid(i, 'actualHeight')">
-                        <div class="invalid-feedback" *ngIf="sampleInvalid(i, 'actualHeight')">H &gt; 0</div>
+                        <div class="invalid-feedback" *ngIf="sampleInvalid(i, 'actualHeight')">{{ translation.translate('quality.error.heightPositive') }}</div>
                       </td>
                       <td>
                         <input type="number" min="0.01" step="0.1" formControlName="actualWeight"
                           class="form-control sample-input"
-                          placeholder="kg"
+                          [placeholder]="translation.translate('quality.unit.kg')"
                           [class.is-invalid]="sampleInvalid(i, 'actualWeight')">
-                        <div class="invalid-feedback" *ngIf="sampleInvalid(i, 'actualWeight')">W &gt; 0</div>
+                        <div class="invalid-feedback" *ngIf="sampleInvalid(i, 'actualWeight')">{{ translation.translate('quality.error.weightPositive') }}</div>
                       </td>
                       <td class="readonly-cell">{{ previewStandardWeight != null ? previewStandardWeight : '—' }}</td>
                       <td class="readonly-cell">{{ computedSamples[i].weightDifference ?? '—' }}</td>
@@ -165,7 +166,7 @@ import { forkJoin } from 'rxjs';
                         <input type="number" min="0.01" step="0.1" formControlName="load"
                           class="form-control sample-input"
                           [class.is-invalid]="sampleInvalid(i, 'load')">
-                        <div class="invalid-feedback" *ngIf="sampleInvalid(i, 'load')">L &gt; 0</div>
+                        <div class="invalid-feedback" *ngIf="sampleInvalid(i, 'load')">{{ translation.translate('quality.error.loadPositive') }}</div>
                       </td>
                       <td class="readonly-cell">{{ previewProductArea != null ? previewProductArea : '—' }}</td>
                       <td class="readonly-cell compression-cell">{{ computedSamples[i].compression != null ? (computedSamples[i].compression | number:'1.2-2') : '—' }}</td>
@@ -173,17 +174,17 @@ import { forkJoin } from 'rxjs';
                       <td>
                         <app-status-badge
                           *ngIf="computedSamples[i].compressionResult"
-                          [label]="computedSamples[i].compressionResult"
+                          [label]="resultLabel(computedSamples[i].compressionResult)"
                           [variant]="computedSamples[i].compressionResult === 'PASS' ? 'success' : computedSamples[i].compressionResult === 'FAIL' ? 'error' : 'warning'"
                           [icon]="computedSamples[i].compressionResult === 'PASS' ? 'check_circle' : computedSamples[i].compressionResult === 'FAIL' ? 'cancel' : 'help'"
                           size="sm">
                         </app-status-badge>
-                        <span *ngIf="!computedSamples[i].compressionResult" class="no-result">Enter load</span>
+                        <span *ngIf="!computedSamples[i].compressionResult" class="no-result">{{ translation.translate('quality.form.enterLoad') }}</span>
                       </td>
                     </tr>
                     <!-- Averages -->
                     <tr class="averages-row">
-                      <td class="sample-label">AVERAGE FOR THIS LINE / TEST EVENT</td>
+                      <td class="sample-label">{{ translation.translate('quality.table.avgForEvent') }}</td>
                       <td class="avg-cell">{{ avgActualHeight ?? '—' }}</td>
                       <td class="avg-cell">{{ avgActualWeight ?? '—' }}</td>
                       <td></td>
@@ -192,10 +193,10 @@ import { forkJoin } from 'rxjs';
                       <td></td>
                       <td class="avg-cell">
                         <span *ngIf="avgCompression != null">{{ avgCompression | number:'1.2-2' }}</span>
-                        <span *ngIf="avgCompression == null" class="no-result">CONFIGURATION REQUIRED</span>
+                        <span *ngIf="avgCompression == null" class="no-result">{{ translation.translate('quality.result.configRequired') }}</span>
                       </td>
                       <td></td>
-                      <td class="avg-cell-note">PASS/FAIL not averaged</td>
+                      <td class="avg-cell-note">{{ translation.translate('quality.table.avgNote') }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -207,14 +208,14 @@ import { forkJoin } from 'rxjs';
               <mat-icon>warning</mat-icon>
               <div>
                 <span *ngFor="let msg of configMessages" class="config-msg">{{ msg }}</span>
-                <span>Configure the product in Settings before recording a complete quality test.</span>
+                <span>{{ translation.translate('quality.warning.configureProduct') }}</span>
               </div>
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-secondary" (click)="confirmClear()">Clear</button>
+              <button type="button" class="btn-secondary" (click)="confirmClear()">{{ translation.translate('quality.actions.clear') }}</button>
               <button type="button" class="btn-primary" (click)="saveQualityTest()" [disabled]="qualityForm.invalid || saving || !configComplete">
-                {{ saving ? 'Saving...' : 'Save Test' }}
+                {{ saving ? translation.translate('quality.actions.saving') : translation.translate('quality.actions.saveTest') }}
               </button>
             </div>
           </form>
@@ -223,11 +224,11 @@ import { forkJoin } from 'rxjs';
         <!-- History Section -->
         <div class="card history-card">
           <div class="card-header history-header">
-            <h3>Quality History</h3>
+            <h3>{{ translation.translate('quality.history.title') }}</h3>
             <div class="history-actions">
               <div class="search-bar">
                 <mat-icon class="search-icon">search</mat-icon>
-                <input type="text" placeholder="Search quality tests..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+                <input type="text" [placeholder]="translation.translate('quality.search.placeholder')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
               </div>
             </div>
           </div>
@@ -235,86 +236,86 @@ import { forkJoin } from 'rxjs';
           <!-- Filters -->
           <div class="filters-section" *ngIf="activeFilters.length > 0">
             <div class="filter-group">
-              <label>Date Filter:</label>
+              <label>{{ translation.translate('quality.filter.date') }}</label>
               <select [(ngModel)]="dateFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Dates</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
+                <option value="">{{ translation.translate('quality.filter.allDates') }}</option>
+                <option value="today">{{ translation.translate('quality.filter.today') }}</option>
+                <option value="week">{{ translation.translate('quality.filter.week') }}</option>
+                <option value="month">{{ translation.translate('quality.filter.month') }}</option>
               </select>
             </div>
             <div class="filter-group">
-              <label>Product Filter:</label>
+              <label>{{ translation.translate('quality.filter.product') }}</label>
               <select [(ngModel)]="productFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Products</option>
+                <option value="">{{ translation.translate('quality.filter.allProducts') }}</option>
                 <option *ngFor="let product of activeProducts" [value]="product.id">{{ product.name }}</option>
               </select>
             </div>
             <div class="filter-group">
-              <label>Line Filter:</label>
+              <label>{{ translation.translate('quality.filter.line') }}</label>
               <select [(ngModel)]="lineFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Lines</option>
+                <option value="">{{ translation.translate('quality.filter.allLines') }}</option>
                 <option *ngFor="let line of activeLines" [value]="line.id">{{ line.name }}</option>
               </select>
             </div>
-            <button type="button" class="btn-text" (click)="clearFilters()">Clear Filters</button>
+            <button type="button" class="btn-text" (click)="clearFilters()">{{ translation.translate('quality.filter.clear') }}</button>
           </div>
 
           <div class="card-body p-0">
-            <div *ngIf="loadingHistory" class="loading-state">Loading history...</div>
+            <div *ngIf="loadingHistory" class="loading-state">{{ translation.translate('quality.history.loading') }}</div>
 
             <app-empty-state
               *ngIf="!loadingHistory && !filteredHistory.length"
               icon="verified"
-              title="No quality tests yet."
-              description="Start by recording your first three-sample quality test."
+              [title]="translation.translate('quality.history.empty.title')"
+              [description]="translation.translate('quality.history.empty.description')"
               variant="neutral"
             ></app-empty-state>
 
             <div class="table-responsive" *ngIf="!loadingHistory && filteredHistory.length > 0">
               <table mat-table [dataSource]="dataSource" matSort (matSortChange)="sortData($event)" class="tpms-table history-table">
                 <ng-container matColumnDef="date">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Date </th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header> {{ translation.translate('quality.table.date') }} </th>
                   <td mat-cell *matCellDef="let element"> {{element.date | date:'shortDate'}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="product">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Product </th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header> {{ translation.translate('quality.table.product') }} </th>
                   <td mat-cell *matCellDef="let element"> <span class="font-medium text-primary">{{element.productName}}</span> </td>
                 </ng-container>
 
                 <ng-container matColumnDef="line">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Line </th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header> {{ translation.translate('quality.table.line') }} </th>
                   <td mat-cell *matCellDef="let element">
                     <span *ngIf="element.lineName" class="line-badge">{{ element.lineName }}</span>
-                    <span *ngIf="!element.lineName" class="text-tertiary">Not specified</span>
+                    <span *ngIf="!element.lineName" class="text-tertiary">{{ translation.translate('quality.table.notSpecified') }}</span>
                   </td>
                 </ng-container>
 
                 <ng-container matColumnDef="samples">
-                  <th mat-header-cell *matHeaderCellDef> Samples </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('quality.table.samples') }} </th>
                   <td mat-cell *matCellDef="let element"> {{ element.samples?.length ?? 1 }} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="avgCompression">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header> Avg Compression (kg/cm²) </th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header> {{ translation.translate('quality.table.avgCompression') }} </th>
                   <td mat-cell *matCellDef="let element">
                     <span *ngIf="avgCompressionOf(element) != null">{{ avgCompressionOf(element) | number:'1.2-2' }}</span>
-                    <span *ngIf="avgCompressionOf(element) == null" class="no-result">CONFIGURATION REQUIRED</span>
+                    <span *ngIf="avgCompressionOf(element) == null" class="no-result">{{ translation.translate('quality.result.configRequired') }}</span>
                   </td>
                 </ng-container>
 
                 <ng-container matColumnDef="actions">
-                  <th mat-header-cell *matHeaderCellDef class="actions-col actions-col-wide"> Actions </th>
+                  <th mat-header-cell *matHeaderCellDef class="actions-col actions-col-wide"> {{ translation.translate('quality.table.actions') }} </th>
                   <td mat-cell *matCellDef="let element" class="actions-col actions-col-wide">
                     <div class="table-actions">
-                      <button mat-icon-button class="action-btn" title="View Details" (click)="viewDetails(element)">
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('quality.action.view')" (click)="viewDetails(element)">
                         <mat-icon>visibility</mat-icon>
                       </button>
-                      <button mat-icon-button class="action-btn" title="Edit" (click)="editRecord(element)">
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('quality.action.edit')" (click)="editRecord(element)">
                         <mat-icon>edit</mat-icon>
                       </button>
-                      <button mat-icon-button class="action-btn delete-btn" title="Delete" (click)="deleteRecord(element)">
+                      <button mat-icon-button class="action-btn delete-btn" [title]="translation.translate('quality.action.delete')" (click)="deleteRecord(element)">
                         <mat-icon>delete</mat-icon>
                       </button>
                     </div>
@@ -673,9 +674,47 @@ import { forkJoin } from 'rxjs';
       from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    .tpms-dir[dir="rtl"] .summary-label,
+    .tpms-dir[dir="rtl"] .samples-table th,
+    .tpms-dir[dir="rtl"] .history-table .mat-mdc-header-cell {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .date-input-wrapper {
+      flex-direction: row;
+    }
+
+    .tpms-dir[dir="rtl"] .samples-table th,
+    .tpms-dir[dir="rtl"] .samples-table td {
+      text-align: right;
+    }
+
+    .tpms-dir[dir="rtl"] .form-actions {
+      flex-direction: row;
+    }
+
+    .tpms-dir[dir="rtl"] .history-table .mat-mdc-header-cell,
+    .tpms-dir[dir="rtl"] .history-table .mat-mdc-cell {
+      text-align: right;
+    }
+
+    .tpms-dir[dir="rtl"] .filters-section .filter-group label {
+      text-align: right;
+    }
+
+    .tpms-dir[dir="rtl"] .actions-col .table-actions {
+      flex-direction: row;
+    }
+
+    .tpms-dir[dir="rtl"] .search-bar {
+      direction: rtl;
+    }
   `]
 })
 export class QualityComponent implements OnInit, OnDestroy {
+  readonly translation = inject(TranslationService);
   private fb = inject(FormBuilder);
   private dialog = inject(MatDialog);
   private qualityService = inject(QualityService);
@@ -821,16 +860,16 @@ export class QualityComponent implements OnInit, OnDestroy {
 
     const messages: string[] = [];
     if (!product) {
-      messages.push('Select a Product.');
+      messages.push(this.translation.translate('quality.warning.selectProduct'));
     } else {
       if (!MasterDataUtil.isConfiguredPositive(this.previewProductArea)) {
-        messages.push('Product Area is not configured for this product.');
+        messages.push(this.translation.translate('quality.warning.productArea'));
       }
       if (!MasterDataUtil.isConfiguredPositive(this.previewCompressionStandard)) {
-        messages.push('Compression Standard is not configured for this product.');
+        messages.push(this.translation.translate('quality.warning.compressionStandard'));
       }
       if (!MasterDataUtil.isConfiguredPositive(this.previewStandardWeight)) {
-        messages.push('Standard Weight is not configured — Weight Difference will not be calculated.');
+        messages.push(this.translation.translate('quality.warning.standardWeight'));
       }
     }
     this.configMessages = messages;
@@ -905,7 +944,7 @@ export class QualityComponent implements OnInit, OnDestroy {
       submissionId: this.editingId ? undefined : submissionId,
       date: submittedDate,
       productId: formValue.productId,
-      productName: product?.name ?? this.editingOriginal?.productName ?? 'Unknown Product',
+      productName: product?.name ?? this.editingOriginal?.productName ?? this.translation.translate('quality.product.unknown'),
       lineId: formValue.lineId,
       lineName: line?.name ?? '',
       testDate: submittedDate,
@@ -939,6 +978,13 @@ export class QualityComponent implements OnInit, OnDestroy {
         this.submissionGuard.release();
       }
     });
+  }
+
+  resultLabel(result: string | null | undefined): string {
+    if (result === 'PASS') return this.translation.translate('quality.result.pass');
+    if (result === 'FAIL') return this.translation.translate('quality.result.fail');
+    if (result === 'CONFIGURATION_REQUIRED') return this.translation.translate('quality.result.configRequired');
+    return result ?? '';
   }
 
   avgCompressionOf(test: QualityTest): number | undefined {
@@ -981,10 +1027,10 @@ export class QualityComponent implements OnInit, OnDestroy {
   deleteRecord(record: QualityTest): void {
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Quality Test?',
-        message: 'Are you sure you want to delete this quality test?',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        title: this.translation.translate('quality.delete.title'),
+        message: this.translation.translate('quality.delete.message'),
+        confirmText: this.translation.translate('quality.delete.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'danger'
       }
     });
@@ -1010,10 +1056,10 @@ export class QualityComponent implements OnInit, OnDestroy {
     if (this.qualityForm.dirty) {
       const dialogRef = this.dialog.open(ConfirmDialogComponent, {
         data: {
-          title: 'Clear quality test?',
-          message: 'All unsaved data will be lost.',
-          confirmText: 'Clear',
-          cancelText: 'Cancel',
+          title: this.translation.translate('quality.clear.title'),
+          message: this.translation.translate('quality.clear.message'),
+          confirmText: this.translation.translate('quality.clear.confirm'),
+          cancelText: this.translation.translate('common.cancel'),
           variant: 'warning'
         }
       });
