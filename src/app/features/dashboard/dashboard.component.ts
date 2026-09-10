@@ -1,6 +1,6 @@
 import {
   Component, OnInit, OnDestroy, AfterViewInit,
-  ViewChild, ElementRef, ChangeDetectorRef, inject
+  ViewChild, ElementRef, ChangeDetectorRef, inject, effect
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -34,6 +34,14 @@ import {
 } from '../../core/services/dashboard.service';
 import { ReportService, ReportType, ReportFormat } from '../../core/services/report.service';
 import { AuthService } from '../../core/services/auth.service';
+import { TranslationService } from '../../core/services/translation.service';
+
+// ── Shared i18n helper for Dashboard-owned strings ──────────────────────────
+// Preset values double as translation-key suffixes, so no extra mapping table
+// is needed: DatePreset | "dashboard.filters.<preset>".
+function presetLabelFor(translation: TranslationService, preset: DatePreset): string {
+  return translation.translate(`dashboard.filters.${preset}`);
+}
 
 // ─── Report Dialog Component ──────────────────────────────────────────────────
 
@@ -51,7 +59,7 @@ import { Component as NgComponent } from '@angular/core';
     <div class="report-dialog">
       <div class="report-dialog__header">
         <mat-icon class="report-dialog__icon">download</mat-icon>
-        <h2>Download Report</h2>
+        <h2>{{ translation.translate('dashboard.report.title') }}</h2>
         <button mat-icon-button class="report-dialog__close" (click)="close()">
           <mat-icon>close</mat-icon>
         </button>
@@ -60,7 +68,7 @@ import { Component as NgComponent } from '@angular/core';
       <div class="report-dialog__body">
         <!-- Report Type -->
         <div class="field-group">
-          <label>Report Type</label>
+          <label>{{ translation.translate('dashboard.report.reportType') }}</label>
           <div class="type-grid">
             <button
               *ngFor="let t of reportTypes"
@@ -68,30 +76,30 @@ import { Component as NgComponent } from '@angular/core';
               [class.type-btn--active]="reportType === t.value"
               (click)="reportType = t.value">
               <mat-icon>{{ t.icon }}</mat-icon>
-              <span>{{ t.label }}</span>
+              <span>{{ translation.translate('dashboard.report.type.' + t.value) }}</span>
             </button>
           </div>
         </div>
 
         <!-- Date Range -->
         <div class="field-group">
-          <label>Date Range</label>
+          <label>{{ translation.translate('dashboard.report.dateRange') }}</label>
           <div class="preset-row">
             <button
               *ngFor="let p of presets"
               class="preset-btn"
               [class.preset-btn--active]="datePreset === p.preset && p.preset !== 'custom'"
               (click)="selectPreset(p.preset)">
-              {{ p.label }}
+              {{ presetLabel(p.preset) }}
             </button>
           </div>
           <div *ngIf="datePreset === 'custom'" class="custom-dates">
             <div class="date-field">
-              <label>From</label>
+              <label>{{ translation.translate('dashboard.report.from') }}</label>
               <input type="date" [(ngModel)]="customStart" class="date-input">
             </div>
             <div class="date-field">
-              <label>To</label>
+              <label>{{ translation.translate('dashboard.report.to') }}</label>
               <input type="date" [(ngModel)]="customEnd" class="date-input">
             </div>
           </div>
@@ -99,31 +107,31 @@ import { Component as NgComponent } from '@angular/core';
 
         <!-- Format -->
         <div class="field-group">
-          <label>Format</label>
+          <label>{{ translation.translate('dashboard.report.format') }}</label>
           <div class="format-row">
             <button
               class="format-btn"
               [class.format-btn--active]="format === 'xlsx'"
               (click)="format = 'xlsx'">
               <mat-icon>table_chart</mat-icon>
-              Excel (.xlsx)
+              {{ translation.translate('dashboard.report.formatExcel') }}
             </button>
             <button
               class="format-btn"
               [class.format-btn--active]="format === 'pdf'"
               (click)="format = 'pdf'">
               <mat-icon>picture_as_pdf</mat-icon>
-              Professional PDF
+              {{ translation.translate('dashboard.report.formatPdf') }}
             </button>
           </div>
         </div>
       </div>
 
       <div class="report-dialog__footer">
-        <button mat-button (click)="close()" class="btn-cancel">Cancel</button>
+        <button mat-button (click)="close()" class="btn-cancel">{{ translation.translate('common.cancel') }}</button>
         <button mat-button class="btn-download" (click)="download()">
           <mat-icon>download</mat-icon>
-          Download
+          {{ translation.translate('dashboard.report.download') }}
         </button>
       </div>
     </div>
@@ -389,6 +397,7 @@ import { Component as NgComponent } from '@angular/core';
 })
 export class ReportDialogComponent {
   private dashboardSvc = inject(DashboardService);
+  readonly translation = inject(TranslationService);
 
   reportType: ReportType = 'production';
   format: ReportFormat = 'xlsx';
@@ -414,6 +423,10 @@ export class ReportDialogComponent {
 
   selectPreset(preset: DatePreset): void {
     this.datePreset = preset;
+  }
+
+  presetLabel(preset: DatePreset): string {
+    return presetLabelFor(this.translation, preset);
   }
 
   download(): void {
@@ -469,13 +482,13 @@ export class ReportDialogComponent {
   template: `
     <!-- Page Header with Download button -->
     <app-page-header
-      title="Dashboard"
-      subtitle="Factory overview and performance analytics"
+      [title]="translation.translate('dashboard.title')"
+      [subtitle]="translation.translate('dashboard.subtitle')"
       icon="dashboard"
     >
       <button mat-button class="btn-report" actions *ngIf="isAdmin()" (click)="openReportDialog()">
         <mat-icon>download</mat-icon>
-        Download Report
+        {{ translation.translate('dashboard.downloadReport') }}
       </button>
     </app-page-header>
 
@@ -489,7 +502,7 @@ export class ReportDialogComponent {
             class="filter-chip"
             [class.filter-chip--active]="datePreset === p.preset && p.preset !== 'custom'"
             (click)="selectPreset(p.preset)">
-            {{ p.label }}
+            {{ presetLabel(p.preset) }}
           </button>
         </div>
         <div *ngIf="datePreset === 'custom'" class="filter-bar__custom">
@@ -497,7 +510,7 @@ export class ReportDialogComponent {
           <span class="date-sep">→</span>
           <input type="date" [(ngModel)]="customEnd" (change)="applyCustomRange()" class="date-input">
         </div>
-        <span class="filter-bar__label">{{ currentRange?.label }}</span>
+        <span class="filter-bar__label">{{ currentRangeLabel }}</span>
       </div>
 
       <!-- Loading State -->
@@ -523,11 +536,11 @@ export class ReportDialogComponent {
       <div *ngIf="error" class="error-state">
         <app-empty-state
           icon="error_outline"
-          title="Unable to load dashboard data"
-          description="There was a problem loading the dashboard data. Please try again."
+          [title]="translation.translate('dashboard.error.title')"
+          [description]="translation.translate('dashboard.error.description')"
           variant="warning"
         >
-          <button mat-button (click)="load()" class="btn-primary">Retry</button>
+          <button mat-button (click)="load()" class="btn-primary">{{ translation.translate('dashboard.retry') }}</button>
         </app-empty-state>
       </div>
 
@@ -558,9 +571,9 @@ export class ReportDialogComponent {
                 <mat-icon>precision_manufacturing</mat-icon>
               </div>
               <div class="stat-card__info">
-                <p class="stat-card__label">{{ datePreset === 'today' ? "Today's Production" : 'Total Production' }}</p>
+                <p class="stat-card__label">{{ productionLabel() }}</p>
                 <h3 class="stat-card__value">{{ stats.totalProduction | number }}</h3>
-                <p class="stat-card__sub">pieces</p>
+                <p class="stat-card__sub">{{ translation.translate('dashboard.kpi.unitPieces') }}</p>
               </div>
             </div>
           </app-card>
@@ -571,9 +584,9 @@ export class ReportDialogComponent {
                 <mat-icon>science</mat-icon>
               </div>
               <div class="stat-card__info">
-                <p class="stat-card__label">{{ datePreset === 'today' ? "Today's Mixes" : 'Total Mixes' }}</p>
+                <p class="stat-card__label">{{ mixesLabel() }}</p>
                 <h3 class="stat-card__value">{{ stats.totalMixes | number }}</h3>
-                <p class="stat-card__sub">mixes</p>
+                <p class="stat-card__sub">{{ translation.translate('dashboard.kpi.unitMixes') }}</p>
               </div>
             </div>
           </app-card>
@@ -584,9 +597,9 @@ export class ReportDialogComponent {
                 <mat-icon>verified</mat-icon>
               </div>
               <div class="stat-card__info">
-                <p class="stat-card__label">Samples Tested</p>
+                <p class="stat-card__label">{{ translation.translate('dashboard.kpi.samplesTested') }}</p>
                 <h3 class="stat-card__value">{{ stats.qualitySamples | number }}</h3>
-                <p class="stat-card__sub">samples</p>
+                <p class="stat-card__sub">{{ translation.translate('dashboard.kpi.unitSamples') }}</p>
               </div>
             </div>
           </app-card>
@@ -597,9 +610,9 @@ export class ReportDialogComponent {
                 <mat-icon>check_circle</mat-icon>
               </div>
               <div class="stat-card__info">
-                <p class="stat-card__label">Sample Pass Rate</p>
+                <p class="stat-card__label">{{ translation.translate('dashboard.kpi.passRate') }}</p>
                 <h3 class="stat-card__value">{{ stats.passRate | number:'1.1-1' }}%</h3>
-                <p class="stat-card__sub">{{ (stats.qualityPassed + stats.qualityFailed) > 0 ? 'of ' + (stats.qualityPassed + stats.qualityFailed) + ' assessed samples passed' : 'no data' }}</p>
+                <p class="stat-card__sub">{{ assessedLabel() }}</p>
               </div>
             </div>
           </app-card>
@@ -610,9 +623,9 @@ export class ReportDialogComponent {
                 <mat-icon>timer</mat-icon>
               </div>
               <div class="stat-card__info">
-                <p class="stat-card__label">Time Efficiency</p>
+                <p class="stat-card__label">{{ translation.translate('dashboard.kpi.timeEfficiency') }}</p>
                 <h3 class="stat-card__value">{{ stats.timeEfficiency | number:'1.1-1' }}%</h3>
-                <p class="stat-card__sub">Runtime / Available</p>
+                <p class="stat-card__sub">{{ translation.translate('dashboard.kpi.runtimeAvailable') }}</p>
               </div>
             </div>
           </app-card>
@@ -621,11 +634,11 @@ export class ReportDialogComponent {
         <!-- Charts Row 1: Production -->
         <div class="charts-grid">
           <!-- Production Trend -->
-          <app-card title="Production Trend" class="chart-card">
+          <app-card [title]="translation.translate('dashboard.section.productionTrend')" class="chart-card">
             <ng-template #prodTrendEmpty>
               <div class="chart-empty">
                 <mat-icon>show_chart</mat-icon>
-                <p>No production data for this period</p>
+                <p>{{ translation.translate('dashboard.empty.production') }}</p>
               </div>
             </ng-template>
             <div *ngIf="productionTrend.length > 0; else prodTrendEmpty" class="chart-wrapper">
@@ -634,11 +647,11 @@ export class ReportDialogComponent {
           </app-card>
 
           <!-- Production by Product -->
-          <app-card title="Production by Product" class="chart-card">
+          <app-card [title]="translation.translate('dashboard.section.productionByProduct')" class="chart-card">
             <ng-template #prodProductEmpty>
               <div class="chart-empty">
                 <mat-icon>bar_chart</mat-icon>
-                <p>No production data for this period</p>
+                <p>{{ translation.translate('dashboard.empty.production') }}</p>
               </div>
             </ng-template>
             <div *ngIf="productionByProduct.length > 0; else prodProductEmpty" class="chart-wrapper">
@@ -650,31 +663,31 @@ export class ReportDialogComponent {
         <!-- Charts Row 2: Materials & Quality Results -->
         <div class="charts-grid">
           <!-- Materials Overview -->
-          <app-card title="Materials Overview" class="chart-card">
+          <app-card [title]="translation.translate('dashboard.section.materialsOverview')" class="chart-card">
             <div *ngIf="materialAggregates.length === 0" class="chart-empty">
               <mat-icon>science</mat-icon>
-              <p>No material data for this period</p>
+              <p>{{ translation.translate('dashboard.empty.materials') }}</p>
             </div>
             <div *ngIf="materialAggregates.length > 0" class="materials-table-wrapper">
               <div class="materials-summary">
                 <div class="materials-kpi">
                   <span class="materials-kpi__value">{{ filteredData.materials.length }}</span>
-                  <span class="materials-kpi__label">Batch Records</span>
+                  <span class="materials-kpi__label">{{ translation.translate('dashboard.materials.summary') }}</span>
                 </div>
                 <div class="materials-kpi">
                   <span class="materials-kpi__value">{{ stats.totalMixes | number }}</span>
-                  <span class="materials-kpi__label">Total Mixes</span>
+                  <span class="materials-kpi__label">{{ translation.translate('dashboard.materials.totalMixes') }}</span>
                 </div>
               </div>
               <div class="mat-table-scroll">
                 <table class="mat-table compact-table">
                   <thead>
                     <tr>
-                      <th>Material</th>
-                      <th class="text-right">Theoretical</th>
-                      <th class="text-right">Actual</th>
-                      <th class="text-right">m³ (converted)</th>
-                      <th class="text-right">Variance</th>
+                      <th>{{ translation.translate('dashboard.materials.col.material') }}</th>
+                      <th class="text-right">{{ translation.translate('dashboard.materials.col.theoretical') }}</th>
+                      <th class="text-right">{{ translation.translate('dashboard.materials.col.actual') }}</th>
+                      <th class="text-right">{{ translation.translate('dashboard.materials.col.converted') }}</th>
+                      <th class="text-right">{{ translation.translate('dashboard.materials.col.variance') }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -685,7 +698,7 @@ export class ReportDialogComponent {
                       <td class="text-right">
                         <span *ngIf="m.conversionStatus === 'OK' && m.unit === 'kg'">{{ m.cubicMeters | number:'1.1-2' }} m³</span>
                         <span *ngIf="m.conversionStatus === 'OK' && m.unit !== 'kg'">—</span>
-                        <span *ngIf="m.conversionStatus === 'CONFIGURATION_REQUIRED'" class="config-required">CONFIGURATION REQUIRED</span>
+                        <span *ngIf="m.conversionStatus === 'CONFIGURATION_REQUIRED'" class="config-required">{{ translation.translate('dashboard.materials.configRequired') }}</span>
                       </td>
                       <td class="text-right" [class.variance-neg]="m.variance < 0" [class.variance-pos]="m.variance > 0">
                         {{ m.variance >= 0 ? '+' : '' }}{{ m.variance | number:'1.1-1' }} {{ m.unit }}
@@ -695,28 +708,28 @@ export class ReportDialogComponent {
                 </table>
               </div>
               <div *ngIf="materialConversionRequired" class="config-required-note">
-                Set SandKgPerM3 / AggregateKgPerM3 in the Material master to report Kg totals in cubic metres (CONFIGURATION REQUIRED).
+                {{ translation.translate('dashboard.materials.conversionNote') }}
               </div>
             </div>
           </app-card>
 
           <!-- Quality Results Doughnut -->
-          <app-card title="Quality Results" class="chart-card">
+          <app-card [title]="translation.translate('dashboard.section.qualityResults')" class="chart-card">
             <ng-template #qualityEmpty>
               <div class="chart-empty">
                 <mat-icon>donut_large</mat-icon>
-                <p>No quality data for this period</p>
+                <p>{{ translation.translate('dashboard.empty.quality') }}</p>
               </div>
             </ng-template>
             <div *ngIf="stats.qualitySamples > 0; else qualityEmpty">
               <div class="quality-legend">
                 <div class="quality-legend__item quality-legend__item--pass">
                   <span class="quality-legend__dot"></span>
-                  <span>Samples Passed: {{ passCount }}</span>
+                  <span>{{ translation.translate('dashboard.quality.samplesPassed', { count: passCount }) }}</span>
                 </div>
                 <div class="quality-legend__item quality-legend__item--fail">
                   <span class="quality-legend__dot"></span>
-                  <span>Samples Failed: {{ failCount }}</span>
+                  <span>{{ translation.translate('dashboard.quality.samplesFailed', { count: failCount }) }}</span>
                 </div>
               </div>
               <div class="chart-wrapper chart-wrapper--sm">
@@ -728,7 +741,7 @@ export class ReportDialogComponent {
 
         <!-- Charts Row 3: Quality Trend (Avg Compression per Day) -->
         <div *ngIf="qualityTrend.length > 0" class="charts-grid-single">
-          <app-card title="Quality Trend (Avg Compression per Day)" class="chart-card chart-card--wide">
+          <app-card [title]="translation.translate('dashboard.section.qualityTrend')" class="chart-card chart-card--wide">
             <div class="chart-wrapper">
               <canvas #qualityTrendChart></canvas>
             </div>
@@ -737,15 +750,15 @@ export class ReportDialogComponent {
 
         <!-- Production vs Released Output -->
         <div *ngIf="productPerformance.length > 0" class="charts-grid-single">
-          <app-card title="Production vs Released Output (by Product)" class="chart-card chart-card--wide">
+          <app-card [title]="translation.translate('dashboard.section.prodVsReleased')" class="chart-card chart-card--wide">
             <div class="mat-table-scroll">
               <table class="mat-table compact-table">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th class="text-right">Presses</th>
-                    <th class="text-right">Press Production</th>
-                    <th class="text-right">Released Output</th>
+                    <th>{{ translation.translate('dashboard.prodVsReleased.col.product') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.prodVsReleased.col.presses') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.prodVsReleased.col.pressProduction') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.prodVsReleased.col.releasedOutput') }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -758,7 +771,7 @@ export class ReportDialogComponent {
                 </tbody>
               </table>
               <p class="prod-output-note">
-                Production and Released Output are independent transactions. Pressed and released Products may differ on the same Line/date; no genealogy is implied.
+                {{ translation.translate('dashboard.prodVsReleased.note') }}
               </p>
             </div>
           </app-card>
@@ -766,21 +779,21 @@ export class ReportDialogComponent {
 
         <!-- Line Status -->
         <div *ngIf="lineStatus.length > 0" class="charts-grid-single">
-          <app-card title="Line Status" class="chart-card chart-card--wide">
+          <app-card [title]="translation.translate('dashboard.section.lineStatus')" class="chart-card chart-card--wide">
             <div class="mat-table-scroll">
               <table class="mat-table compact-table line-status-table">
                 <thead>
                   <tr>
-                    <th>Line</th>
-                    <th>Products</th>
-                    <th class="text-right">Presses</th>
-                    <th class="text-right">Produced</th>
-                    <th class="text-right">Released</th>
-                    <th class="text-right">Mixes</th>
-                    <th class="text-right">Downtime (min)</th>
-                    <th class="text-right">Overtime (h)</th>
-                    <th class="text-right">Time Efficiency</th>
-                    <th class="text-right">Quality</th>
+                    <th>{{ translation.translate('dashboard.lineStatus.col.line') }}</th>
+                    <th>{{ translation.translate('dashboard.lineStatus.col.products') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.presses') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.produced') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.released') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.mixes') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.downtime') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.overtime') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.timeEfficiency') }}</th>
+                    <th class="text-right">{{ translation.translate('dashboard.lineStatus.col.quality') }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -790,7 +803,7 @@ export class ReportDialogComponent {
                       <div class="line-products" *ngIf="row.products.length > 0; else noProducts">
                         <div class="line-product" *ngFor="let pr of row.products">
                           <span>{{ pr.productName }}</span>
-                          <span class="line-product__qty">{{ pr.produced | number }} pressed · {{ pr.releasedOutput | number }} released</span>
+                          <span class="line-product__qty">{{ pressedReleased(pr.produced, pr.releasedOutput) }}</span>
                         </div>
                       </div>
                       <ng-template #noProducts>—</ng-template>
@@ -803,7 +816,7 @@ export class ReportDialogComponent {
                     <td class="text-right">{{ row.overtimeHours | number:'1.0-1' }}</td>
                     <td class="text-right">{{ row.timeEfficiency | number:'1.1-1' }}%</td>
                     <td class="text-right">
-                      <span *ngIf="row.qualitySamples > 0">{{ row.qualityPassed }}/{{ row.qualitySamples }} samples passed</span>
+                      <span *ngIf="row.qualitySamples > 0">{{ translation.translate('dashboard.lineStatus.samplesPassed', { passed: row.qualityPassed, samples: row.qualitySamples }) }}</span>
                       <span *ngIf="row.qualitySamples === 0">—</span>
                     </td>
                   </tr>
@@ -814,12 +827,12 @@ export class ReportDialogComponent {
         </div>
 
         <!-- Recent Activities -->
-        <app-card title="Recent Activities" class="activities-card">
+        <app-card [title]="translation.translate('dashboard.section.recentActivities')" class="activities-card">
           <div *ngIf="recentActivities.length === 0" class="empty-activities">
             <app-empty-state
               icon="history"
-              title="No recent activities"
-              description="Start recording Production, Materials, or Quality data to see activities here."
+              [title]="translation.translate('dashboard.empty.activities.title')"
+              [description]="translation.translate('dashboard.empty.activities.description')"
               variant="neutral"
               [isPage]="false"
             ></app-empty-state>
@@ -831,7 +844,7 @@ export class ReportDialogComponent {
               </div>
               <div class="activity-content">
                 <div class="activity-header">
-                  <span class="activity-type">{{ activity.title }}</span>
+                  <span class="activity-type">{{ activityTitle(activity) }}</span>
                   <span class="activity-time">{{ activity.relativeTime }}</span>
                 </div>
                 <p class="activity-description">{{ activity.description }}</p>
@@ -1262,6 +1275,26 @@ export class ReportDialogComponent {
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* ── RTL overrides ───────────────────────────────── */
+    // Scoped to the page's own direction wrapper .tpms-dir[dir="rtl"]
+    // (Dashboard is translated, so its shell wrapper carries dir="rtl"
+    // in Arabic mode). On English pages the shell's LTR wrapper keeps
+    // these rules inactive. Never use the :dir(rtl) selector (stripped by
+    // esbuild) or bare [dir="rtl"] ancestor selectors (leak across wrappers).
+    .tpms-dir[dir="rtl"] .compact-table th {
+      text-align: right;
+    }
+
+    .tpms-dir[dir="rtl"] .stat-card__label,
+    .tpms-dir[dir="rtl"] .materials-kpi__label {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .date-sep {
+      transform: scaleX(-1);
+    }
+
     /* ── Misc ─────────────────────────────────────── */
     .error-state { padding: var(--space-8) 0; }
 
@@ -1399,8 +1432,68 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
   private auth = inject(AuthService);
+  readonly translation = inject(TranslationService);
+
+  // Redraw Chart.js canvases when the UI language changes, since canvas
+  // content never updates automatically. No-op until data is loaded.
+  private langChangeEffect = effect(() => {
+    this.translation.lang();
+    if (this.chartsReady && !this.loading && !this.error) {
+      setTimeout(() => this.drawCharts(), 0);
+    }
+  });
 
   readonly isAdmin = this.auth.isAdmin;
+
+  // ─── i18n helpers ────────────────────────────────────────────────────────
+  presetLabel(preset: DatePreset): string {
+    return presetLabelFor(this.translation, preset);
+  }
+
+  get currentRangeLabel(): string {
+    if (!this.currentRange) return '';
+    return this.currentRange.preset === 'custom'
+      ? this.currentRange.label
+      : this.presetLabel(this.currentRange.preset);
+  }
+
+  productionLabel(): string {
+    return this.datePreset === 'today'
+      ? this.translation.translate('dashboard.kpi.todayProduction')
+      : this.translation.translate('dashboard.kpi.totalProduction');
+  }
+
+  mixesLabel(): string {
+    return this.datePreset === 'today'
+      ? this.translation.translate('dashboard.kpi.todayMixes')
+      : this.translation.translate('dashboard.kpi.totalMixes');
+  }
+
+  assessedLabel(): string {
+    const n = this.stats.qualityPassed + this.stats.qualityFailed;
+    return n > 0
+      ? this.translation.translate('dashboard.kpi.assessedCount', { count: n })
+      : this.translation.translate('dashboard.common.noData');
+  }
+
+  activityTitle(activity: RecentActivity): string {
+    const key = activity.type === 'production' ? 'dashboard.activity.production'
+      : activity.type === 'materials' ? 'dashboard.activity.materials'
+      : activity.type === 'quality' ? 'dashboard.activity.quality'
+      : null;
+    return key ? this.translation.translate(key) : activity.title;
+  }
+
+  private formatCount(n: number): string {
+    return new Intl.NumberFormat('en-US').format(n);
+  }
+
+  pressedReleased(pressed: number, released: number): string {
+    return this.translation.translate('dashboard.lineStatus.pressedReleased', {
+      pressed: this.formatCount(pressed),
+      released: this.formatCount(released)
+    });
+  }
 
   // ─── State ────────────────────────────────────────────────────────────────
   loading = true;
@@ -1576,7 +1669,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         data: {
           labels: this.productionTrend.map(p => p.label),
           datasets: [{
-            label: 'Pieces Produced',
+            label: this.translation.translate('dashboard.chart.piecesProduced'),
             data: this.productionTrend.map(p => p.value),
             borderColor: primaryColor,
             backgroundColor: gradient,
@@ -1589,7 +1682,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             pointBorderWidth: 2
           }]
         },
-        options: this.lineChartOptions(baseFont, gridColor, textColor, 'Pieces')
+        options: this.lineChartOptions(baseFont, gridColor, textColor, this.translation.translate('dashboard.chart.unitPieces'))
       }));
     }
 
@@ -1602,7 +1695,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         data: {
           labels: this.productionByProduct.map(p => p.productName),
           datasets: [{
-            label: 'Pieces Produced',
+            label: this.translation.translate('dashboard.chart.piecesProduced'),
             data: this.productionByProduct.map(p => p.produced),
             backgroundColor: this.productionByProduct.map((_, i) => paletteColors[i % paletteColors.length] + 'cc'),
             borderColor: this.productionByProduct.map((_, i) => paletteColors[i % paletteColors.length]),
@@ -1611,7 +1704,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
           }]
         },
         options: {
-          ...this.barChartOptions(baseFont, gridColor, textColor, 'Pieces'),
+          ...this.barChartOptions(baseFont, gridColor, textColor, this.translation.translate('dashboard.chart.unitPieces')),
           indexAxis: this.productionByProduct.length > 4 ? 'y' : 'x'
         }
       }));
@@ -1624,7 +1717,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       this.charts.push(new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: ['Samples Passed', 'Samples Failed'],
+          labels: [
+            this.translation.translate('dashboard.chart.samplesPassed'),
+            this.translation.translate('dashboard.chart.samplesFailed')
+          ],
           datasets: [{
             data: [this.passCount, this.failCount],
             backgroundColor: [successColor, errorColor],
@@ -1664,7 +1760,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         data: {
           labels: this.qualityTrend.map(p => p.label),
           datasets: [{
-            label: 'Avg Compression',
+            label: this.translation.translate('dashboard.chart.avgCompression'),
             data: this.qualityTrend.map(p => p.avgCompression > 0 ? p.avgCompression : null),
             borderColor: successColor,
             backgroundColor: gradient,

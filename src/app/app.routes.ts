@@ -19,7 +19,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-      { path: 'dashboard', component: DashboardComponent },
+      { path: 'dashboard', component: DashboardComponent, data: { rtl: true } },
       { path: 'production', component: ProductionComponent, canActivate: [adminGuard] },
       { path: 'output-release', component: OutputReleaseComponent, canActivate: [adminGuard] },
       { path: 'materials', component: MaterialsComponent, canActivate: [adminGuard] },
