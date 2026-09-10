@@ -1,19 +1,26 @@
 // ============================================================
 // TPMS — Login Component
+// ------------------------------------------------------------
+// Translated page: its root carries the `.tpms-dir` direction
+// container whose dir follows the UI language (RTL in Arabic).
+// Directional CSS is scoped to `.tpms-dir[dir="rtl"]`.
 // ============================================================
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { Dir } from '@angular/cdk/bidi';
 import { AuthService } from '../../core/services/auth.service';
+import { TranslationService } from '../../core/services/translation.service';
+import { LanguageSwitcherComponent } from '../../shared/components/language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, Dir, LanguageSwitcherComponent],
   template: `
-    <div class="login-page">
+    <div class="login-page tpms-dir" [dir]="translation.dir()">
       <div class="aurora aurora--1"></div>
       <div class="aurora aurora--2"></div>
       <div class="aurora aurora--3"></div>
@@ -27,20 +34,20 @@ import { AuthService } from '../../core/services/auth.service';
             <div class="login-banner__logo animate-scale-bounce">
               <mat-icon>precision_manufacturing</mat-icon>
             </div>
-            <h1 class="login-banner__title text-gradient animate-fade-left">TPMS</h1>
-            <p class="login-banner__subtitle animate-fade-left stagger-1">Production Management System</p>
+            <h1 class="login-banner__title text-gradient animate-fade-left">{{ translation.translate('app.name') }}</h1>
+            <p class="login-banner__subtitle animate-fade-left stagger-1">{{ translation.translate('app.fullName') }}</p>
             <div class="login-banner__features">
               <div class="feature-item animate-fade-left stagger-2">
                 <span class="feature-item__icon"><mat-icon>bolt</mat-icon></span>
-                Real-time tracking
+                {{ translation.translate('auth.login.feature.tracking') }}
               </div>
               <div class="feature-item animate-fade-left stagger-3">
                 <span class="feature-item__icon"><mat-icon>verified</mat-icon></span>
-                Quality control
+                {{ translation.translate('auth.login.feature.quality') }}
               </div>
               <div class="feature-item animate-fade-left stagger-4">
                 <span class="feature-item__icon"><mat-icon>insights</mat-icon></span>
-                Resource optimization
+                {{ translation.translate('auth.login.feature.resource') }}
               </div>
             </div>
           </div>
@@ -53,8 +60,11 @@ import { AuthService } from '../../core/services/auth.service';
               <div class="login-header__badge">
                 <mat-icon>precision_manufacturing</mat-icon>
               </div>
-              <h2 class="text-gradient">Welcome back</h2>
-              <p>Please enter your details to sign in.</p>
+              <div class="login-header__actions">
+                <app-language-switcher></app-language-switcher>
+              </div>
+              <h2 class="text-gradient">{{ translation.translate('auth.login.welcome') }}</h2>
+              <p>{{ translation.translate('auth.login.subtitle') }}</p>
             </div>
 
             <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
@@ -77,10 +87,10 @@ import { AuthService } from '../../core/services/auth.service';
                     placeholder=" "
                     autocomplete="email"
                   />
-                  <label for="username" class="form-label">Email</label>
+                  <label for="username" class="form-label">{{ translation.translate('auth.login.email') }}</label>
                 </div>
                 <div class="form-error" *ngIf="isFieldInvalid('username')">
-                  <mat-icon>error</mat-icon> Email is required
+                  <mat-icon>error</mat-icon> {{ translation.translate('auth.login.error.emailRequired') }}
                 </div>
               </div>
 
@@ -96,18 +106,18 @@ import { AuthService } from '../../core/services/auth.service';
                     placeholder=" "
                     autocomplete="current-password"
                   />
-                  <label for="password" class="form-label">Password</label>
+                  <label for="password" class="form-label">{{ translation.translate('auth.login.password') }}</label>
                   <button
                     type="button"
                     class="input-icon-right"
                     (click)="showPassword = !showPassword"
-                    [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                    [attr.aria-label]="translation.translate(showPassword ? 'header.hidePassword' : 'header.showPassword')"
                   >
                     <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
                   </button>
                 </div>
                 <div class="form-error" *ngIf="isFieldInvalid('password')">
-                  <mat-icon>error</mat-icon> Password is required
+                  <mat-icon>error</mat-icon> {{ translation.translate('auth.login.error.passwordRequired') }}
                 </div>
               </div>
 
@@ -115,9 +125,9 @@ import { AuthService } from '../../core/services/auth.service';
               <div class="login-form-options">
                 <label class="form-checkbox">
                   <input type="checkbox" formControlName="rememberMe" />
-                  <span>Remember me</span>
+                  <span>{{ translation.translate('auth.login.rememberMe') }}</span>
                 </label>
-                <a routerLink="/forgot-password" class="forgot-link">Forgot password?</a>
+                <a routerLink="/forgot-password" class="forgot-link">{{ translation.translate('auth.login.forgotPassword') }}</a>
               </div>
 
               <!-- Submit -->
@@ -127,7 +137,7 @@ import { AuthService } from '../../core/services/auth.service';
                 [disabled]="loginForm.invalid || isLoading()"
                 [class.btn-loading]="isLoading()"
               >
-                <span *ngIf="!isLoading()">Sign In</span>
+                <span *ngIf="!isLoading()">{{ translation.translate('auth.login.signIn') }}</span>
                 <span *ngIf="isLoading()" class="btn-spinner"></span>
               </button>
             </form>
@@ -150,6 +160,7 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
+  readonly translation = inject(TranslationService);
 
   loginForm = this.fb.group({
     username:   ['', Validators.required],
@@ -185,7 +196,7 @@ export class LoginComponent {
     if (res.success) {
       this.router.navigate(['/dashboard']);
     } else {
-      this.errorMessage.set(res.error || 'Login failed.');
+      this.errorMessage.set(res.error || this.translation.translate('auth.login.failed'));
     }
   }
 }

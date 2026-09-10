@@ -25,7 +25,7 @@ export const routes: Routes = [
       { path: 'materials', component: MaterialsComponent, canActivate: [adminGuard] },
       { path: 'quality', component: QualityComponent, canActivate: [adminGuard] },
       { path: 'profile', loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent), canActivate: [adminGuard] },
-      { path: 'users', loadComponent: () => import('./features/users/user-management.component').then(m => m.UserManagementComponent), canActivate: [adminGuard] },
+      { path: 'users', loadComponent: () => import('./features/users/user-management.component').then(m => m.UserManagementComponent), canActivate: [adminGuard], data: { rtl: true } },
       { 
         path: 'settings', 
         loadChildren: () => import('./features/settings/settings.routes').then(m => m.SETTINGS_ROUTES),

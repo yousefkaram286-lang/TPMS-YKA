@@ -7,6 +7,7 @@ import { AppCardComponent } from '../../shared/components/app-card/app-card.comp
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { UserManagementService } from '../../core/services/user-management.service';
 import { AuthService } from '../../core/services/auth.service';
+import { TranslationService } from '../../core/services/translation.service';
 import { User } from '../../core/models/user.model';
 
 @Component({
@@ -20,6 +21,7 @@ export class UserManagementComponent implements OnInit {
   private fb = inject(FormBuilder);
   private userSvc = inject(UserManagementService);
   private auth = inject(AuthService);
+  readonly translation = inject(TranslationService);
 
   readonly currentUser = this.auth.currentUser;
 
@@ -58,7 +60,7 @@ export class UserManagementComponent implements OnInit {
     try {
       this.users = await this.userSvc.listUsers();
     } catch (err: any) {
-      this.message = { success: false, text: err?.message ?? 'Failed to load users.' };
+      this.message = { success: false, text: err?.message ?? this.translation.translate('users.error.loadFailed') };
     } finally {
       this.loading = false;
     }
@@ -72,14 +74,14 @@ export class UserManagementComponent implements OnInit {
     try {
       const result = await this.userSvc.createUser(this.createForm.value);
       if (result.success) {
-        this.message = { success: true, text: 'User created successfully. They can now log in.' };
+        this.message = { success: true, text: this.translation.translate('users.success.created') };
         this.createForm.reset();
         await this.loadUsers();
       } else {
-        this.message = { success: false, text: result.error || 'Failed to create user.' };
+        this.message = { success: false, text: result.error || this.translation.translate('users.error.unexpected') };
       }
     } catch (err) {
-      this.message = { success: false, text: 'An unexpected error occurred.' };
+      this.message = { success: false, text: this.translation.translate('users.error.unexpected') };
     } finally {
       this.creating = false;
       if (this.message?.success) {
@@ -122,7 +124,7 @@ export class UserManagementComponent implements OnInit {
     if (this.isSelf(target) && (role !== 'Admin' || !active)) {
       this.editMessage = {
         success: false,
-        text: 'You cannot change the role of or deactivate your own account.'
+        text: this.translation.translate('users.error.selfChange')
       };
       return;
     }
@@ -141,7 +143,7 @@ export class UserManagementComponent implements OnInit {
       if (result.success) {
         this.closeEdit();
         await this.loadUsers();
-        this.message = { success: true, text: 'User updated successfully.' };
+        this.message = { success: true, text: this.translation.translate('users.success.updated') };
         this.scheduleMessageClear();
       } else {
         this.editMessage = { success: false, text: result.error || 'Failed to update user.' };
@@ -155,7 +157,7 @@ export class UserManagementComponent implements OnInit {
 
   async toggleActive(user: User): Promise<void> {
     if (user.active && this.isSelf(user)) {
-      this.message = { success: false, text: 'You cannot deactivate your own account.' };
+      this.message = { success: false, text: this.translation.translate('users.error.selfDeactivate') };
       this.scheduleMessageClear();
       return;
     }
@@ -164,7 +166,7 @@ export class UserManagementComponent implements OnInit {
     this.busyUser = user.id;
     this.message = null;
 
-    const name = user.displayName || user.username || 'User';
+    const name = user.displayName || user.username || this.translation.translate('users.role.user');
 
     try {
       const result = await this.userSvc.updateUser(user.id, { active: !user.active });
@@ -173,17 +175,26 @@ export class UserManagementComponent implements OnInit {
         await this.loadUsers();
         this.message = {
           success: true,
-          text: user.active ? `${name} has been deactivated.` : `${name} has been activated.`
+          text: user.active
+            ? this.translation.translate('users.success.deactivated', { name })
+            : this.translation.translate('users.success.activated', { name })
         };
         this.scheduleMessageClear();
       } else {
-        this.message = { success: false, text: result.error || 'Failed to update user status.' };
+        this.message = { success: false, text: result.error || this.translation.translate('users.error.unexpected') };
       }
     } catch (err) {
-      this.message = { success: false, text: 'An unexpected error occurred.' };
+      this.message = { success: false, text: this.translation.translate('users.error.unexpected') };
     } finally {
       this.busyUser = null;
     }
+  }
+
+  /** Display label for a role, keeping the underlying 'Admin'/'User' value unchanged. */
+  roleLabel(role: string): string {
+    return role === 'Admin'
+      ? this.translation.translate('users.role.admin')
+      : this.translation.translate('users.role.user');
   }
 
   private scheduleMessageClear(): void {

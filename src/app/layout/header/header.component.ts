@@ -12,43 +12,48 @@ import { filter } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { UserAvatarComponent } from '../../shared/components/user-avatar/user-avatar.component';
+import { LanguageSwitcherComponent } from '../../shared/components/language-switcher/language-switcher.component';
+import { TranslationService } from '../../core/services/translation.service';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatMenuModule, MatDividerModule, MatTooltipModule, UserAvatarComponent, RouterModule],
+  imports: [CommonModule, MatIconModule, MatMenuModule, MatDividerModule, MatTooltipModule, UserAvatarComponent, RouterModule, LanguageSwitcherComponent],
   template: `
     <header class="header">
       <div class="header__left">
         <button
           class="header__mobile-menu"
           (click)="toggleSidebar.emit()"
-          aria-label="Open menu"
+          [attr.aria-label]="translation.translate('header.openMenu')"
         >
           <mat-icon>menu</mat-icon>
         </button>
         
         <div class="header__search" *ngIf="showSearch">
           <mat-icon class="header__search-icon">search</mat-icon>
-          <input type="text" placeholder="Search..." class="header__search-input" />
-          <div class="header__search-shortcut">Ctrl+K</div>
+          <input type="text" [placeholder]="translation.translate('header.search')" class="header__search-input" />
+          <div class="header__search-shortcut">{{ translation.translate('header.searchShortcut') }}</div>
         </div>
       </div>
 
       <div class="header__right">
+        <!-- Language Switcher -->
+        <app-language-switcher></app-language-switcher>
+
         <!-- Theme Toggle -->
         <button 
           class="header__action-btn" 
           (click)="toggleTheme()" 
-          [matTooltip]="isDarkMode() ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+          [matTooltip]="translation.translate(isDarkMode() ? 'header.lightMode' : 'header.darkMode')"
           matTooltipPosition="below"
-          aria-label="Toggle theme"
+          [attr.aria-label]="translation.translate(isDarkMode() ? 'header.lightMode' : 'header.darkMode')"
         >
           <mat-icon>{{ isDarkMode() ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
 
         <!-- Notifications (Mock) -->
-        <button class="header__action-btn" aria-label="Notifications">
+        <button class="header__action-btn" [attr.aria-label]="translation.translate('header.notifications')">
           <mat-icon>notifications_none</mat-icon>
           <span class="header__action-badge">3</span>
         </button>
@@ -76,16 +81,16 @@ import { UserAvatarComponent } from '../../shared/components/user-avatar/user-av
           <mat-divider></mat-divider>
           <button mat-menu-item routerLink="/profile" *ngIf="isAdmin()">
             <mat-icon>person</mat-icon>
-            <span>My Profile</span>
+            <span>{{ translation.translate('header.myProfile') }}</span>
           </button>
           <button mat-menu-item routerLink="/settings" *ngIf="isAdmin()">
             <mat-icon>settings</mat-icon>
-            <span>Preferences</span>
+            <span>{{ translation.translate('header.preferences') }}</span>
           </button>
           <mat-divider></mat-divider>
           <button mat-menu-item (click)="logout()" class="text-danger">
             <mat-icon color="warn">logout</mat-icon>
-            <span>Logout</span>
+            <span>{{ translation.translate('nav.logout') }}</span>
           </button>
         </mat-menu>
       </div>
@@ -100,6 +105,7 @@ export class HeaderComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
   private themeService = inject(ThemeService);
+  readonly translation = inject(TranslationService);
 
   readonly currentUser = this.auth.currentUser;
   readonly isAdmin = this.auth.isAdmin;
@@ -116,7 +122,9 @@ export class HeaderComponent {
   }
 
   userRoleTitle(): string {
-    return this.auth.userRole() === 'Admin' ? 'Administrator' : 'User';
+    return this.auth.userRole() === 'Admin'
+      ? this.translation.translate('nav.role.admin')
+      : this.translation.translate('nav.role.user');
   }
 
   logout(): void {

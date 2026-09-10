@@ -77,6 +77,14 @@ html, body {
   transition: background-color var(--transition-theme), color var(--transition-theme);
 }
 
+// Arabic (RTL) typography — Cairo provides better Arabic glyph
+// coverage and shaping than Inter/Outfit for the UI text.
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
+
+[dir="rtl"] body {
+  font-family: 'Cairo', var(--font-sans) !important;
+}
+
 // ── Background Effects (Subtle, Premium) ───────────────────────────────
 body {
   position: relative;

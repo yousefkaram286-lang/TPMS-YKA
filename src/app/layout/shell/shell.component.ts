@@ -1,17 +1,36 @@
 // ============================================================
 // TPMS — Shell Component
+// ------------------------------------------------------------
+// Content direction policy (mixed-language safety pass):
+// The shell chrome (sidebar / header) follows the active UI
+// language via <html dir>. Each routed page decides its OWN
+// content direction:
+//   - pages marked `data: { rtl: true }` (translated, e.g. Users)
+//     become RTL when Arabic is active,
+//   - every other page stays LTR (English content keeps its
+//     natural layout during the phased translation rollout).
+// The CDK `Dir` directive is used instead of a plain dir
+// attribute so Angular Material components inside the wrapper
+// receive the correct Directionality. The wrapper also carries
+// the `.tpms-dir` marker class; directional CSS (forms, tables)
+// is scoped to `.tpms-dir[dir="rtl"]`, so it only activates on
+// translated RTL pages and never leaks into untranslated ones.
 // ============================================================
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router, RouterModule } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
+import { Dir } from '@angular/cdk/bidi';
+import { filter } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { HeaderComponent } from '../header/header.component';
+import { TranslationService } from '../../core/services/translation.service';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatSidenavModule, SidebarComponent, HeaderComponent],
+  imports: [CommonModule, RouterModule, MatSidenavModule, Dir, SidebarComponent, HeaderComponent],
   template: `
     <div class="app-container" [class.is-mobile]="isMobile">
       
@@ -27,7 +46,7 @@ import { HeaderComponent } from '../header/header.component';
             (toggleSidebar)="sidebarCollapsed = !sidebarCollapsed"
           ></app-header>
           
-          <div class="page-container page-content page-transition">
+          <div class="page-container page-content page-transition tpms-dir" [dir]="contentDir()">
             <router-outlet></router-outlet>
           </div>
         </main>
@@ -54,7 +73,7 @@ import { HeaderComponent } from '../header/header.component';
               (toggleSidebar)="sidenav.toggle()"
             ></app-header>
             
-            <div class="page-container page-content page-transition">
+            <div class="page-container page-content page-transition tpms-dir" [dir]="contentDir()">
               <router-outlet></router-outlet>
             </div>
           </mat-sidenav-content>
@@ -118,13 +137,40 @@ import { HeaderComponent } from '../header/header.component';
     }
   `],
 })
-export class ShellComponent implements OnInit {
+export class ShellComponent implements OnInit, OnDestroy {
   isMobile = false;
   sidebarCollapsed = false;
   mobileMenuOpen = false;
 
+  private pagePrefersRtl = false;
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly translation = inject(TranslationService);
+  private navEvents?: Subscription;
+
   ngOnInit() {
     this.checkScreenSize();
+    this.navEvents = this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe(() => this.syncPageDirection());
+    this.syncPageDirection();
+  }
+
+  ngOnDestroy() {
+    this.navEvents?.unsubscribe();
+  }
+
+  /** Direction for the routed page content (independent of the Arabic chrome). */
+  contentDir(): 'ltr' | 'rtl' {
+    return this.pagePrefersRtl && this.translation.isArabic() ? 'rtl' : 'ltr';
+  }
+
+  private syncPageDirection(): void {
+    let snapshot = this.route.snapshot;
+    while (snapshot.firstChild) {
+      snapshot = snapshot.firstChild;
+    }
+    this.pagePrefersRtl = snapshot.data['rtl'] === true;
   }
 
   @HostListener('window:resize')

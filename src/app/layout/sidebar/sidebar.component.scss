@@ -310,4 +310,50 @@
     width: 18px;
     height: 18px;
   }
+
+  // ── RTL overrides ──────────────────────────────────────
+  // The sidebar moves to the right edge automatically because
+  // its parent flex row flips with the document direction.
+  // Only mirror its internal absolute/mirrored elements here.
+  [dir="rtl"] & {
+    border-right: none;
+    border-left: 1px solid var(--sidebar-border);
+
+    &--collapsed {
+      .sidebar__collapse-btn {
+        right: auto;
+        left: -13px;
+      }
+      &:hover .sidebar__collapse-btn {
+        opacity: 1;
+        right: auto;
+        left: -13px;
+      }
+    }
+
+    &__collapse-btn {
+      right: auto;
+      left: 12px;
+    }
+
+    &__nav-active-bar {
+      left: auto;
+      right: 0;
+      border-radius: 4px 0 0 4px;
+    }
+
+    .sidebar__brand-text,
+    .sidebar__nav-label,
+    .sidebar__nav-badge,
+    .sidebar__user-info {
+      transform: translateX(0);
+    }
+
+    .sidebar--collapsed .sidebar__brand-text,
+    .sidebar--collapsed .sidebar__nav-label,
+    .sidebar--collapsed .sidebar__nav-badge,
+    .sidebar--collapsed .sidebar__user-info {
+      transform: translateX(8px);
+    }
+  }
 }

@@ -739,3 +739,23 @@
   from { opacity: 0; transform: translateY(16px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+// ── RTL overrides ────────────────────────────────────────
+// Mirror the sticky Actions column to the RTL edge and flip
+// table header alignment. Preserves the EN sticky-right
+// geometry. Scoped to the page's own direction wrapper
+// `.tpms-dir[dir="rtl"]` (Users is translated, so its shell
+// wrapper carries dir="rtl" in Arabic mode). On English pages
+// the shell's LTR wrapper keeps these rules inactive.
+.tpms-dir[dir="rtl"] .tpms-table thead th {
+  text-align: right;
+}
+
+.tpms-dir[dir="rtl"] .tpms-table th.col-actions,
+.tpms-dir[dir="rtl"] .tpms-table td.col-actions {
+  right: auto;
+  left: 0;
+  border-left: none;
+  border-right: 1px solid var(--border-subtle);
+  box-shadow: 10px 0 14px -10px rgba(15, 23, 42, 0.18);
+}

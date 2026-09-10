@@ -1,7 +1,7 @@
 <div class="users-page page-content">
   <app-page-header
-    title="Users"
-    subtitle="Create and manage TPMS user accounts"
+    [title]="translation.translate('users.title')"
+    [subtitle]="translation.translate('users.subtitle')"
     icon="group"
   ></app-page-header>
 
@@ -9,8 +9,8 @@
     <!-- Create User -->
     <app-card
       class="users-card users-card--create"
-      title="Create New User"
-      subtitle="Create a new account with Dashboard-only access."
+      [title]="translation.translate('users.create.title')"
+      [subtitle]="translation.translate('users.create.subtitle')"
     >
       <span class="card-head-icon" cardHeader>
         <mat-icon>person_add</mat-icon>
@@ -18,8 +18,8 @@
 
       <div class="role-note">
         <span class="role-note__icon"><mat-icon>lock</mat-icon></span>
-        <span class="role-note__text">New accounts are automatically assigned</span>
-        <span class="role-note__chip">Role: User</span>
+        <span class="role-note__text">{{ translation.translate('users.create.roleNote') }}</span>
+        <span class="role-note__chip">{{ translation.translate('users.create.roleDefault') }}</span>
       </div>
 
       <div *ngIf="message" class="alert" [ngClass]="{ 'alert-success': message.success, 'alert-error': !message.success }">
@@ -30,67 +30,67 @@
       <form [formGroup]="createForm" (ngSubmit)="createUser()" novalidate class="users-form">
         <div class="form-row">
           <div class="form-group">
-            <label for="email">Email</label>
+            <label for="email">{{ translation.translate('users.create.email') }}</label>
             <input
               type="email"
               id="email"
               formControlName="email"
               class="form-control"
-              placeholder="name@company.com"
+              [placeholder]="translation.translate('users.create.emailPlaceholder')"
               autocomplete="off"
               [class.is-invalid]="createForm.get('email')?.invalid && createForm.get('email')?.touched"
             />
             <div class="invalid-feedback" *ngIf="createForm.get('email')?.errors?.['required'] && createForm.get('email')?.touched">
-              Email is required.
+              {{ translation.translate('users.error.emailRequired') }}
             </div>
             <div class="invalid-feedback" *ngIf="createForm.get('email')?.errors?.['email'] && createForm.get('email')?.touched">
-              Enter a valid email address.
+              {{ translation.translate('users.error.emailInvalid') }}
             </div>
           </div>
           <div class="form-group">
-            <label for="password">Temporary Password</label>
+            <label for="password">{{ translation.translate('users.create.password') }}</label>
             <input
               type="password"
               id="password"
               formControlName="password"
               class="form-control"
-              placeholder="Min. 6 characters"
+              [placeholder]="translation.translate('users.create.passwordPlaceholder')"
               autocomplete="new-password"
               [class.is-invalid]="createForm.get('password')?.invalid && createForm.get('password')?.touched"
             />
             <div class="invalid-feedback" *ngIf="createForm.get('password')?.errors?.['required'] && createForm.get('password')?.touched">
-              Password is required.
+              {{ translation.translate('users.error.passwordRequired') }}
             </div>
             <div class="invalid-feedback" *ngIf="createForm.get('password')?.errors?.['minlength'] && createForm.get('password')?.touched">
-              At least 6 characters.
+              {{ translation.translate('users.error.passwordMin') }}
             </div>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label for="username">Username</label>
+            <label for="username">{{ translation.translate('users.create.username') }}</label>
             <input
               type="text"
               id="username"
               formControlName="username"
               class="form-control"
-              placeholder="e.g. ahmed"
+              [placeholder]="translation.translate('users.create.usernamePlaceholder')"
               autocomplete="off"
               [class.is-invalid]="createForm.get('username')?.invalid && createForm.get('username')?.touched"
             />
             <div class="invalid-feedback" *ngIf="createForm.get('username')?.invalid && createForm.get('username')?.touched">
-              Username is required.
+              {{ translation.translate('users.error.usernameRequired') }}
             </div>
           </div>
           <div class="form-group">
-            <label for="displayName">Display Name</label>
+            <label for="displayName">{{ translation.translate('users.create.displayName') }}</label>
             <input
               type="text"
               id="displayName"
               formControlName="displayName"
               class="form-control"
-              placeholder="e.g. Ahmed Hassan"
+              [placeholder]="translation.translate('users.create.displayNamePlaceholder')"
               autocomplete="off"
             />
           </div>
@@ -100,7 +100,7 @@
           <button type="submit" class="btn-primary" [disabled]="createForm.invalid || creating">
             <mat-icon *ngIf="!creating">person_add</mat-icon>
             <span class="btn-spinner" *ngIf="creating"></span>
-            {{ creating ? 'Creating...' : 'Create User' }}
+            {{ creating ? translation.translate('users.create.creating') : translation.translate('users.create.submit') }}
           </button>
         </div>
       </form>
@@ -109,24 +109,24 @@
     <!-- Existing Users -->
     <app-card
       class="users-card users-card--list"
-      title="Existing Users"
-      subtitle="All registered TPMS accounts."
+      [title]="translation.translate('users.existing.title')"
+      [subtitle]="translation.translate('users.existing.subtitle')"
     >
       <span class="count-badge" cardHeader>
         <span class="count-badge__num">{{ users.length }}</span>
-        <span class="count-badge__label">accounts</span>
+        <span class="count-badge__label">{{ translation.translate('users.count.accounts') }}</span>
       </span>
 
       <div *ngIf="loading" class="users-loading">
         <span class="users-loading__spinner"></span>
-        <span>Loading users...</span>
+        <span>{{ translation.translate('users.loading') }}</span>
       </div>
 
       <app-empty-state
         *ngIf="!loading && !message && users.length === 0"
         icon="group_off"
-        title="No users yet"
-        description="User accounts you create will appear here."
+        [title]="translation.translate('users.empty.title')"
+        [description]="translation.translate('users.empty.description')"
       ></app-empty-state>
 
       <div *ngIf="!loading && message && !message.success" class="alert alert-error users-error">
@@ -138,12 +138,12 @@
         <table class="tpms-table">
           <thead>
             <tr>
-              <th class="col-user">User</th>
-              <th class="col-username">Username</th>
-              <th class="col-role">Role</th>
-              <th class="col-status">Status</th>
-              <th class="col-created">Created</th>
-              <th class="col-actions">Actions</th>
+              <th class="col-user">{{ translation.translate('users.col.user') }}</th>
+              <th class="col-username">{{ translation.translate('users.col.username') }}</th>
+              <th class="col-role">{{ translation.translate('users.col.role') }}</th>
+              <th class="col-status">{{ translation.translate('users.col.status') }}</th>
+              <th class="col-created">{{ translation.translate('users.col.created') }}</th>
+              <th class="col-actions">{{ translation.translate('users.col.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -164,12 +164,12 @@
                   class="role-badge"
                   [class.role-badge--admin]="u.role === 'Admin'"
                   [class.role-badge--user]="u.role === 'User'"
-                >{{ u.role }}</span>
+                >{{ roleLabel(u.role) }}</span>
               </td>
               <td class="col-status">
                 <span class="status-chip" [class.status-chip--inactive]="!u.active">
                   <span class="status-chip__dot"></span>
-                  {{ u.active ? 'Active' : 'Disabled' }}
+                  {{ u.active ? translation.translate('users.status.active') : translation.translate('users.status.disabled') }}
                 </span>
               </td>
               <td class="col-created">
@@ -181,8 +181,8 @@
                     type="button"
                     class="btn-icon-only btn-sm"
                     (click)="openEdit(u)"
-                    [attr.aria-label]="'Edit ' + (u.displayName || u.username)"
-                    [title]="'Edit ' + (u.displayName || u.username)"
+                    [attr.aria-label]="translation.translate('users.action.editFor', { name: u.displayName || u.username })"
+                    [title]="translation.translate('users.action.editFor', { name: u.displayName || u.username })"
                     [disabled]="busyUser === u.id"
                   >
                     <mat-icon>edit</mat-icon>
@@ -194,12 +194,14 @@
                     (click)="toggleActive(u)"
                     [disabled]="busyUser === u.id || (u.active && isSelf(u))"
                     [title]="u.active && isSelf(u)
-                      ? 'You cannot deactivate your own account'
-                      : (u.active ? 'Deactivate ' + (u.displayName || u.username) : 'Activate ' + (u.displayName || u.username))"
+                      ? translation.translate('users.self.deactivateBlocked')
+                      : (u.active
+                          ? translation.translate('users.action.deactivateFor', { name: u.displayName || u.username })
+                          : translation.translate('users.action.activateFor', { name: u.displayName || u.username }))"
                   >
                     <span class="action-toggle__spinner" *ngIf="busyUser === u.id"></span>
                     <mat-icon *ngIf="busyUser !== u.id">{{ u.active ? 'block' : 'check_circle' }}</mat-icon>
-                    <span *ngIf="busyUser !== u.id">{{ u.active ? 'Deactivate' : 'Activate' }}</span>
+                    <span *ngIf="busyUser !== u.id">{{ u.active ? translation.translate('users.action.deactivate') : translation.translate('users.action.activate') }}</span>
                   </button>
                 </div>
               </td>
@@ -221,14 +223,14 @@
     >
       <div class="edit-dialog__header">
         <div>
-          <h3 id="edit-user-title">Edit User</h3>
+          <h3 id="edit-user-title">{{ translation.translate('users.edit.title') }}</h3>
           <p class="edit-dialog__subtitle">{{ editingUser.displayName || editingUser.username }}</p>
         </div>
         <button
           type="button"
           class="btn-icon-only btn-sm"
           (click)="closeEdit()"
-          [attr.aria-label]="'Close edit dialog'"
+          [attr.aria-label]="translation.translate('users.edit.close')"
         >
           <mat-icon>close</mat-icon>
         </button>
@@ -242,7 +244,7 @@
       <form [formGroup]="editForm" (ngSubmit)="saveEdit()" novalidate class="users-form">
         <div class="form-row">
           <div class="form-group">
-            <label for="edit-displayName">Display Name</label>
+            <label for="edit-displayName">{{ translation.translate('users.edit.displayName') }}</label>
             <input
               type="text"
               id="edit-displayName"
@@ -252,11 +254,11 @@
               [class.is-invalid]="editForm.get('displayName')?.invalid && editForm.get('displayName')?.touched"
             />
             <div class="invalid-feedback" *ngIf="editForm.get('displayName')?.invalid && editForm.get('displayName')?.touched">
-              Display name is required.
+              {{ translation.translate('users.error.displayNameRequired') }}
             </div>
           </div>
           <div class="form-group">
-            <label for="edit-username">Username</label>
+            <label for="edit-username">{{ translation.translate('users.edit.username') }}</label>
             <input
               type="text"
               id="edit-username"
@@ -266,39 +268,39 @@
               [class.is-invalid]="editForm.get('username')?.invalid && editForm.get('username')?.touched"
             />
             <div class="invalid-feedback" *ngIf="editForm.get('username')?.invalid && editForm.get('username')?.touched">
-              Username is required.
+              {{ translation.translate('users.error.usernameRequired') }}
             </div>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label for="edit-role">Role</label>
+            <label for="edit-role">{{ translation.translate('users.edit.role') }}</label>
             <select
               id="edit-role"
               formControlName="role"
               class="form-select"
               [disabled]="isSelf(editingUser)"
             >
-              <option value="User">User</option>
-              <option value="Admin">Admin</option>
+              <option value="User">{{ translation.translate('users.role.user') }}</option>
+              <option value="Admin">{{ translation.translate('users.role.admin') }}</option>
             </select>
             <div class="edit-field-note" *ngIf="isSelf(editingUser)">
-              You cannot change your own role.
+              {{ translation.translate('users.edit.roleReadOnly') }}
             </div>
           </div>
           <div class="form-group">
-            <label>Status</label>
+            <label>{{ translation.translate('users.edit.status') }}</label>
             <label class="form-checkbox" [class.is-disabled]="isSelf(editingUser)">
               <input
                 type="checkbox"
                 formControlName="active"
                 [disabled]="isSelf(editingUser)"
               />
-              <span>Active account (disabled accounts cannot log in)</span>
+              <span>{{ translation.translate('users.edit.active') }}</span>
             </label>
             <div class="edit-field-note" *ngIf="isSelf(editingUser)">
-              You cannot deactivate your own account.
+              {{ translation.translate('users.edit.activeReadOnly') }}
             </div>
           </div>
         </div>
@@ -310,7 +312,7 @@
             (click)="closeEdit()"
             [disabled]="saving"
           >
-            Cancel
+            {{ translation.translate('common.cancel') }}
           </button>
           <button
             type="submit"
@@ -319,7 +321,7 @@
           >
             <mat-icon *ngIf="!saving">save</mat-icon>
             <span class="btn-spinner" *ngIf="saving"></span>
-            {{ saving ? 'Saving...' : 'Save Changes' }}
+            {{ saving ? translation.translate('users.edit.saving') : translation.translate('users.edit.save') }}
           </button>
         </div>
       </form>

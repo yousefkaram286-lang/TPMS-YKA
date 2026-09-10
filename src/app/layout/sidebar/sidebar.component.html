@@ -2,7 +2,7 @@
   class="sidebar"
   [class.sidebar--collapsed]="collapsed"
   role="navigation"
-  aria-label="Main navigation"
+  [attr.aria-label]="translation.translate('nav.toggleSidebar')"
 >
   <!-- Brand -->
   <div class="sidebar__brand">
@@ -10,17 +10,17 @@
       <mat-icon class="sidebar__logo-icon">precision_manufacturing</mat-icon>
     </div>
     <div class="sidebar__brand-text" *ngIf="!collapsed">
-      <span class="sidebar__brand-name">{{ appName }}</span>
-      <span class="sidebar__brand-sub">{{ appFullName }}</span>
+      <span class="sidebar__brand-name">{{ translation.translate('app.name') }}</span>
+      <span class="sidebar__brand-sub">{{ translation.translate('app.fullName') }}</span>
     </div>
     <button
       class="sidebar__collapse-btn"
       (click)="toggleCollapse()"
-      [matTooltip]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      [matTooltip]="collapsed ? translation.translate('nav.expandSidebar') : translation.translate('nav.collapseSidebar')"
       matTooltipPosition="right"
-      aria-label="Toggle sidebar"
+      [attr.aria-label]="translation.translate('nav.toggleSidebar')"
     >
-      <mat-icon>{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+      <mat-icon>{{ collapseIcon }}</mat-icon>
     </button>
   </div>
 
@@ -37,14 +37,14 @@
           [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
           class="sidebar__nav-link"
           (click)="onNavClick()"
-          [matTooltip]="collapsed ? item.label : ''"
-          matTooltipPosition="right"
-          [attr.aria-label]="item.label"
+          [matTooltip]="collapsed ? navLabel(item) : ''"
+          [matTooltipPosition]="translation.isArabic() ? 'left' : 'right'"
+          [attr.aria-label]="navLabel(item)"
         >
           <span class="sidebar__nav-icon">
             <mat-icon>{{ item.icon }}</mat-icon>
           </span>
-          <span class="sidebar__nav-label" *ngIf="!collapsed">{{ item.label }}</span>
+          <span class="sidebar__nav-label" *ngIf="!collapsed">{{ navLabel(item) }}</span>
           <span
             *ngIf="item.badge && !collapsed"
             class="sidebar__nav-badge"
@@ -78,11 +78,11 @@
   <button
     class="sidebar__logout"
     (click)="logout()"
-    [matTooltip]="collapsed ? 'Logout' : ''"
-    matTooltipPosition="right"
-    aria-label="Logout"
+    [matTooltip]="collapsed ? translation.translate('nav.logout') : ''"
+    [matTooltipPosition]="translation.isArabic() ? 'left' : 'right'"
+    [attr.aria-label]="translation.translate('nav.logout')"
   >
     <mat-icon class="sidebar__logout-icon">logout</mat-icon>
-    <span *ngIf="!collapsed">Logout</span>
+    <span *ngIf="!collapsed">{{ translation.translate('nav.logout') }}</span>
   </button>
 </aside>

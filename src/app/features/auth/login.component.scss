@@ -193,6 +193,13 @@
 .login-header {
   text-align: center;
   margin-bottom: var(--space-8);
+  position: relative;
+
+  &__actions {
+    position: absolute;
+    top: 0;
+    inset-inline-end: 0;
+  }
 
   &__badge {
     width: 56px;

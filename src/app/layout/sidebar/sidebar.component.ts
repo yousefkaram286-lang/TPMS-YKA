@@ -12,7 +12,7 @@ import { NAV_ITEMS } from '../../core/constants/nav-items';
 import { NavItem } from '../../core/models/nav-item.model';
 import { UserAvatarComponent } from '../../shared/components/user-avatar/user-avatar.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
-import { APP_NAME, APP_FULL_NAME } from '../../core/constants/app.constants';
+import { TranslationService } from '../../core/services/translation.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -31,9 +31,8 @@ export class SidebarComponent {
   @Output() navItemClicked  = new EventEmitter<void>();
 
   private auth = inject(AuthService);
+  readonly translation = inject(TranslationService);
 
-  readonly appName     = APP_NAME;
-  readonly appFullName = APP_FULL_NAME;
   readonly currentUser = this.auth.currentUser;
   readonly isAdmin     = this.auth.isAdmin;
 
@@ -59,10 +58,27 @@ export class SidebarComponent {
   }
 
   get roleLabel(): string {
-    return this.auth.userRole() === 'Admin' ? 'Administrator' : 'User';
+    return this.auth.userRole() === 'Admin'
+      ? this.translation.translate('nav.role.admin')
+      : this.translation.translate('nav.role.user');
+  }
+
+  /** Translate a nav item label via `nav.<id>` key, falling back to the data label. */
+  navLabel(item: NavItem): string {
+    const key = `nav.${item.id}`;
+    const value = this.translation.translate(key);
+    return value !== key ? value : item.label;
   }
 
   get roleBadgeVariant(): 'primary' | 'success' {
     return this.auth.isAdmin() ? 'primary' : 'success';
+  }
+
+  /** Collapse-chevron icon, mirrored for RTL so it keeps pointing across the edge. */
+  get collapseIcon(): string {
+    const rtl = this.translation.isArabic();
+    return this.collapsed
+      ? (rtl ? 'chevron_left' : 'chevron_right')
+      : (rtl ? 'chevron_right' : 'chevron_left');
   }
 }

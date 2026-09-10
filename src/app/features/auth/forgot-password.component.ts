@@ -1,11 +1,18 @@
 // ============================================================
 // TPMS — Forgot Password Component
+// ------------------------------------------------------------
+// Mixed-language safety: this page is NOT translated yet, so it
+// pins its own content direction to LTR via CDK `Dir`. This keeps
+// the English form and layout readable while the shell/auth chrome
+// renders Arabic RTL. Remove the `Dir` binding when the page is
+// translated (it will then follow the UI language like Login).
 // ============================================================
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { Dir } from '@angular/cdk/bidi';
 import { AuthService } from '../../core/services/auth.service';
 
 function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
@@ -22,9 +29,9 @@ type Step = 'email' | 'reset' | 'success';
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, Dir],
   template: `
-    <div class="login-page">
+    <div class="login-page tpms-dir" [dir]="'ltr'">
       <div class="login-split">
 
         <!-- Left banner (identical to login) -->

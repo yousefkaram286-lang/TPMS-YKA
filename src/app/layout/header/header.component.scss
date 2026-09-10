@@ -349,4 +349,37 @@
       }
     }
   }
+
+  // ── RTL overrides ──────────────────────────────────────
+  // Target only mirrored-position elements; flex rows flip
+  // automatically with the document direction.
+  [dir="rtl"] & {
+    &__search-icon {
+      left: auto;
+      right: 12px;
+    }
+
+    &__search-input {
+      padding: 8px 38px 8px 60px;
+    }
+
+    &__search-shortcut {
+      right: auto;
+      left: 8px;
+    }
+
+    &__action-badge {
+      right: auto;
+      left: 4px;
+    }
+
+    &__user-btn {
+      padding: 4px 4px 4px 8px;
+    }
+
+    &__user-text {
+      align-items: flex-end;
+      text-align: right;
+    }
+  }
 }

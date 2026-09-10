@@ -221,3 +221,46 @@
     font-weight: var(--weight-medium);
   }
 }
+
+// ── RTL overrides ────────────────────────────────────────
+// Mirror only the physical positions used by form controls.
+// Flex rows flip automatically; these are the absolute/offset
+// positions and paddings that must move to the opposite edge.
+//
+// SCOPE: these apply only inside a `.tpms-dir[dir="rtl"]`
+// container — the page's own direction wrapper (Login / Forgot /
+// the shell content wrapper around a translated page). Do NOT
+// use bare `[dir="rtl"] ...` ancestor selectors here: the shell
+// chrome is RTL in Arabic mode, so they would leak into every
+// page. Untranslated pages run inside a `.tpms-dir[dir="ltr"]`
+// wrapper and therefore get the baseline EN layout.
+.tpms-dir[dir="rtl"] .form-field .form-label {
+  left: auto;
+  right: 14px;
+}
+
+.tpms-dir[dir="rtl"] .input-icon-wrapper .input-icon {
+  left: auto;
+  right: 12px;
+}
+
+.tpms-dir[dir="rtl"] .input-icon-wrapper .form-control {
+  padding-left: 14px;
+  padding-right: 38px;
+}
+
+.tpms-dir[dir="rtl"] .input-icon-wrapper .input-icon-right {
+  right: auto;
+  left: 12px;
+}
+
+.tpms-dir[dir="rtl"] .input-icon-wrapper .form-control.has-right-icon {
+  padding-right: 14px;
+  padding-left: 38px;
+}
+
+.tpms-dir[dir="rtl"] .form-select {
+  background-position: left 12px center;
+  padding-right: 14px;
+  padding-left: 36px;
+}
