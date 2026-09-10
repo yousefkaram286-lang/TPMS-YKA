@@ -20,7 +20,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent, data: { rtl: true } },
-      { path: 'production', component: ProductionComponent, canActivate: [adminGuard] },
+      { path: 'production', component: ProductionComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'output-release', component: OutputReleaseComponent, canActivate: [adminGuard] },
       { path: 'materials', component: MaterialsComponent, canActivate: [adminGuard] },
       { path: 'quality', component: QualityComponent, canActivate: [adminGuard] },

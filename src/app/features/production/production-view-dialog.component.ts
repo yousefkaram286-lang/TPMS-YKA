@@ -1,9 +1,10 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { TranslationService } from '../../core/services/translation.service';
 import { Production } from '../../core/models/production.model';
 import { ProductionSession, ProductionDowntimeEvent } from '../../core/models/production-session.model';
 import { ProductionUtil } from '../../core/utils/production.util';
@@ -21,32 +22,32 @@ export interface ProductionViewDialogData {
   standalone: true,
   imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, StatusBadgeComponent],
   template: `
-    <div class="dialog-wrapper">
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
       <h2 mat-dialog-title class="dialog-title">
         <mat-icon class="title-icon">precision_manufacturing</mat-icon>
-        Production Record
+        {{ translation.translate('production.view.title') }}
       </h2>
 
       <mat-dialog-content class="dialog-content">
 
         <!-- Section A: Production Information -->
         <div class="section">
-          <div class="section-label">Production Information</div>
+          <div class="section-label">{{ translation.translate('production.view.section.info') }}</div>
           <div class="details-grid">
             <div class="detail-item">
-              <span class="detail-label">Date</span>
+              <span class="detail-label">{{ translation.translate('production.view.date') }}</span>
               <span class="detail-value">{{ data.record.date | date:'mediumDate' }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Shift</span>
+              <span class="detail-label">{{ translation.translate('production.view.shift') }}</span>
               <span class="detail-value">{{ data.shiftName }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Line</span>
+              <span class="detail-label">{{ translation.translate('production.view.line') }}</span>
               <span class="detail-value">{{ data.lineName }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Supervisor</span>
+              <span class="detail-label">{{ translation.translate('production.view.supervisor') }}</span>
               <span class="detail-value">{{ data.record.supervisor }}</span>
             </div>
           </div>
@@ -54,26 +55,26 @@ export interface ProductionViewDialogData {
 
         <!-- Section B: Production Output -->
         <div class="section">
-          <div class="section-label">Production Output</div>
+          <div class="section-label">{{ translation.translate('production.view.section.output') }}</div>
           <div class="details-grid">
             <div class="detail-item">
-              <span class="detail-label">Product</span>
+              <span class="detail-label">{{ translation.translate('production.view.product') }}</span>
               <span class="detail-value font-medium">{{ data.productName }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Pieces / Press</span>
+              <span class="detail-label">{{ translation.translate('production.view.piecesPerPress') }}</span>
               <span class="detail-value">{{ data.record.piecesPerPress }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Presses</span>
+              <span class="detail-label">{{ translation.translate('production.view.presses') }}</span>
               <span class="detail-value">{{ data.record.presses }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Produced</span>
+              <span class="detail-label">{{ translation.translate('production.view.produced') }}</span>
               <span class="detail-value produced-value">{{ data.record.produced | number }}</span>
             </div>
             <div class="detail-item" *ngIf="data.session && data.session.releasedOutput != null">
-              <span class="detail-label">Released Output</span>
+              <span class="detail-label">{{ translation.translate('production.view.releasedOutput') }}</span>
               <span class="detail-value released-value">{{ data.session.releasedOutput | number }}</span>
             </div>
           </div>
@@ -81,21 +82,21 @@ export interface ProductionViewDialogData {
 
         <!-- Section C: Overtime (if session exists) -->
         <div class="section" *ngIf="data.session">
-          <div class="section-label">Overtime</div>
+          <div class="section-label">{{ translation.translate('production.view.section.overtime') }}</div>
           <div class="details-grid">
             <div class="detail-item">
-              <span class="detail-label">Overtime</span>
+              <span class="detail-label">{{ translation.translate('production.view.section.overtime') }}</span>
               <div class="detail-value">
                 <app-status-badge
-                  [label]="data.session.overtime ? 'Yes' : 'No'"
+                  [label]="data.session.overtime ? translation.translate('production.view.overtimeYes') : translation.translate('production.view.overtimeNo')"
                   [variant]="data.session.overtime ? 'warning' : 'neutral'"
                   size="sm">
                 </app-status-badge>
               </div>
             </div>
             <div class="detail-item" *ngIf="data.session.overtime">
-              <span class="detail-label">Overtime Hours</span>
-              <span class="detail-value">{{ data.session.overtimeHours }} hrs</span>
+              <span class="detail-label">{{ translation.translate('production.view.overtimeHours') }}</span>
+              <span class="detail-value">{{ data.session.overtimeHours }} {{ translation.translate('production.unit.hrs') }}</span>
             </div>
           </div>
         </div>
@@ -103,26 +104,26 @@ export interface ProductionViewDialogData {
         <!-- Section D: Downtime Events -->
         <div class="section"
           *ngIf="data.session && (hasDowntimeEvents || (data.session.dailyLineTime && data.session.dailyLineTime.length > 0))">
-          <div class="section-label">Downtime</div>
+          <div class="section-label">{{ translation.translate('production.view.section.downtime') }}</div>
           <div class="line-time-list">
             <div class="line-time-entry"
               *ngFor="let event of downtimeEventsForDisplay"
               [class.has-downtime]="event.durationMinutes > 0">
               <div class="entry-line-name">
                 <mat-icon class="entry-icon">schedule</mat-icon>
-                {{ event.durationMinutes }} min{{ data.lineName ? (' — ' + data.lineName) : '' }}
+                {{ event.durationMinutes }} {{ translation.translate('production.unit.min') }}{{ data.lineName ? (' — ' + data.lineName) : '' }}
               </div>
               <div class="entry-details">
                 <div class="entry-detail" *ngIf="event.reason">
-                  <span class="entry-label">Reason:</span>
+                  <span class="entry-label">{{ translation.translate('production.view.reason') }}</span>
                   <span class="entry-val">{{ event.reason }}</span>
                 </div>
                 <div class="entry-detail" *ngIf="event.notes">
-                  <span class="entry-label">Notes:</span>
+                  <span class="entry-label">{{ translation.translate('production.view.notes') }}</span>
                   <span class="entry-val notes-val">{{ event.notes }}</span>
                 </div>
                 <div class="entry-detail no-events" *ngIf="event.durationMinutes === 0 && !event.reason && !event.notes">
-                  No downtime events recorded
+                  {{ translation.translate('production.view.noDowntime') }}
                 </div>
               </div>
             </div>
@@ -131,20 +132,20 @@ export interface ProductionViewDialogData {
 
         <!-- Session Notes -->
         <div class="section" *ngIf="data.session?.notes">
-          <div class="section-label">Notes</div>
+          <div class="section-label">{{ translation.translate('production.view.section.notes') }}</div>
           <p class="notes-text">{{ data.session!.notes }}</p>
         </div>
 
         <!-- No session data for legacy records -->
         <div class="legacy-notice" *ngIf="!data.session">
           <mat-icon>info</mat-icon>
-          <span>Extended operational data is not available for this legacy record.</span>
+          <span>{{ translation.translate('production.view.legacyNotice') }}</span>
         </div>
 
       </mat-dialog-content>
 
       <mat-dialog-actions align="end">
-        <button mat-button mat-dialog-close>Close</button>
+        <button mat-button mat-dialog-close>{{ translation.translate('production.view.close') }}</button>
       </mat-dialog-actions>
     </div>
   `,
@@ -331,9 +332,18 @@ export interface ProductionViewDialogData {
 
       mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--text-tertiary); }
     }
+
+    /* ── RTL Overrides ────────────────────────────── */
+    .tpms-dir[dir="rtl"] .section-label,
+    .tpms-dir[dir="rtl"] .detail-label {
+      text-transform: none;
+      letter-spacing: 0;
+    }
   `]
 })
 export class ProductionViewDialogComponent {
+  readonly translation = inject(TranslationService);
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ProductionViewDialogData,
     private dialogRef: MatDialogRef<ProductionViewDialogComponent>

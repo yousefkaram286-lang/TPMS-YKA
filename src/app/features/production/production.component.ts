@@ -10,6 +10,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { TranslationService } from '../../core/services/translation.service';
 import { forkJoin, of, Observable } from 'rxjs';
 import { switchMap, map, catchError } from 'rxjs/operators';
 import { ProductionService } from '../../core/services/production.service';
@@ -48,8 +49,8 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
   template: `
     <div class="production-container">
       <app-page-header
-        title="Production"
-        subtitle="Record and manage daily factory production"
+        [title]="translation.translate('production.title')"
+        [subtitle]="translation.translate('production.subtitle')"
         icon="precision_manufacturing"
       ></app-page-header>
 
@@ -57,57 +58,57 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
         <!-- Entry Form Section -->
         <div class="card production-entry-card">
           <div class="card-header">
-            <h3>{{ editingSessionId ? 'Edit Production' : 'Production Entry' }}</h3>
+            <h3>{{ editingSessionId ? translation.translate('production.edit.title') : translation.translate('production.entry.title') }}</h3>
           </div>
           
           <form [formGroup]="productionForm" class="card-body tpms-form">
             
             <!-- SECTION A: Production Information -->
-            <div class="section-label">A. Production Information</div>
+            <div class="section-label">{{ translation.translate('production.form.section.info') }}</div>
             <div class="form-row header-row">
               <div class="form-group">
-                <label>Date *</label>
+                <label>{{ translation.translate('production.form.date') }} *</label>
                 <div class="date-input-wrapper">
                   <input matInput [matDatepicker]="picker" formControlName="date" class="form-control" [class.is-invalid]="isInvalid('date')">
                   <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                   <mat-datepicker #picker></mat-datepicker>
                 </div>
-                <div class="invalid-feedback" *ngIf="isInvalid('date')">Date is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('date')">{{ translation.translate('production.form.date.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Shift</label>
+                <label>{{ translation.translate('production.form.shift') }}</label>
                 <select formControlName="shiftId" class="form-control" [class.is-invalid]="isInvalid('shiftId')">
-                  <option value="" disabled>Select Shift</option>
+                  <option value="" disabled>{{ translation.translate('production.form.shift.placeholder') }}</option>
                   <option *ngFor="let shift of activeShifts" [value]="shift.id">{{ shift.name }}</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label>Line *</label>
+                <label>{{ translation.translate('production.form.line') }} *</label>
                 <select formControlName="lineId" class="form-control" (change)="onLineChange()" [class.is-invalid]="isInvalid('lineId')">
-                  <option value="" disabled>Select Line</option>
+                  <option value="" disabled>{{ translation.translate('production.form.line.placeholder') }}</option>
                   <option *ngFor="let line of activeLines" [value]="line.id">{{ line.name }}</option>
                 </select>
-                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">Line is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">{{ translation.translate('production.form.line.required') }}</div>
               </div>
 
               <div class="form-group">
-                <label>Supervisor</label>
-                <input type="text" formControlName="supervisor" class="form-control" [class.is-invalid]="isInvalid('supervisor')" placeholder="Supervisor name">
+                <label>{{ translation.translate('production.form.supervisor') }}</label>
+                <input type="text" formControlName="supervisor" class="form-control" [class.is-invalid]="isInvalid('supervisor')" [placeholder]="translation.translate('production.form.supervisor.placeholder')">
               </div>
             </div>
 
             <hr class="divider">
 
             <!-- SECTION B: Production Output -->
-            <div class="section-label">B. Production Output</div>
+            <div class="section-label">{{ translation.translate('production.form.section.output') }}</div>
             <div formArrayName="items" class="products-list">
               <div class="products-header">
-                <div class="col-product">Product</div>
-                <div class="col-pieces">Pieces/Press</div>
-                <div class="col-presses">Presses</div>
-                <div class="col-produced">Produced</div>
+                <div class="col-product">{{ translation.translate('production.form.product') }}</div>
+                <div class="col-pieces">{{ translation.translate('production.form.piecesPerPress') }}</div>
+                <div class="col-presses">{{ translation.translate('production.form.presses') }}</div>
+                <div class="col-produced">{{ translation.translate('production.form.produced') }}</div>
                 <div class="col-actions"></div>
               </div>
 
@@ -115,7 +116,7 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
                 <!-- Product Select -->
                 <div class="col-product form-group mb-0">
                   <select formControlName="productId" class="form-control" (change)="onProductChange(i)" [class.is-invalid]="item.get('productId')?.invalid && item.get('productId')?.touched">
-                    <option value="" disabled>[ Select Product ▼ ]</option>
+                    <option value="" disabled>{{ translation.translate('production.form.product.placeholder') }}</option>
                     <option *ngFor="let product of activeProducts" [value]="product.id">{{ product.name }}</option>
                   </select>
                 </div>
@@ -124,7 +125,7 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
                 <div class="col-pieces form-group mb-0">
                   <input type="number" formControlName="piecesPerPress" class="form-control readonly-input" readonly tabindex="-1">
                   <div class="invalid-feedback" *ngIf="item.get('piecesPerPress')?.hasError('noConfig')" style="display: block;">
-                    Pieces/Press not set in Product master data
+                    {{ translation.translate('production.form.piecesPerPress.notConfigured') }}
                   </div>
                 </div>
 
@@ -148,7 +149,7 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
 
               <div class="products-footer">
                 <button type="button" mat-button color="primary" (click)="addItem()">
-                  <mat-icon>add</mat-icon> Add Product
+                  <mat-icon>add</mat-icon> {{ translation.translate('production.form.addProduct') }}
                 </button>
               </div>
             </div>
@@ -156,29 +157,29 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
             <hr class="divider">
 
             <!-- SECTION C: Daily Line Time -->
-            <div class="section-label">C. Daily Line Time & Overtime</div>
+            <div class="section-label">{{ translation.translate('production.form.section.time') }}</div>
             
             <div class="form-row" style="margin-bottom: 16px;">
               <div class="form-group" style="width: 200px;">
-                <label>Overtime Occurred? *</label>
+                <label>{{ translation.translate('production.form.overtimeLabel') }} *</label>
                 <select formControlName="overtime" class="form-control" (change)="onOvertimeChange()">
-                  <option [ngValue]="false">No</option>
-                  <option [ngValue]="true">Yes</option>
+                  <option [ngValue]="false">{{ translation.translate('production.form.overtimeNo') }}</option>
+                  <option [ngValue]="true">{{ translation.translate('production.form.overtimeYes') }}</option>
                 </select>
               </div>
               <div class="form-group" style="width: 200px;">
-                <label>Total Overtime Hours</label>
+                <label>{{ translation.translate('production.form.overtimeHours') }}</label>
                 <input type="number" formControlName="overtimeHours" class="form-control" min="0" step="0.5" [class.is-invalid]="isInvalid('overtimeHours')">
               </div>
             </div>
 
-            <div class="sub-section-label">Downtime Events <span class="sub-hint">— multiple allowed for the selected line</span></div>
+            <div class="sub-section-label">{{ translation.translate('production.form.downtimeEvents') }} <span class="sub-hint">{{ translation.translate('production.form.downtimeHint') }}</span></div>
 
             <div formArrayName="downtimeEvents" class="line-time-list">
               <div class="line-time-header dte-header">
-                <div class="col-dte-duration">Duration (min)</div>
-                <div class="col-dte-reason">Reason</div>
-                <div class="col-dte-notes">Notes</div>
+                <div class="col-dte-duration">{{ translation.translate('production.form.durationMin') }}</div>
+                <div class="col-dte-reason">{{ translation.translate('production.form.reason') }}</div>
+                <div class="col-dte-notes">{{ translation.translate('production.form.notes') }}</div>
                 <div class="col-dte-actions"></div>
               </div>
 
@@ -187,10 +188,10 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
                    <input type="number" formControlName="durationMinutes" class="form-control" min="0" [class.is-invalid]="ev.get('durationMinutes')?.value < 0">
                 </div>
                 <div class="col-dte-reason form-group mb-0">
-                   <input type="text" formControlName="reason" class="form-control" placeholder="Free-text reason (e.g. Breakdown)">
+                   <input type="text" formControlName="reason" class="form-control" [placeholder]="translation.translate('production.form.reasonPlaceholder')">
                 </div>
                 <div class="col-dte-notes form-group mb-0">
-                   <input type="text" formControlName="notes" class="form-control" placeholder="Optional notes">
+                   <input type="text" formControlName="notes" class="form-control" [placeholder]="translation.translate('production.form.notesPlaceholder')">
                 </div>
                 <div class="col-dte-actions">
                   <button type="button" mat-icon-button color="warn" (click)="removeDowntimeEvent(i)">
@@ -201,7 +202,7 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
 
               <div class="products-footer" style="margin-top: var(--space-2); padding-top: var(--space-2);">
                 <button type="button" mat-button color="primary" (click)="addDowntimeEvent()">
-                  <mat-icon>add</mat-icon> Add Downtime Event
+                  <mat-icon>add</mat-icon> {{ translation.translate('production.form.addDowntimeEvent') }}
                 </button>
               </div>
             </div>
@@ -209,39 +210,39 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
             <hr class="divider">
 
             <!-- SECTION D: Notes -->
-            <div class="section-label">D. Session Notes</div>
+            <div class="section-label">{{ translation.translate('production.form.section.notes') }}</div>
             <div class="form-group">
-               <textarea formControlName="notes" class="form-control notes-area" placeholder="Enter any overall observations or notes for this production session..."></textarea>
+               <textarea formControlName="notes" class="form-control notes-area" [placeholder]="translation.translate('production.form.sessionNotesPlaceholder')"></textarea>
             </div>
 
             <!-- SECTION E: Summary Panel -->
             <div class="summary-panel">
                <div class="summary-item">
-                  <span class="s-label">Total Produced</span>
+                  <span class="s-label">{{ translation.translate('production.summary.totalProduced') }}</span>
                   <span class="s-value">{{ getTotalProduced() | number }}</span>
                </div>
                <div class="summary-item">
-                  <span class="s-label">Total Presses</span>
+                  <span class="s-label">{{ translation.translate('production.summary.totalPresses') }}</span>
                   <span class="s-value">{{ getTotalPresses() | number }}</span>
                </div>
                <div class="summary-item">
-                  <span class="s-label">Downtime</span>
-                  <span class="s-value downtime">{{ getTotalDowntime() }} min</span>
+                  <span class="s-label">{{ translation.translate('production.summary.downtime') }}</span>
+                  <span class="s-value downtime">{{ getTotalDowntime() }} {{ translation.translate('production.unit.min') }}</span>
                </div>
                <div class="summary-item">
-                  <span class="s-label">Overtime</span>
-                  <span class="s-value overtime">{{ productionForm.get('overtimeHours')?.value || 0 }} hrs</span>
+                  <span class="s-label">{{ translation.translate('production.summary.overtime') }}</span>
+                  <span class="s-value overtime">{{ productionForm.get('overtimeHours')?.value || 0 }} {{ translation.translate('production.unit.hrs') }}</span>
                </div>
                <div class="summary-item">
-                  <span class="s-label">Available</span>
-                  <span class="s-value">{{ getAvailableMinutes() }} min</span>
+                  <span class="s-label">{{ translation.translate('production.summary.available') }}</span>
+                  <span class="s-value">{{ getAvailableMinutes() }} {{ translation.translate('production.unit.min') }}</span>
                </div>
                <div class="summary-item">
-                  <span class="s-label">Actual</span>
-                  <span class="s-value">{{ getActualRunMinutes() }} min</span>
+                  <span class="s-label">{{ translation.translate('production.summary.actual') }}</span>
+                  <span class="s-value">{{ getActualRunMinutes() }} {{ translation.translate('production.unit.min') }}</span>
                </div>
                <div class="summary-item">
-                  <span class="s-label">Efficiency</span>
+                  <span class="s-label">{{ translation.translate('production.summary.efficiency') }}</span>
                   <span class="s-value">{{ getEfficiencyPercent() | number:'1.1-1' }}%</span>
                </div>
             </div>
@@ -252,9 +253,9 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-secondary" (click)="confirmClear()">{{ editingSessionId ? 'Cancel' : 'Clear' }}</button>
+              <button type="button" class="btn-secondary" (click)="confirmClear()">{{ editingSessionId ? translation.translate('common.cancel') : translation.translate('production.actions.clear') }}</button>
               <button type="button" class="btn-primary" (click)="saveProduction()" [disabled]="productionForm.invalid || saving">
-                {{ saving ? 'Saving...' : (editingSessionId ? 'Update Session' : 'Save Session') }}
+                {{ saving ? translation.translate('production.actions.saving') : (editingSessionId ? translation.translate('production.actions.updateSession') : translation.translate('production.actions.saveSession')) }}
               </button>
             </div>
           </form>
@@ -263,67 +264,67 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
         <!-- History Section -->
         <div class="card history-card">
           <div class="card-header history-header">
-            <h3>Production History</h3>
+            <h3>{{ translation.translate('production.history.title') }}</h3>
             <div class="history-actions">
               <div class="search-bar">
                 <mat-icon class="search-icon">search</mat-icon>
-                <input type="text" placeholder="Search..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+                <input type="text" [placeholder]="translation.translate('production.history.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
               </div>
             </div>
           </div>
           
           <div class="card-body p-0">
-            <div *ngIf="loadingHistory" class="loading-state">Loading history...</div>
+            <div *ngIf="loadingHistory" class="loading-state">{{ translation.translate('production.history.loading') }}</div>
             
             <app-empty-state
               *ngIf="!loadingHistory && !filteredHistory.length"
               icon="history"
-              title="No production records yet."
-              description="Start by adding your first production entry."
+              [title]="translation.translate('production.history.empty.title')"
+              [description]="translation.translate('production.history.empty.description')"
               variant="neutral"
             ></app-empty-state>
 
             <div class="table-responsive" *ngIf="!loadingHistory && filteredHistory.length > 0">
               <table mat-table [dataSource]="filteredHistory" class="tpms-table history-table">
                 <ng-container matColumnDef="date">
-                  <th mat-header-cell *matHeaderCellDef> Date </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('production.table.date') }} </th>
                   <td mat-cell *matCellDef="let element"> {{element.date | date:'shortDate'}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="product">
-                  <th mat-header-cell *matHeaderCellDef> Product </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('production.table.product') }} </th>
                   <td mat-cell *matCellDef="let element"> <span class="font-medium text-primary">{{getProductName(element.productId)}}</span> </td>
                 </ng-container>
 
                 <ng-container matColumnDef="line">
-                  <th mat-header-cell *matHeaderCellDef> Line </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('production.table.line') }} </th>
                   <td mat-cell *matCellDef="let element"> {{getLineName(element.lineId)}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="shift">
-                  <th mat-header-cell *matHeaderCellDef> Shift </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('production.table.shift') }} </th>
                   <td mat-cell *matCellDef="let element"> {{getShiftName(element.shiftId)}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="presses">
-                  <th mat-header-cell *matHeaderCellDef> Presses </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('production.table.presses') }} </th>
                   <td mat-cell *matCellDef="let element"> {{element.presses}} </td>
                 </ng-container>
 
                 <ng-container matColumnDef="produced">
-                  <th mat-header-cell *matHeaderCellDef> Produced </th>
+                  <th mat-header-cell *matHeaderCellDef> {{ translation.translate('production.table.produced') }} </th>
                   <td mat-cell *matCellDef="let element"> 
                     <span class="produced-badge">{{element.produced}}</span>
                   </td>
                 </ng-container>
 
                 <ng-container matColumnDef="actions">
-                  <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+                  <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('production.table.actions') }} </th>
                   <td mat-cell *matCellDef="let element" class="actions-col">
                     <div class="table-actions">
-                      <button mat-icon-button class="action-btn" title="View Details" (click)="viewDetails(element)"><mat-icon>visibility</mat-icon></button>
-                      <button mat-icon-button class="action-btn" title="Edit Session" (click)="editSession(element)"><mat-icon>edit</mat-icon></button>
-                      <button mat-icon-button class="action-btn delete-btn" title="Delete Session" (click)="deleteProduction(element)"><mat-icon>delete</mat-icon></button>
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('production.table.action.view')" (click)="viewDetails(element)"><mat-icon>visibility</mat-icon></button>
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('production.table.action.edit')" (click)="editSession(element)"><mat-icon>edit</mat-icon></button>
+                      <button mat-icon-button class="action-btn delete-btn" [title]="translation.translate('production.table.action.delete')" (click)="deleteProduction(element)"><mat-icon>delete</mat-icon></button>
                     </div>
                   </td>
                 </ng-container>
@@ -790,9 +791,50 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
       .produced-value, .total-produced { background: rgba(99, 102, 241, 0.12); }
       .produced-badge { background: rgba(99, 102, 241, 0.15); }
     }
+
+    /* ── RTL Overrides ────────────────────────────── */
+    /* SCOPE: apply only inside the page's own tpms-dir[dir="rtl"]
+       wrapper (Arabic mode). Flex/grid rows mirror automatically;
+       these overrides cover physical positions and latin-only text styling. */
+    .tpms-dir[dir="rtl"] .section-label {
+      border-left: none;
+      border-right: 4px solid var(--primary);
+      padding-left: 0;
+      padding-right: var(--space-2);
+      text-align: right;
+    }
+
+    .tpms-dir[dir="rtl"] .section-label,
+    .tpms-dir[dir="rtl"] .form-group label,
+    .tpms-dir[dir="rtl"] .sub-section-label,
+    .tpms-dir[dir="rtl"] .products-header,
+    .tpms-dir[dir="rtl"] .line-time-header,
+    .tpms-dir[dir="rtl"] .s-label {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .date-input-wrapper input {
+      padding-right: 14px;
+      padding-left: 40px;
+    }
+
+    .tpms-dir[dir="rtl"] .date-input-wrapper mat-datepicker-toggle {
+      right: auto;
+      left: 0;
+    }
+
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
   `]
 })
 export class ProductionComponent implements OnInit {
+  readonly translation = inject(TranslationService);
   private fb = inject(FormBuilder);
   private dialog = inject(MatDialog);
   private productionService = inject(ProductionService);
@@ -1052,7 +1094,7 @@ export class ProductionComponent implements OnInit {
     // ── Reference integrity ──────────────────────────────────────────────
     const line = this.linesMap.get(formValue.lineId);
     if (!line) {
-      this.saveError = 'Selected Line is not valid. Production must be recorded per Production Line.';
+      this.saveError = this.translation.translate('production.error.lineInvalid');
       this.submissionGuard.release();
       return;
     }
@@ -1068,7 +1110,7 @@ export class ProductionComponent implements OnInit {
     for (let idx = 0; idx < formValue.items.length; idx++) {
       const item = formValue.items[idx];
       if (!ProductionUtil.isValidPressCount(item.presses)) {
-        this.saveError = 'Press count cannot be negative.';
+        this.saveError = this.translation.translate('production.error.negativePresses');
         this.submissionGuard.release();
         return;
       }
@@ -1081,12 +1123,12 @@ export class ProductionComponent implements OnInit {
         productActive: product?.active ?? false
       });
       if (referenceStatus === 'blocked' || !product) {
-        this.saveError = 'Selected product is not valid or not active.';
+        this.saveError = this.translation.translate('production.error.productInvalid');
         this.submissionGuard.release();
         return;
       }
       if (!ProductionUtil.isConfigured(MasterDataUtil.piecesPerPressOf(product))) {
-        this.saveError = `Product "${product.name}" has no PiecesPerPress configured. Set it in Settings > Products before recording production.`;
+        this.saveError = this.translation.translate('production.error.noPiecesConfig', { product: product.name });
         this.submissionGuard.release();
         return;
       }
@@ -1106,14 +1148,14 @@ export class ProductionComponent implements OnInit {
     try {
       records = this.buildItemRecords(sessionId, isoDate, formValue);
     } catch (err: any) {
-      this.saveError = err?.message || 'Invalid production data.';
+      this.saveError = err?.message || this.translation.translate('production.error.invalidData');
       this.saving = false;
       this.submissionGuard.release();
       return;
     }
 
     if (records.length === 0) {
-      this.saveError = 'At least one product line is required.';
+      this.saveError = this.translation.translate('production.error.noItems');
       this.saving = false;
       this.submissionGuard.release();
       return;
@@ -1255,7 +1297,7 @@ export class ProductionComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error saving session or production items:', err);
-        this.saveError = 'Failed to persist the production session. No production data was saved.';
+        this.saveError = this.translation.translate('production.error.saveFailed');
         this.saving = false;
         this.submissionGuard.release();
       }
@@ -1285,7 +1327,7 @@ export class ProductionComponent implements OnInit {
       next: () => this.finishSave(),
       error: (err) => {
         console.error('Error updating session:', err);
-        this.saveError = 'Failed to persist the edited session. Please reload and verify data integrity.';
+        this.saveError = this.translation.translate('production.error.updateFailed');
         this.saving = false;
         this.submissionGuard.release();
         this.loadHistory();
@@ -1304,13 +1346,13 @@ export class ProductionComponent implements OnInit {
   
   editSession(record: Production): void {
      if (!record.sessionId) {
-        alert('Cannot edit this legacy record. It was created before the Session feature was added.');
+        alert(this.translation.translate('production.edit.legacyAlert'));
         return;
      }
      
      const session = this.sessionsMap.get(record.sessionId);
      if (!session) {
-        alert('Session data not found for this record.');
+        alert(this.translation.translate('production.edit.sessionNotFound'));
         return;
      }
      
@@ -1358,17 +1400,19 @@ export class ProductionComponent implements OnInit {
   }
 
   deleteProduction(record: Production): void {
-    const title = record.sessionId ? 'Delete Entire Session?' : 'Delete Record?';
-    const msg = record.sessionId 
-      ? 'This will delete the entire production session (including all products, downtime, and overtime logged with it). Are you sure?'
-      : 'Are you sure you want to delete this legacy production record?';
+    const title = record.sessionId
+      ? this.translation.translate('production.delete.title.session')
+      : this.translation.translate('production.delete.title.legacy');
+    const msg = record.sessionId
+      ? this.translation.translate('production.delete.message.session')
+      : this.translation.translate('production.delete.message.legacy');
       
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       data: {
         title: title,
         message: msg,
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        confirmText: this.translation.translate('production.delete.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'danger'
       }
     });
@@ -1414,10 +1458,10 @@ export class ProductionComponent implements OnInit {
     if (this.productionForm.dirty) {
       const dialogRef = this.dialog.open(ConfirmDialogComponent, {
         data: {
-          title: 'Clear form?',
-          message: 'All unsaved data will be lost.',
-          confirmText: 'Clear',
-          cancelText: 'Cancel',
+          title: this.translation.translate('production.clear.title'),
+          message: this.translation.translate('production.clear.message'),
+          confirmText: this.translation.translate('production.clear.confirm'),
+          cancelText: this.translation.translate('common.cancel'),
           variant: 'warning'
         }
       });
@@ -1520,15 +1564,15 @@ export class ProductionComponent implements OnInit {
   }
 
   getProductName(id: string): string {
-    return this.productsMap.get(id)?.name || 'Unknown Product';
+    return this.productsMap.get(id)?.name || this.translation.translate('production.unknown.product');
   }
 
   getLineName(id: string): string {
-    return this.linesMap.get(id)?.name || 'Unknown Line';
+    return this.linesMap.get(id)?.name || this.translation.translate('production.unknown.line');
   }
 
   getShiftName(id: string): string {
-    return this.shiftsMap.get(id)?.name || 'Unknown Shift';
+    return this.shiftsMap.get(id)?.name || this.translation.translate('production.unknown.shift');
   }
 
   private formatDate(date: Date): string {
