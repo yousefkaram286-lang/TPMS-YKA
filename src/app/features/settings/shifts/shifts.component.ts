@@ -11,6 +11,7 @@ import { Shift } from '../../../core/models/shift.model';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
+import { TranslationService } from '../../../core/services/translation.service';
 
 @Component({
   selector: 'app-shifts',
@@ -27,86 +28,88 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
     StatusBadgeComponent
   ],
   template: `
-    <div class="settings-section">
+    <div class="settings-section tpms-dir" [attr.dir]="translation.dir()">
       <div class="section-header">
         <div class="section-title">
-          <h2>Shifts</h2>
-          <p>Manage work shifts</p>
+          <h2>{{ translation.translate('settings.shifts.title') }}</h2>
+          <p>{{ translation.translate('settings.shifts.subtitle') }}</p>
         </div>
         <div class="section-actions">
           <div class="search-bar">
             <mat-icon class="search-icon">search</mat-icon>
-            <input type="text" placeholder="Search shifts..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+            <input type="text" [placeholder]="translation.translate('settings.shifts.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
             <button *ngIf="searchTerm" mat-icon-button class="clear-btn" (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
           </div>
           <button class="btn-primary" (click)="openDialog()">
-            <mat-icon>add</mat-icon> Add Shift
+            <mat-icon>add</mat-icon> {{ translation.translate('settings.shifts.add') }}
           </button>
         </div>
       </div>
 
       <div class="section-content">
         <div *ngIf="loading" class="loading-state">
-          Loading shifts...
+          {{ translation.translate('settings.shifts.loading') }}
         </div>
 
         <ng-container *ngIf="!loading">
           <app-empty-state
             *ngIf="!shifts.length && !searchTerm"
             icon="schedule"
-            title="No shifts yet"
-            description="Add your first work shift to start configuring TPMS."
-            (action)="openDialog()"
-            actionLabel="Add Shift"
-          ></app-empty-state>
+            [title]="translation.translate('settings.shifts.empty.title')"
+            [description]="translation.translate('settings.shifts.empty.desc')"
+          >
+            <button class="btn-primary btn-sm" (click)="openDialog()">
+              <mat-icon>add</mat-icon> {{ translation.translate('settings.shifts.add') }}
+            </button>
+          </app-empty-state>
 
           <app-empty-state
             *ngIf="!filteredShifts.length && searchTerm"
             icon="search_off"
-            title="No shifts found"
-            description="No shifts matched your search."
+            [title]="translation.translate('settings.shifts.searchEmpty.title')"
+            [description]="translation.translate('settings.shifts.searchEmpty.desc')"
             variant="neutral"
           ></app-empty-state>
 
           <div class="table-container" *ngIf="filteredShifts.length > 0">
             <table mat-table [dataSource]="filteredShifts" class="tpms-table">
               <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef> Shift Name </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.shifts.table.name') }} </th>
                 <td mat-cell *matCellDef="let element"> 
                   <div class="font-medium text-primary">{{element.name}}</div>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="time">
-                <th mat-header-cell *matHeaderCellDef> Time </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.shifts.table.time') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.startTime}} - {{element.endTime}} </td>
               </ng-container>
 
               <ng-container matColumnDef="status">
-                <th mat-header-cell *matHeaderCellDef> Status </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.shifts.table.status') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <app-status-badge 
                     [variant]="element.active ? 'success' : 'neutral'" 
-                    [label]="element.active ? 'Active' : 'Inactive'">
+                    [label]="element.active ? translation.translate('settings.shifts.status.active') : translation.translate('settings.shifts.status.inactive')">
                   </app-status-badge>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="createdAt">
-                <th mat-header-cell *matHeaderCellDef> Created </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.shifts.table.created') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.createdAt | date:'shortDate'}} </td>
               </ng-container>
 
               <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+                <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('settings.shifts.table.actions') }} </th>
                 <td mat-cell *matCellDef="let element" class="actions-col">
                   <div class="table-actions">
-                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" title="Edit">
+                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" [title]="translation.translate('common.edit')">
                       <mat-icon>edit</mat-icon>
                     </button>
-                    <button mat-icon-button (click)="deleteShift(element)" class="action-btn delete-btn" title="Delete">
+                    <button mat-icon-button (click)="deleteShift(element)" class="action-btn delete-btn" [title]="translation.translate('common.delete')">
                       <mat-icon>delete</mat-icon>
                     </button>
                   </div>
@@ -246,11 +249,37 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
       color: var(--error);
       background: var(--error-light);
     }
+
+    .tpms-dir[dir="rtl"] .section-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .section-title {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .section-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .search-bar input {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-header-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-cell {
+      text-align: right;
+    }
   `]
 })
 export class ShiftsComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private dialog = inject(MatDialog);
+  readonly translation = inject(TranslationService);
 
   shifts: Shift[] = [];
   filteredShifts: Shift[] = [];
@@ -312,10 +341,10 @@ export class ShiftsComponent implements OnInit {
   deleteShift(shift: Shift): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Shift?',
-        message: `"${shift.name}" may be referenced by existing Production records. Deleting it could break historical data.\n\nWould you like to deactivate it instead? Inactive shifts will not appear in new entries but historical records remain intact.`,
-        confirmText: 'Deactivate',
-        cancelText: 'Cancel',
+        title: this.translation.translate('settings.shifts.delete.title'),
+        message: this.translation.translate('settings.shifts.delete.message', { name: shift.name }),
+        confirmText: this.translation.translate('settings.shifts.delete.deactivate'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'warning'
       }
     }).afterClosed().subscribe(confirm => {
@@ -337,43 +366,47 @@ export class ShiftsComponent implements OnInit {
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule, MatButtonModule],
   template: `
-    <h2 mat-dialog-title>{{ data ? 'Edit Shift' : 'Add Shift' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="shiftForm" class="dialog-form">
-        <div class="form-group">
-          <label>Shift Name *</label>
-          <input type="text" formControlName="name" class="form-control" placeholder="Enter shift name">
-          <div class="error" *ngIf="isInvalid('name')">Shift name is required</div>
-        </div>
-        <div class="form-row">
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
+      <h2 mat-dialog-title>{{ data ? translation.translate('settings.shifts.dialog.title.edit') : translation.translate('settings.shifts.dialog.title.add') }}</h2>
+      <mat-dialog-content>
+        <form [formGroup]="shiftForm" class="dialog-form">
           <div class="form-group">
-            <label>Start Time *</label>
-            <input type="time" formControlName="startTime" class="form-control">
-            <div class="error" *ngIf="isInvalid('startTime')">Start time is required</div>
+            <label>{{ translation.translate('settings.shifts.dialog.name') }}</label>
+            <input type="text" formControlName="name" class="form-control" [placeholder]="translation.translate('settings.shifts.dialog.name.placeholder')">
+            <div class="error" *ngIf="isInvalid('name')">{{ translation.translate('settings.shifts.dialog.name.error') }}</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ translation.translate('settings.shifts.dialog.startTime') }}</label>
+              <input type="time" formControlName="startTime" class="form-control">
+              <div class="error" *ngIf="isInvalid('startTime')">{{ translation.translate('settings.shifts.dialog.startTime.error') }}</div>
+            </div>
+            <div class="form-group">
+              <label>{{ translation.translate('settings.shifts.dialog.endTime') }}</label>
+              <input type="time" formControlName="endTime" class="form-control">
+              <div class="error" *ngIf="isInvalid('endTime')">{{ translation.translate('settings.shifts.dialog.endTime.error') }}</div>
+            </div>
           </div>
           <div class="form-group">
-            <label>End Time *</label>
-            <input type="time" formControlName="endTime" class="form-control">
-            <div class="error" *ngIf="isInvalid('endTime')">End time is required</div>
+            <label>
+              <input type="checkbox" formControlName="active">
+              {{ translation.translate('settings.shifts.dialog.active') }}
+            </label>
           </div>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" formControlName="active">
-            Active
-          </label>
-        </div>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
-      <button mat-button (click)="onCancel()" [disabled]="saving">Cancel</button>
-      <button mat-button color="primary" (click)="onSave()" [disabled]="shiftForm.invalid || saving">
-        {{ saving ? 'Saving...' : 'Save' }}
-      </button>
-    </mat-dialog-actions>
+        </form>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+        <button mat-button (click)="onCancel()" [disabled]="saving">{{ translation.translate('settings.shifts.dialog.cancel') }}</button>
+        <button mat-button color="primary" (click)="onSave()" [disabled]="shiftForm.invalid || saving">
+          {{ saving ? translation.translate('settings.shifts.dialog.saving') : translation.translate('settings.shifts.dialog.save') }}
+        </button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
+    .dialog-wrapper { display: flex; flex-direction: column; }
+
     .dialog-form {
       display: flex;
       flex-direction: column;
@@ -421,12 +454,24 @@ export class ShiftsComponent implements OnInit {
       color: var(--error);
       padding: var(--space-1) 0;
     }
+
+    .tpms-dir[dir="rtl"] h2,
+    .tpms-dir[dir="rtl"] mat-dialog-content {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .form-group label {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] input {
+      direction: rtl;
+    }
   `]
 })
 export class ShiftDialogComponent {
   private fb = inject(FormBuilder);
   private dialogRef = inject(MatDialogRef<ShiftDialogComponent>);
   private shiftService = inject(ShiftService);
+  readonly translation = inject(TranslationService);
 
   public data = inject<Shift | null>(MAT_DIALOG_DATA);
 
@@ -480,7 +525,7 @@ export class ShiftDialogComponent {
       error: (err) => {
         console.error('[ShiftDialog] Save failed:', err);
         this.saving = false;
-        this.errorMessage = err?.message || 'Failed to save shift. Please try again.';
+        this.errorMessage = err?.message || this.translation.translate('settings.shifts.dialog.saveError');
       }
     });
   }

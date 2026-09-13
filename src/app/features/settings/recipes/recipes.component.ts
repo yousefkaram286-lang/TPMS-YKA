@@ -16,6 +16,7 @@ import { Product } from '../../../core/models/product.model';
 import { Material } from '../../../core/models/material.model';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { TranslationService } from '../../../core/services/translation.service';
 
 @Component({
   selector: 'app-recipes',
@@ -33,68 +34,70 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
     EmptyStateComponent
   ],
   template: `
-    <div class="settings-section">
+    <div class="settings-section tpms-dir" [attr.dir]="translation.dir()">
       <div class="section-header">
         <div class="section-title">
-          <h2>Recipes</h2>
-          <p>Manage dynamic material recipes for products</p>
+          <h2>{{ translation.translate('settings.recipes.title') }}</h2>
+          <p>{{ translation.translate('settings.recipes.subtitle') }}</p>
         </div>
         <div class="section-actions">
           <div class="search-bar">
             <mat-icon class="search-icon">search</mat-icon>
-            <input type="text" placeholder="Search recipes..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+            <input type="text" [placeholder]="translation.translate('settings.recipes.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
             <button *ngIf="searchTerm" mat-icon-button class="clear-btn" (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
           </div>
           <button class="btn-primary" (click)="openDialog()">
-            <mat-icon>add</mat-icon> Add Recipe
+            <mat-icon>add</mat-icon> {{ translation.translate('settings.recipes.add') }}
           </button>
         </div>
       </div>
 
       <div class="section-content">
         <div *ngIf="loading" class="loading-state">
-          Loading recipes...
+          {{ translation.translate('settings.recipes.loading') }}
         </div>
 
         <ng-container *ngIf="!loading">
           <app-empty-state
             *ngIf="!recipes.length && !searchTerm"
             icon="restaurant"
-            title="No recipes yet"
-            description="Add your first recipe to start configuring TPMS."
-            (action)="openDialog()"
-            actionLabel="Add Recipe"
-          ></app-empty-state>
+            [title]="translation.translate('settings.recipes.empty.title')"
+            [description]="translation.translate('settings.recipes.empty.desc')"
+          >
+            <button class="btn-primary btn-sm" (click)="openDialog()">
+              <mat-icon>add</mat-icon> {{ translation.translate('settings.recipes.add') }}
+            </button>
+          </app-empty-state>
 
           <app-empty-state
             *ngIf="!filteredRecipes.length && searchTerm"
             icon="search_off"
-            title="No recipes found"
-            description="No recipes matched your search."
+            [title]="translation.translate('settings.recipes.searchEmpty.title')"
+            [description]="translation.translate('settings.recipes.searchEmpty.desc')"
             variant="neutral"
           ></app-empty-state>
 
           <div class="table-container" *ngIf="filteredRecipes.length > 0">
             <table mat-table [dataSource]="filteredRecipes" class="tpms-table">
               <ng-container matColumnDef="product">
-                <th mat-header-cell *matHeaderCellDef> Product </th>
-                <td mat-cell *matCellDef="let element"> 
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.recipes.table.product') }} </th>
+                <td mat-cell *matCellDef="let element">
                   <div class="font-medium text-primary">
                     {{getProductName(element.productId)}}
-                    <span class="demo-badge" *ngIf="element.demo">demo</span>
+                    <span class="demo-badge" *ngIf="element.demo">{{ translation.translate('settings.recipes.demo') }}</span>
                   </div>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="materialsCount">
-                <th mat-header-cell *matHeaderCellDef> Ingredients </th>
-                <td mat-cell *matCellDef="let element"> {{element.items?.length || 0}} materials </td>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.recipes.table.materialsCount') }} </th>
+                <td mat-cell *matCellDef="let element"> {{ translation.translate('settings.recipes.table.materialsCountValue', { count: (element.items?.length || 0) }) }} </td>
               </ng-container>
 
               <ng-container matColumnDef="materialsList">
-                <th mat-header-cell *matHeaderCellDef> Materials </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.recipes.table.materialsList') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span class="materials-list-text" [title]="getMaterialsList(element)">
                     {{getMaterialsList(element)}}
@@ -103,18 +106,18 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
               </ng-container>
 
               <ng-container matColumnDef="createdAt">
-                <th mat-header-cell *matHeaderCellDef> Created </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.recipes.table.created') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.createdAt | date:'shortDate'}} </td>
               </ng-container>
 
               <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+                <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('settings.recipes.table.actions') }} </th>
                 <td mat-cell *matCellDef="let element" class="actions-col">
                   <div class="table-actions">
-                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" title="Edit">
+                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" [title]="translation.translate('common.edit')">
                       <mat-icon>edit</mat-icon>
                     </button>
-                    <button mat-icon-button (click)="deleteRecipe(element)" class="action-btn delete-btn" title="Delete">
+                    <button mat-icon-button (click)="deleteRecipe(element)" class="action-btn delete-btn" [title]="translation.translate('common.delete')">
                       <mat-icon>delete</mat-icon>
                     </button>
                   </div>
@@ -161,6 +164,35 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
       vertical-align: middle;
       text-transform: uppercase;
     }
+
+    .tpms-dir[dir="rtl"] .section-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .section-title {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .section-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .search-bar input {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-header-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .demo-badge {
+      margin-left: 0;
+      margin-right: 8px;
+    }
   `]
 })
 export class RecipesComponent implements OnInit {
@@ -169,18 +201,19 @@ export class RecipesComponent implements OnInit {
   private materialService = inject(MaterialService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  readonly translation = inject(TranslationService);
 
   recipes: Recipe[] = [];
   filteredRecipes: Recipe[] = [];
   products: Product[] = [];
   materials: Material[] = [];
-  
+
   productsMap = new Map<string, Product>();
   materialsMap = new Map<string, Material>();
-  
+
   loading = true;
   searchTerm = '';
-  
+
   displayedColumns: string[] = ['product', 'materialsCount', 'materialsList', 'createdAt', 'actions'];
 
   ngOnInit(): void {
@@ -228,12 +261,12 @@ export class RecipesComponent implements OnInit {
   }
 
   getProductName(productId: string): string {
-    return this.productsMap.get(productId)?.name || 'Unknown Product';
+    return this.productsMap.get(productId)?.name || this.translation.translate('settings.recipes.product.unknown');
   }
 
   getMaterialsList(recipe: Recipe): string {
-    if (!recipe.items || recipe.items.length === 0) return 'None';
-    return recipe.items.map(item => this.materialsMap.get(item.materialId)?.name || 'Unknown').join(', ');
+    if (!recipe.items || recipe.items.length === 0) return this.translation.translate('settings.recipes.materials.none');
+    return recipe.items.map(item => this.materialsMap.get(item.materialId)?.name || this.translation.translate('settings.recipes.material.unknown')).join(', ');
   }
 
   applyFilter(): void {
@@ -241,9 +274,9 @@ export class RecipesComponent implements OnInit {
       this.filteredRecipes = [...this.recipes];
       return;
     }
-    
+
     const term = this.searchTerm.toLowerCase();
-    this.filteredRecipes = this.recipes.filter(r => 
+    this.filteredRecipes = this.recipes.filter(r =>
       this.getProductName(r.productId).toLowerCase().includes(term) ||
       this.getMaterialsList(r).toLowerCase().includes(term)
     );
@@ -257,7 +290,7 @@ export class RecipesComponent implements OnInit {
   openDialog(recipe?: Recipe): void {
     const dialogRef = this.dialog.open(RecipeDialogComponent, {
       width: '600px',
-      data: { 
+      data: {
         recipe: recipe ? { ...recipe } : null,
         products: this.products,
         materials: this.materials,
@@ -276,22 +309,22 @@ export class RecipesComponent implements OnInit {
   deleteRecipe(recipe: Recipe): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Recipe?',
-        message: 'Are you sure you want to delete this recipe? This action cannot be undone.',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        title: this.translation.translate('settings.recipes.delete.title'),
+        message: this.translation.translate('settings.recipes.delete.message'),
+        confirmText: this.translation.translate('settings.recipes.delete.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'danger'
       }
     }).afterClosed().subscribe(confirm => {
       if (confirm) {
         this.recipeService.delete(recipe.id).subscribe({
           next: () => {
-            this.snackBar.open('Recipe deleted', 'Close', { duration: 3000 });
+            this.snackBar.open(this.translation.translate('settings.recipes.snackbar.deleted'), this.translation.translate('common.close'), { duration: 3000 });
             this.loadData();
           },
           error: (err) => {
             console.error('[RecipesComponent] Delete failed:', err);
-            this.snackBar.open(err?.message || 'Failed to delete recipe', 'Close', { duration: 3000 });
+            this.snackBar.open(err?.message || this.translation.translate('settings.recipes.snackbar.deleteError'), this.translation.translate('common.close'), { duration: 3000 });
           }
         });
       }
@@ -304,73 +337,77 @@ export class RecipesComponent implements OnInit {
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatIconModule],
   template: `
-    <h2 mat-dialog-title>{{ data.recipe ? 'Edit Recipe' : 'Add Recipe' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="recipeForm" class="dialog-form tpms-form mt-2">
-        <div class="form-group">
-          <label>Product *</label>
-          <select formControlName="productId" class="form-control" [class.is-invalid]="isInvalid('productId')">
-            <option value="">Select Product</option>
-            <option *ngFor="let product of data?.products" [value]="product.id">{{ product.name }}</option>
-          </select>
-          <div class="invalid-feedback" *ngIf="isInvalid('productId')">Product is required.</div>
-          <div class="invalid-feedback" *ngIf="recipeForm.hasError('duplicateProduct')">A recipe already exists for this product.</div>
-        </div>
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
+      <h2 mat-dialog-title>{{ data.recipe ? translation.translate('settings.recipes.dialog.title.edit') : translation.translate('settings.recipes.dialog.title.add') }}</h2>
+      <mat-dialog-content>
+        <form [formGroup]="recipeForm" class="dialog-form tpms-form mt-2">
+          <div class="form-group">
+            <label>{{ translation.translate('settings.recipes.dialog.product') }}</label>
+            <select formControlName="productId" class="form-control" [class.is-invalid]="isInvalid('productId')">
+              <option value="">{{ translation.translate('settings.recipes.dialog.product.placeholder') }}</option>
+              <option *ngFor="let product of data?.products" [value]="product.id">{{ product.name }}</option>
+            </select>
+            <div class="invalid-feedback" *ngIf="isInvalid('productId')">{{ translation.translate('settings.recipes.dialog.product.error') }}</div>
+            <div class="invalid-feedback" *ngIf="recipeForm.hasError('duplicateProduct')">{{ translation.translate('settings.recipes.dialog.product.duplicate') }}</div>
+          </div>
 
-        <hr class="divider">
-        
-        <div class="materials-header">
-          <h3>Materials</h3>
-          <button type="button" mat-button color="primary" (click)="addMaterial()">
-            <mat-icon>add</mat-icon> Add Material
-          </button>
-        </div>
+          <hr class="divider">
 
-        <div formArrayName="items" class="materials-list">
-          <div class="material-row" *ngFor="let item of items.controls; let i=index" [formGroupName]="i">
-            
-            <div class="form-group flex-2">
-              <label *ngIf="i === 0">Material *</label>
-              <select formControlName="materialId" class="form-control" [class.is-invalid]="item.get('materialId')?.invalid && item.get('materialId')?.touched">
-                <option value="">Select Material</option>
-                <option *ngFor="let m of activeMaterials" [value]="m.id" [disabled]="isMaterialSelected(m.id, i)">
-                  {{ m.name }}
-                </option>
-              </select>
-            </div>
+          <div class="materials-header">
+            <h3>{{ translation.translate('settings.recipes.dialog.materials.header') }}</h3>
+            <button type="button" mat-button color="primary" (click)="addMaterial()">
+              <mat-icon>add</mat-icon> {{ translation.translate('settings.recipes.dialog.materials.add') }}
+            </button>
+          </div>
 
-            <div class="form-group flex-1">
-              <label *ngIf="i === 0">Quantity *</label>
-              <div class="input-with-unit">
-                <input type="number" formControlName="quantity" class="form-control" min="0.1" step="0.1" [class.is-invalid]="item.get('quantity')?.invalid && item.get('quantity')?.touched">
-                <span class="unit-label">{{ getMaterialUnit(item.get('materialId')?.value) }}</span>
+          <div formArrayName="items" class="materials-list">
+            <div class="material-row" *ngFor="let item of items.controls; let i=index" [formGroupName]="i">
+
+              <div class="form-group flex-2">
+                <label *ngIf="i === 0">{{ translation.translate('settings.recipes.dialog.material') }}</label>
+                <select formControlName="materialId" class="form-control" [class.is-invalid]="item.get('materialId')?.invalid && item.get('materialId')?.touched">
+                  <option value="">{{ translation.translate('settings.recipes.dialog.material.placeholder') }}</option>
+                  <option *ngFor="let m of activeMaterials" [value]="m.id" [disabled]="isMaterialSelected(m.id, i)">
+                    {{ m.name }}
+                  </option>
+                </select>
               </div>
+
+              <div class="form-group flex-1">
+                <label *ngIf="i === 0">{{ translation.translate('settings.recipes.dialog.quantity') }}</label>
+                <div class="input-with-unit">
+                  <input type="number" formControlName="quantity" class="form-control" min="0.1" step="0.1" [class.is-invalid]="item.get('quantity')?.invalid && item.get('quantity')?.touched">
+                  <span class="unit-label">{{ getMaterialUnit(item.get('materialId')?.value) }}</span>
+                </div>
+              </div>
+
+              <div class="form-group row-action" [class.has-label]="i === 0">
+                <button type="button" mat-icon-button color="warn" (click)="removeMaterial(i)" [title]="translation.translate('settings.recipes.dialog.material.remove')">
+                  <mat-icon>remove_circle_outline</mat-icon>
+                </button>
+              </div>
+
             </div>
 
-            <div class="form-group row-action" [class.has-label]="i === 0">
-              <button type="button" mat-icon-button color="warn" (click)="removeMaterial(i)" title="Remove Material">
-                <mat-icon>remove_circle_outline</mat-icon>
-              </button>
+            <div class="empty-materials" *ngIf="items.length === 0">
+              {{ translation.translate('settings.recipes.dialog.empty') }}
             </div>
-
+            <div class="invalid-feedback mt-2" *ngIf="recipeForm.hasError('noMaterials')">{{ translation.translate('settings.recipes.dialog.materialsRequired') }}</div>
           </div>
-          
-          <div class="empty-materials" *ngIf="items.length === 0">
-            No materials added. Click "Add Material" to start.
-          </div>
-          <div class="invalid-feedback mt-2" *ngIf="recipeForm.hasError('noMaterials')">At least one material is required.</div>
-        </div>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
-      <button mat-button (click)="onCancel()" [disabled]="saving">Cancel</button>
-      <button mat-flat-button color="primary" (click)="onSave()" [disabled]="recipeForm.invalid || saving">
-        {{ saving ? 'Saving...' : 'Save' }}
-      </button>
-    </mat-dialog-actions>
+        </form>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+        <button mat-button (click)="onCancel()" [disabled]="saving">{{ translation.translate('settings.recipes.dialog.cancel') }}</button>
+        <button mat-flat-button color="primary" (click)="onSave()" [disabled]="recipeForm.invalid || saving">
+          {{ saving ? translation.translate('settings.recipes.dialog.saving') : translation.translate('settings.recipes.dialog.save') }}
+        </button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
+    .dialog-wrapper { display: flex; flex-direction: column; }
+
     .dialog-form { display: flex; flex-direction: column; gap: var(--space-4); }
     .mt-2 { margin-top: var(--space-2); }
     .form-group { display: flex; flex-direction: column; gap: var(--space-1); }
@@ -379,27 +416,50 @@ export class RecipesComponent implements OnInit {
     .form-control:focus { outline: none; border-color: var(--accent); }
     .form-control.is-invalid { border-color: var(--error); }
     .invalid-feedback { font-size: var(--text-xs); color: var(--error); margin-top: 2px; }
-    
+
     .divider { border: 0; border-top: 1px solid var(--border-subtle); margin: var(--space-2) 0; }
-    
+
     .materials-header { display: flex; justify-content: space-between; align-items: center; }
     .materials-header h3 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--text-primary); }
-    
+
     .materials-list { display: flex; flex-direction: column; gap: var(--space-3); max-height: 40vh; overflow-y: auto; padding-right: var(--space-2); }
     .material-row { display: flex; gap: var(--space-3); align-items: flex-start; }
     .flex-2 { flex: 2; }
     .flex-1 { flex: 1.5; }
-    
+
     .input-with-unit { display: flex; align-items: center; gap: var(--space-2); }
     .input-with-unit input { flex: 1; }
     .unit-label { font-size: var(--text-sm); color: var(--text-secondary); min-width: 30px; }
-    
+
     .row-action { justify-content: flex-end; }
     .row-action.has-label { padding-top: 24px; }
-    
+
     .empty-materials { padding: var(--space-4); text-align: center; color: var(--text-secondary); font-style: italic; background: var(--surface-alt); border-radius: var(--radius-md); }
-    
+
     .error-banner { flex: 1; font-size: var(--text-xs); color: var(--error); padding: var(--space-1) 0; }
+
+    .tpms-dir[dir="rtl"] h2,
+    .tpms-dir[dir="rtl"] mat-dialog-content {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .form-group label,
+    .tpms-dir[dir="rtl"] .materials-header h3 {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .materials-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .material-row {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] input,
+    .tpms-dir[dir="rtl"] select {
+      direction: rtl;
+    }
+    .tpms-dir[dir="rtl"] .materials-list {
+      padding-right: 0;
+      padding-left: var(--space-2);
+    }
   `]
 })
 export class RecipeDialogComponent implements OnInit {
@@ -407,6 +467,7 @@ export class RecipeDialogComponent implements OnInit {
   private dialogRef = inject(MatDialogRef<RecipeDialogComponent>);
   private recipeService = inject(RecipeService);
   private snackBar = inject(MatSnackBar);
+  readonly translation = inject(TranslationService);
 
   public data = inject<{ recipe: Recipe | null, products: Product[], materials: Material[], existingRecipes: Recipe[] }>(MAT_DIALOG_DATA);
 
@@ -477,11 +538,11 @@ export class RecipeDialogComponent implements OnInit {
   duplicateProductValidator(group: FormGroup) {
     const productId = group.get('productId')?.value;
     if (!productId) return null;
-    
+
     // Check if another recipe already exists for this product (exclude self if editing)
     const currentRecipeId = this.data.recipe?.id;
     const exists = this.data.existingRecipes.some(r => r.productId === productId && r.id !== currentRecipeId);
-    
+
     return exists ? { duplicateProduct: true } : null;
   }
 
@@ -508,13 +569,13 @@ export class RecipeDialogComponent implements OnInit {
     save$.subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Recipe saved successfully', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translation.translate('settings.recipes.snackbar.saved'), this.translation.translate('common.close'), { duration: 3000 });
         this.dialogRef.close(true);
       },
       error: (err) => {
         console.error('Failed to save recipe', err);
         this.saving = false;
-        this.errorMessage = err?.message || 'Failed to save recipe. Please try again.';
+        this.errorMessage = err?.message || this.translation.translate('settings.recipes.dialog.saveError');
       }
     });
   }

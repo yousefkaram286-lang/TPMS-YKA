@@ -14,6 +14,7 @@ import { Line } from '../../../core/models/line.model';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
+import { TranslationService } from '../../../core/services/translation.service';
 
 @Component({
   selector: 'app-machines',
@@ -31,86 +32,88 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
     StatusBadgeComponent
   ],
   template: `
-    <div class="settings-section">
+    <div class="settings-section tpms-dir" [attr.dir]="translation.dir()">
       <div class="section-header">
         <div class="section-title">
-          <h2>Machines</h2>
-          <p>Manage production machines</p>
+          <h2>{{ translation.translate('settings.machines.title') }}</h2>
+          <p>{{ translation.translate('settings.machines.subtitle') }}</p>
         </div>
         <div class="section-actions">
           <div class="search-bar">
             <mat-icon class="search-icon">search</mat-icon>
-            <input type="text" placeholder="Search machines..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+            <input type="text" [placeholder]="translation.translate('settings.machines.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
             <button *ngIf="searchTerm" mat-icon-button class="clear-btn" (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
           </div>
           <button class="btn-primary" (click)="openDialog()">
-            <mat-icon>add</mat-icon> Add Machine
+            <mat-icon>add</mat-icon> {{ translation.translate('settings.machines.add') }}
           </button>
         </div>
       </div>
 
       <div class="section-content">
         <div *ngIf="loading" class="loading-state">
-          Loading machines...
+          {{ translation.translate('settings.machines.loading') }}
         </div>
 
         <ng-container *ngIf="!loading">
           <app-empty-state
             *ngIf="!machines.length && !searchTerm"
             icon="precision_manufacturing"
-            title="No machines yet"
-            description="Add your first machine to start configuring TPMS."
-            (action)="openDialog()"
-            actionLabel="Add Machine"
-          ></app-empty-state>
+            [title]="translation.translate('settings.machines.empty.title')"
+            [description]="translation.translate('settings.machines.empty.desc')"
+          >
+            <button class="btn-primary btn-sm" (click)="openDialog()">
+              <mat-icon>add</mat-icon> {{ translation.translate('settings.machines.add') }}
+            </button>
+          </app-empty-state>
 
           <app-empty-state
             *ngIf="!filteredMachines.length && searchTerm"
             icon="search_off"
-            title="No machines found"
-            description="No machines matched your search."
+            [title]="translation.translate('settings.machines.searchEmpty.title')"
+            [description]="translation.translate('settings.machines.searchEmpty.desc')"
             variant="neutral"
           ></app-empty-state>
 
           <div class="table-container" *ngIf="filteredMachines.length > 0">
             <table mat-table [dataSource]="filteredMachines" class="tpms-table">
               <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef> Machine Name </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.machines.table.name') }} </th>
                 <td mat-cell *matCellDef="let element"> 
                   <div class="font-medium text-primary">{{element.name}}</div>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="line">
-                <th mat-header-cell *matHeaderCellDef> Line </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.machines.table.line') }} </th>
                 <td mat-cell *matCellDef="let element"> {{getLineName(element.lineId)}} </td>
               </ng-container>
 
               <ng-container matColumnDef="status">
-                <th mat-header-cell *matHeaderCellDef> Status </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.machines.table.status') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <app-status-badge 
                     [variant]="element.active ? 'success' : 'neutral'" 
-                    [label]="element.active ? 'Active' : 'Inactive'">
+                    [label]="element.active ? translation.translate('settings.machines.status.active') : translation.translate('settings.machines.status.inactive')">
                   </app-status-badge>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="createdAt">
-                <th mat-header-cell *matHeaderCellDef> Created </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.machines.table.created') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.createdAt | date:'shortDate'}} </td>
               </ng-container>
 
               <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+                <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('settings.machines.table.actions') }} </th>
                 <td mat-cell *matCellDef="let element" class="actions-col">
                   <div class="table-actions">
-                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" title="Edit">
+                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" [title]="translation.translate('common.edit')">
                       <mat-icon>edit</mat-icon>
                     </button>
-                    <button mat-icon-button (click)="deleteMachine(element)" class="action-btn delete-btn" title="Delete">
+                    <button mat-icon-button (click)="deleteMachine(element)" class="action-btn delete-btn" [title]="translation.translate('common.delete')">
                       <mat-icon>delete</mat-icon>
                     </button>
                   </div>
@@ -250,12 +253,38 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
       color: var(--error);
       background: var(--error-light);
     }
+
+    .tpms-dir[dir="rtl"] .section-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .section-title {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .section-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .search-bar input {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-header-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-cell {
+      text-align: right;
+    }
   `]
 })
 export class MachinesComponent implements OnInit {
   private machineService = inject(MachineService);
   private lineService = inject(LineService);
   private dialog = inject(MatDialog);
+  readonly translation = inject(TranslationService);
 
   machines: Machine[] = [];
   filteredMachines: Machine[] = [];
@@ -299,7 +328,7 @@ export class MachinesComponent implements OnInit {
   }
 
   getLineName(lineId: string): string {
-    return this.linesMap.get(lineId)?.name || 'Unknown';
+    return this.linesMap.get(lineId)?.name || this.translation.translate('settings.machines.line.unknown');
   }
 
   applyFilter(): void {
@@ -341,10 +370,10 @@ export class MachinesComponent implements OnInit {
   deleteMachine(machine: Machine): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Machine?',
-        message: `"${machine.name}" may be referenced by existing Production records. Deleting it could break historical data.\n\nWould you like to deactivate it instead? Inactive machines will not appear in new entries but historical records remain intact.`,
-        confirmText: 'Deactivate',
-        cancelText: 'Cancel',
+        title: this.translation.translate('settings.machines.delete.title'),
+        message: this.translation.translate('settings.machines.delete.message', { name: machine.name }),
+        confirmText: this.translation.translate('settings.machines.delete.deactivate'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'warning'
       }
     }).afterClosed().subscribe(confirm => {
@@ -366,39 +395,43 @@ export class MachinesComponent implements OnInit {
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatSelectModule],
   template: `
-    <h2 mat-dialog-title>{{ data.machine ? 'Edit Machine' : 'Add Machine' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="machineForm" class="dialog-form">
-        <div class="form-group">
-          <label>Machine Name *</label>
-          <input type="text" formControlName="name" class="form-control" placeholder="Enter machine name">
-          <div class="error" *ngIf="isInvalid('name')">Machine name is required</div>
-        </div>
-        <div class="form-group">
-          <label>Line *</label>
-          <select formControlName="lineId" class="form-control">
-            <option value="">Select Line</option>
-            <option *ngFor="let line of data?.lines" [value]="line.id">{{ line.name }}</option>
-          </select>
-          <div class="error" *ngIf="isInvalid('lineId')">Line is required</div>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" formControlName="active">
-            Active
-          </label>
-        </div>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
-      <button mat-button (click)="onCancel()" [disabled]="saving">Cancel</button>
-      <button mat-button color="primary" (click)="onSave()" [disabled]="machineForm.invalid || saving">
-        {{ saving ? 'Saving...' : 'Save' }}
-      </button>
-    </mat-dialog-actions>
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
+      <h2 mat-dialog-title>{{ data.machine ? translation.translate('settings.machines.dialog.title.edit') : translation.translate('settings.machines.dialog.title.add') }}</h2>
+      <mat-dialog-content>
+        <form [formGroup]="machineForm" class="dialog-form">
+          <div class="form-group">
+            <label>{{ translation.translate('settings.machines.dialog.name') }}</label>
+            <input type="text" formControlName="name" class="form-control" [placeholder]="translation.translate('settings.machines.dialog.name.placeholder')">
+            <div class="error" *ngIf="isInvalid('name')">{{ translation.translate('settings.machines.dialog.name.error') }}</div>
+          </div>
+          <div class="form-group">
+            <label>{{ translation.translate('settings.machines.dialog.line') }}</label>
+            <select formControlName="lineId" class="form-control">
+              <option value="">{{ translation.translate('settings.machines.dialog.line.placeholder') }}</option>
+              <option *ngFor="let line of data?.lines" [value]="line.id">{{ line.name }}</option>
+            </select>
+            <div class="error" *ngIf="isInvalid('lineId')">{{ translation.translate('settings.machines.dialog.line.error') }}</div>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" formControlName="active">
+              {{ translation.translate('settings.machines.dialog.active') }}
+            </label>
+          </div>
+        </form>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+        <button mat-button (click)="onCancel()" [disabled]="saving">{{ translation.translate('settings.machines.dialog.cancel') }}</button>
+        <button mat-button color="primary" (click)="onSave()" [disabled]="machineForm.invalid || saving">
+          {{ saving ? translation.translate('settings.machines.dialog.saving') : translation.translate('settings.machines.dialog.save') }}
+        </button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
+    .dialog-wrapper { display: flex; flex-direction: column; }
+
     .dialog-form {
       display: flex;
       flex-direction: column;
@@ -440,12 +473,25 @@ export class MachinesComponent implements OnInit {
       color: var(--error);
       padding: var(--space-1) 0;
     }
+
+    .tpms-dir[dir="rtl"] h2,
+    .tpms-dir[dir="rtl"] mat-dialog-content {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .form-group label {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] input,
+    .tpms-dir[dir="rtl"] select {
+      direction: rtl;
+    }
   `]
 })
 export class MachineDialogComponent {
   private fb = inject(FormBuilder);
   private dialogRef = inject(MatDialogRef<MachineDialogComponent>);
   private machineService = inject(MachineService);
+  readonly translation = inject(TranslationService);
 
   public data = inject<{ machine: Machine | null, lines: Line[] }>(MAT_DIALOG_DATA);
 
@@ -497,7 +543,7 @@ export class MachineDialogComponent {
       error: (err) => {
         console.error('[MachineDialog] Save failed:', err);
         this.saving = false;
-        this.errorMessage = err?.message || 'Failed to save machine. Please try again.';
+        this.errorMessage = err?.message || this.translation.translate('settings.machines.dialog.saveError');
       }
     });
   }

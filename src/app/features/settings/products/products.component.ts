@@ -12,6 +12,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { ProductDialogComponent } from './product-dialog.component';
+import { TranslationService } from '../../../core/services/translation.service';
 
 @Component({
   selector: 'app-products',
@@ -27,53 +28,54 @@ import { ProductDialogComponent } from './product-dialog.component';
     StatusBadgeComponent
   ],
   template: `
-    <div class="settings-section">
+    <div class="settings-section tpms-dir" [attr.dir]="translation.dir()">
       <div class="section-header">
         <div class="section-title">
-          <h2>Products</h2>
-          <p>Manage products used throughout TPMS</p>
+          <h2>{{ translation.translate('settings.products.title') }}</h2>
+          <p>{{ translation.translate('settings.products.subtitle') }}</p>
         </div>
         <div class="section-actions">
           <div class="search-bar">
             <mat-icon class="search-icon">search</mat-icon>
-            <input type="text" placeholder="Search products..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+            <input type="text" [placeholder]="translation.translate('settings.products.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
             <button *ngIf="searchTerm" mat-icon-button class="clear-btn" (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
           </div>
           <button class="btn-primary" (click)="openDialog()">
-            <mat-icon>add</mat-icon> Add Product
+            <mat-icon>add</mat-icon> {{ translation.translate('settings.products.add') }}
           </button>
         </div>
       </div>
 
       <div class="section-content">
         <div *ngIf="loading" class="loading-state">
-          Loading products...
+          {{ translation.translate('settings.products.loading') }}
         </div>
 
         <ng-container *ngIf="!loading">
           <app-empty-state
             *ngIf="!products.length && !searchTerm"
             icon="inventory_2"
-            title="No products yet"
-            description="Add your first product to start configuring TPMS."
-            (action)="openDialog()"
-            actionLabel="Add Product"
-          ></app-empty-state>
+            [title]="translation.translate('settings.products.empty.title')"
+            [description]="translation.translate('settings.products.empty.desc')">
+            <button class="btn-primary btn-sm" (click)="openDialog()">
+              <mat-icon>add</mat-icon> {{ translation.translate('settings.products.add') }}
+            </button>
+          </app-empty-state>
 
           <app-empty-state
             *ngIf="!filteredProducts.length && searchTerm"
             icon="search_off"
-            title="No products found"
-            description="No products matched your search."
-            variant="neutral"
-          ></app-empty-state>
+            [title]="translation.translate('settings.products.searchEmpty.title')"
+            [description]="translation.translate('settings.products.searchEmpty.desc')"
+            variant="neutral">
+          </app-empty-state>
 
           <div class="table-container" *ngIf="filteredProducts.length > 0">
             <table mat-table [dataSource]="filteredProducts" class="tpms-table">
               <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef> Product </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.name') }} </th>
                 <td mat-cell *matCellDef="let element"> 
                   <div class="font-medium text-primary">{{element.name}}
                     <span *ngIf="element.nameAr" class="name-ar">({{element.nameAr}})</span>
@@ -82,79 +84,79 @@ import { ProductDialogComponent } from './product-dialog.component';
               </ng-container>
 
               <ng-container matColumnDef="type">
-                <th mat-header-cell *matHeaderCellDef> Type </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.type') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span *ngIf="element.type">{{element.type}}</span>
-                  <span *ngIf="!element.type" class="unconfigured">Not configured</span>
+                  <span *ngIf="!element.type" class="unconfigured">{{ translation.translate('settings.products.type.notConfigured') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="dimensions">
-                <th mat-header-cell *matHeaderCellDef> Dimensions </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.dimensions') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span *ngIf="element.dimensions">{{element.dimensions}}</span>
-                  <span *ngIf="!element.dimensions" class="unconfigured">Not configured</span>
+                  <span *ngIf="!element.dimensions" class="unconfigured">{{ translation.translate('settings.products.type.notConfigured') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="standardStrength">
-                <th mat-header-cell *matHeaderCellDef> Compression Std </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.compressionStandard') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span *ngIf="element.standardStrength != null && element.standardStrength > 0">{{element.standardStrength}}</span>
-                  <span *ngIf="element.standardStrength == null || element.standardStrength <= 0" class="unconfigured">Not configured</span>
+                  <span *ngIf="element.standardStrength == null || element.standardStrength <= 0" class="unconfigured">{{ translation.translate('settings.products.type.notConfigured') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="piecesPerPress">
-                <th mat-header-cell *matHeaderCellDef> Pieces / Press </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.piecesPerPress') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span *ngIf="element.piecesPerPress != null && element.piecesPerPress > 0">{{element.piecesPerPress}}</span>
-                  <span *ngIf="element.piecesPerPress == null || element.piecesPerPress <= 0" class="unconfigured">Not configured</span>
+                  <span *ngIf="element.piecesPerPress == null || element.piecesPerPress <= 0" class="unconfigured">{{ translation.translate('settings.products.type.notConfigured') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="standardHeight">
-                <th mat-header-cell *matHeaderCellDef> Std Height </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.standardHeight') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span *ngIf="element.standardHeight != null && element.standardHeight > 0">{{element.standardHeight}}</span>
-                  <span *ngIf="element.standardHeight == null || element.standardHeight <= 0" class="unconfigured">Not configured</span>
+                  <span *ngIf="element.standardHeight == null || element.standardHeight <= 0" class="unconfigured">{{ translation.translate('settings.products.type.notConfigured') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="standardWeight">
-                <th mat-header-cell *matHeaderCellDef> Std Weight (kg) </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.standardWeight') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span *ngIf="element.standardWeight != null && element.standardWeight > 0">{{element.standardWeight}}</span>
-                  <span *ngIf="element.standardWeight == null || element.standardWeight <= 0" class="unconfigured">Not configured</span>
+                  <span *ngIf="element.standardWeight == null || element.standardWeight <= 0" class="unconfigured">{{ translation.translate('settings.products.type.notConfigured') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="productArea">
-                <th mat-header-cell *matHeaderCellDef> Product Area </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.productArea') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span *ngIf="element.productArea != null && element.productArea > 0">{{element.productArea}}</span>
-                  <span *ngIf="element.productArea == null || element.productArea <= 0" class="unconfigured">Not configured</span>
+                  <span *ngIf="element.productArea == null || element.productArea <= 0" class="unconfigured">{{ translation.translate('settings.products.type.notConfigured') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="status">
-                <th mat-header-cell *matHeaderCellDef> Active </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.products.table.status') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <app-status-badge 
                     [variant]="element.active ? 'success' : 'neutral'" 
-                    [label]="element.active ? 'Active' : 'Inactive'">
+                    [label]="element.active ? translation.translate('settings.common.active') : translation.translate('settings.common.inactive')">
                   </app-status-badge>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+                <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('settings.products.table.actions') }} </th>
                 <td mat-cell *matCellDef="let element" class="actions-col">
                   <div class="table-actions">
-                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" title="Edit">
+                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" [title]="translation.translate('settings.common.edit')">
                       <mat-icon>edit</mat-icon>
                     </button>
-                    <button mat-icon-button (click)="deleteProduct(element)" class="action-btn delete-btn" title="Delete">
+                    <button mat-icon-button (click)="deleteProduct(element)" class="action-btn delete-btn" [title]="translation.translate('settings.common.delete')">
                       <mat-icon>delete</mat-icon>
                     </button>
                   </div>
@@ -222,7 +224,7 @@ import { ProductDialogComponent } from './product-dialog.component';
     }
     
     .search-bar:focus-within {
-      border-color: var(--accent);
+      border-color: var(--primary);
     }
     
     .search-icon {
@@ -286,8 +288,8 @@ import { ProductDialogComponent } from './product-dialog.component';
     }
     
     .action-btn:hover {
-      color: var(--accent);
-      background: var(--accent-light);
+      color: var(--primary);
+      background: var(--primary-50);
     }
     
     .delete-btn:hover {
@@ -306,12 +308,36 @@ import { ProductDialogComponent } from './product-dialog.component';
       font-style: italic;
       font-size: var(--text-xs);
     }
+
+    /* RTL for Products */
+    .tpms-dir[dir="rtl"] .section-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .section-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .search-bar input {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-header-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-cell {
+      text-align: right;
+    }
   `]
 })
 export class ProductsComponent implements OnInit {
   private productService = inject(ProductService);
   private recipeService = inject(RecipeService);
   private dialog = inject(MatDialog);
+  readonly translation = inject(TranslationService);
 
   products: Product[] = [];
   filteredProducts: Product[] = [];
@@ -378,10 +404,10 @@ export class ProductsComponent implements OnInit {
       if (isReferenced) {
         this.dialog.open(ConfirmDialogComponent, {
           data: {
-            title: 'Cannot Delete Product',
-            message: 'This product is being used by existing recipes and cannot be deleted. Would you like to deactivate it instead?',
-            confirmText: 'Deactivate',
-            cancelText: 'Cancel',
+            title: this.translation.translate('settings.products.delete.referencedTitle'),
+            message: this.translation.translate('settings.products.delete.referencedMessage'),
+            confirmText: this.translation.translate('settings.products.delete.deactivate'),
+            cancelText: this.translation.translate('settings.common.cancel'),
             variant: 'warning'
           }
         }).afterClosed().subscribe(confirm => {
@@ -394,10 +420,10 @@ export class ProductsComponent implements OnInit {
         // Proceed with normal delete confirmation
         this.dialog.open(ConfirmDialogComponent, {
           data: {
-            title: 'Delete Product?',
-            message: 'Are you sure you want to delete "' + product.name + '"? This action cannot be undone.',
-            confirmText: 'Delete',
-            cancelText: 'Cancel',
+            title: this.translation.translate('settings.products.delete.title'),
+            message: this.translation.translate('settings.products.delete.message', { name: product.name }),
+            confirmText: this.translation.translate('settings.products.delete.confirm'),
+            cancelText: this.translation.translate('settings.common.cancel'),
             variant: 'danger'
           }
         }).afterClosed().subscribe(confirm => {

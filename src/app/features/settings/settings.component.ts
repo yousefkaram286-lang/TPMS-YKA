@@ -1,18 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { MatTabsModule } from '@angular/material/tabs';
+import { TranslationService } from '../../core/services/translation.service';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   imports: [CommonModule, RouterModule, PageHeaderComponent, MatTabsModule],
   template: `
-    <div class="settings-container">
+    <div class="settings-container tpms-dir" [attr.dir]="translation.dir()">
       <app-page-header
-        title="Settings"
-        subtitle="Manage master data and configuration"
+        [title]="translation.translate('settings.title')"
+        [subtitle]="translation.translate('settings.subtitle')"
         icon="settings"
       ></app-page-header>
 
@@ -22,7 +23,7 @@ import { MatTabsModule } from '@angular/material/tabs';
            [routerLink]="link.path"
            routerLinkActive #rla="routerLinkActive"
            [active]="rla.isActive">
-          {{link.label}}
+          {{ translation.translate(link.labelKey) }}
         </a>
       </nav>
 
@@ -99,6 +100,14 @@ import { MatTabsModule } from '@angular/material/tabs';
       overflow-y: auto;
     }
 
+    /* RTL for settings shell */
+    .tpms-dir[dir="rtl"] .settings-tabs {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep a.mat-mdc-tab-link {
+      letter-spacing: 0;
+    }
+
     @keyframes fadeSlideUp {
       from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
@@ -106,14 +115,16 @@ import { MatTabsModule } from '@angular/material/tabs';
   `]
 })
 export class SettingsComponent {
+  readonly translation = inject(TranslationService);
+
   links = [
-    { path: 'products', label: 'Products' },
-    { path: 'materials', label: 'Materials' },
-    { path: 'lines', label: 'Lines' },
-    { path: 'shifts', label: 'Shifts' },
-    { path: 'machines', label: 'Machines' },
-    { path: 'production-config', label: 'Production Config' },
-    { path: 'recipes', label: 'Recipes' },
-    { path: 'unit-costs', label: 'Unit Costs' }
+    { path: 'products', labelKey: 'settings.tabs.products' },
+    { path: 'materials', labelKey: 'settings.tabs.materials' },
+    { path: 'lines', labelKey: 'settings.tabs.lines' },
+    { path: 'shifts', labelKey: 'settings.tabs.shifts' },
+    { path: 'machines', labelKey: 'settings.tabs.machines' },
+    { path: 'production-config', labelKey: 'settings.tabs.productionConfig' },
+    { path: 'recipes', labelKey: 'settings.tabs.recipes' },
+    { path: 'unit-costs', labelKey: 'settings.tabs.unitCosts' }
   ];
 }

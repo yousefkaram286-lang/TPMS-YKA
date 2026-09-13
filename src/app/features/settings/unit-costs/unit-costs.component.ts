@@ -15,6 +15,7 @@ import { UnitCost } from '../../../core/models/unit-cost.model';
 import { Material } from '../../../core/models/material.model';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { TranslationService } from '../../../core/services/translation.service';
 
 @Component({
   selector: 'app-unit-costs',
@@ -32,92 +33,91 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
     EmptyStateComponent
   ],
   template: `
-    <div class="settings-section">
+    <div class="settings-section tpms-dir" [attr.dir]="translation.dir()">
       <div class="section-header">
         <div class="section-title">
-          <h2>Unit Costs</h2>
-          <p>Manage material unit costs</p>
+          <h2>{{ translation.translate('settings.unitCosts.title') }}</h2>
+          <p>{{ translation.translate('settings.unitCosts.subtitle') }}</p>
         </div>
         <div class="section-actions">
           <div class="search-bar">
             <mat-icon class="search-icon">search</mat-icon>
-            <input type="text" placeholder="Search unit costs..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+            <input type="text" [placeholder]="translation.translate('settings.unitCosts.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
             <button *ngIf="searchTerm" mat-icon-button class="clear-btn" (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
           </div>
           <button class="btn-primary" (click)="openDialog()">
-            <mat-icon>add</mat-icon> Add Unit Cost
+            <mat-icon>add</mat-icon> {{ translation.translate('settings.unitCosts.add') }}
           </button>
         </div>
       </div>
 
       <div class="section-content">
         <div *ngIf="loading" class="loading-state">
-          Loading unit costs...
+          {{ translation.translate('settings.unitCosts.loading') }}
         </div>
 
         <ng-container *ngIf="!loading">
           <div *ngIf="hasDemoCosts" class="demo-banner">
             <mat-icon class="demo-banner-icon">warning_amber</mat-icon>
-            <span>
-              Pre-loaded <strong>DEMO / UNVERIFIED</strong> values — they are NOT confirmed by the factory
-              and must be reviewed and confirmed before any operational cost analysis. Edit or delete them at any time.
-            </span>
+            <span [innerHTML]="translation.translate('settings.unitCosts.demoBanner')"></span>
           </div>
 
           <app-empty-state
             *ngIf="!unitCosts.length && !searchTerm"
             icon="attach_money"
-            title="No unit costs yet"
-            description="Add your first unit cost to start configuring TPMS."
-            (action)="openDialog()"
-            actionLabel="Add Unit Cost"
-          ></app-empty-state>
+            [title]="translation.translate('settings.unitCosts.empty.title')"
+            [description]="translation.translate('settings.unitCosts.empty.desc')"
+          >
+            <button class="btn-primary btn-sm" (click)="openDialog()">
+              <mat-icon>add</mat-icon> {{ translation.translate('settings.unitCosts.add') }}
+            </button>
+          </app-empty-state>
 
           <app-empty-state
             *ngIf="!filteredUnitCosts.length && searchTerm"
             icon="search_off"
-            title="No unit costs found"
-            description="No unit costs matched your search."
+            [title]="translation.translate('settings.unitCosts.searchEmpty.title')"
+            [description]="translation.translate('settings.unitCosts.searchEmpty.desc')"
             variant="neutral"
           ></app-empty-state>
 
           <div class="table-container" *ngIf="filteredUnitCosts.length > 0">
             <table mat-table [dataSource]="filteredUnitCosts" class="tpms-table">
               <ng-container matColumnDef="material">
-                <th mat-header-cell *matHeaderCellDef> Material </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.unitCosts.table.material') }} </th>
                 <td mat-cell *matCellDef="let element"> 
                   <div class="font-medium text-primary">{{getMaterialName(element.materialId)}}</div>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="unitCost">
-                <th mat-header-cell *matHeaderCellDef> Unit Cost </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.unitCosts.table.unitCost') }} </th>
                 <td mat-cell *matCellDef="let element">
                   <span class="cost-value">{{element.unitCost | number:'1.2-2'}}</span>
-                  <span *ngIf="element.demo" class="demo-chip" title="Demo / unverified value">DEMO</span>
+                  <span *ngIf="element.demo" class="demo-chip" [title]="translation.translate('settings.unitCosts.demoChip.title')">{{ translation.translate('settings.unitCosts.demoChip') }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="unit">
-                <th mat-header-cell *matHeaderCellDef> Unit </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.unitCosts.table.unit') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.unit}} </td>
               </ng-container>
 
               <ng-container matColumnDef="createdAt">
-                <th mat-header-cell *matHeaderCellDef> Created </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.unitCosts.table.created') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.createdAt | date:'shortDate'}} </td>
               </ng-container>
 
               <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+                <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('settings.unitCosts.table.actions') }} </th>
                 <td mat-cell *matCellDef="let element" class="actions-col">
                   <div class="table-actions">
-                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" title="Edit">
+                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" [title]="translation.translate('settings.common.edit')">
                       <mat-icon>edit</mat-icon>
                     </button>
-                    <button mat-icon-button (click)="deleteUnitCost(element)" class="action-btn delete-btn" title="Delete">
+                    <button mat-icon-button (click)="deleteUnitCost(element)" class="action-btn delete-btn" [title]="translation.translate('settings.common.delete')">
                       <mat-icon>delete</mat-icon>
                     </button>
                   </div>
@@ -155,6 +155,35 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
     .action-btn { color: var(--text-secondary); transform: scale(0.9); }
     .action-btn:hover { color: var(--accent); background: var(--accent-light); }
     .delete-btn:hover { color: var(--error); background: var(--error-light); }
+
+    .tpms-dir[dir="rtl"] .section-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .section-title {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .section-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .search-bar input {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .demo-banner {
+      flex-direction: row-reverse;
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-header-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-cell {
+      text-align: right;
+    }
   `]
 })
 export class UnitCostsComponent implements OnInit {
@@ -162,6 +191,7 @@ export class UnitCostsComponent implements OnInit {
   private materialService = inject(MaterialService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  readonly translation = inject(TranslationService);
 
   unitCosts: UnitCost[] = [];
   filteredUnitCosts: UnitCost[] = [];
@@ -212,7 +242,7 @@ export class UnitCostsComponent implements OnInit {
   }
 
   getMaterialName(materialId: string): string {
-    return this.materialsMap.get(materialId)?.name || 'Unknown';
+    return this.materialsMap.get(materialId)?.name || this.translation.translate('settings.unitCosts.material.unknown');
   }
 
   applyFilter(): void {
@@ -254,22 +284,22 @@ export class UnitCostsComponent implements OnInit {
   deleteUnitCost(unitCost: UnitCost): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Unit Cost?',
-        message: 'Are you sure you want to delete this unit cost? This action cannot be undone.',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        title: this.translation.translate('settings.unitCosts.delete.title'),
+        message: this.translation.translate('settings.unitCosts.delete.message'),
+        confirmText: this.translation.translate('settings.unitCosts.delete.confirm'),
+        cancelText: this.translation.translate('settings.common.cancel'),
         variant: 'danger'
       }
     }).afterClosed().subscribe(confirm => {
       if (confirm) {
         this.unitCostService.delete(unitCost.id).subscribe({
           next: () => {
-            this.snackBar.open('Unit Cost deleted', 'Close', { duration: 3000 });
+            this.snackBar.open(this.translation.translate('settings.unitCosts.snackbar.deleted'), this.translation.translate('common.close'), { duration: 3000 });
             this.loadData();
           },
           error: (err) => {
             console.error('[UnitCostsComponent] Delete failed:', err);
-            this.snackBar.open(err?.message || 'Failed to delete unit cost', 'Close', { duration: 3000 });
+            this.snackBar.open(err?.message || this.translation.translate('settings.unitCosts.snackbar.deleteError'), this.translation.translate('common.close'), { duration: 3000 });
           }
         });
       }
@@ -280,43 +310,74 @@ export class UnitCostsComponent implements OnInit {
 @Component({
   selector: 'app-unit-cost-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatSelectModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatSelectModule, MatIconModule],
   template: `
-    <h2 mat-dialog-title>{{ data.unitCost ? 'Edit Unit Cost' : 'Add Unit Cost' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="unitCostForm" class="dialog-form tpms-form mt-2">
-        <div class="form-group">
-          <label>Material *</label>
-          <select formControlName="materialId" class="form-control" [class.is-invalid]="isInvalid('materialId')" (change)="onMaterialChange()">
-            <option value="">Select Material</option>
-            <option *ngFor="let m of data?.materials" [value]="m.id">{{ m.name }}</option>
-          </select>
-          <div class="invalid-feedback" *ngIf="isInvalid('materialId')">Material is required</div>
-          <div class="invalid-feedback" *ngIf="unitCostForm.hasError('duplicateMaterial')">A unit cost already exists for this material.</div>
-        </div>
-        <div class="form-row">
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
+      <div class="dialog-header">
+        <h2 mat-dialog-title>{{ data.unitCost ? translation.translate('settings.unitCosts.dialog.title.edit') : translation.translate('settings.unitCosts.dialog.title.add') }}</h2>
+        <button mat-icon-button (click)="onCancel()" class="close-btn">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <mat-dialog-content>
+        <form [formGroup]="unitCostForm" class="dialog-form tpms-form mt-2">
           <div class="form-group">
-            <label>Unit Cost *</label>
-            <input type="number" formControlName="unitCost" class="form-control" min="0.01" step="0.01" [class.is-invalid]="isInvalid('unitCost')">
-            <div class="invalid-feedback" *ngIf="isInvalid('unitCost')">Valid cost required</div>
+            <label>{{ translation.translate('settings.unitCosts.dialog.material') }}</label>
+            <select formControlName="materialId" class="form-control" [class.is-invalid]="isInvalid('materialId')" (change)="onMaterialChange()">
+              <option value="">{{ translation.translate('settings.unitCosts.dialog.material.placeholder') }}</option>
+              <option *ngFor="let m of data?.materials" [value]="m.id">{{ m.name }}</option>
+            </select>
+            <div class="invalid-feedback" *ngIf="isInvalid('materialId')">{{ translation.translate('settings.unitCosts.dialog.material.error') }}</div>
+            <div class="invalid-feedback" *ngIf="unitCostForm.hasError('duplicateMaterial')">{{ translation.translate('settings.unitCosts.dialog.material.duplicate') }}</div>
           </div>
-          <div class="form-group">
-            <label>Unit *</label>
-            <input type="text" formControlName="unit" class="form-control" placeholder="e.g., kg, m³" [class.is-invalid]="isInvalid('unit')">
-            <div class="invalid-feedback" *ngIf="isInvalid('unit')">Unit is required</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ translation.translate('settings.unitCosts.dialog.unitCost') }}</label>
+              <input type="number" formControlName="unitCost" class="form-control" min="0.01" step="0.01" [class.is-invalid]="isInvalid('unitCost')">
+              <div class="invalid-feedback" *ngIf="isInvalid('unitCost')">{{ translation.translate('settings.unitCosts.dialog.unitCost.error') }}</div>
+            </div>
+            <div class="form-group">
+              <label>{{ translation.translate('settings.unitCosts.dialog.unit') }}</label>
+              <input type="text" formControlName="unit" class="form-control" [placeholder]="translation.translate('settings.unitCosts.dialog.unit.placeholder')" [class.is-invalid]="isInvalid('unit')">
+              <div class="invalid-feedback" *ngIf="isInvalid('unit')">{{ translation.translate('settings.unitCosts.dialog.unit.error') }}</div>
+            </div>
           </div>
-        </div>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
-      <button mat-button (click)="onCancel()" [disabled]="saving">Cancel</button>
-      <button mat-flat-button color="primary" (click)="onSave()" [disabled]="unitCostForm.invalid || saving">
-        {{ saving ? 'Saving...' : 'Save' }}
-      </button>
-    </mat-dialog-actions>
+        </form>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+        <button mat-button (click)="onCancel()" [disabled]="saving">{{ translation.translate('settings.unitCosts.dialog.cancel') }}</button>
+        <button mat-flat-button color="primary" (click)="onSave()" [disabled]="unitCostForm.invalid || saving">
+          {{ saving ? translation.translate('settings.unitCosts.dialog.saving') : translation.translate('settings.unitCosts.dialog.save') }}
+        </button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
+    .dialog-wrapper { display: flex; flex-direction: column; }
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .dialog-header h2 {
+      margin: 0;
+      font-size: var(--text-lg);
+      font-weight: var(--weight-semibold);
+    }
+    .close-btn {
+      color: var(--text-muted);
+    }
+    mat-dialog-content {
+      padding: var(--space-4) var(--space-6) !important;
+    }
+    mat-dialog-actions {
+      padding: var(--space-4) var(--space-6);
+      border-top: 1px solid var(--border-subtle);
+      margin: 0;
+    }
     .dialog-form { display: flex; flex-direction: column; gap: var(--space-4); }
     .mt-2 { margin-top: var(--space-2); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
@@ -327,6 +388,23 @@ export class UnitCostsComponent implements OnInit {
     .form-control.is-invalid { border-color: var(--error); }
     .invalid-feedback { font-size: var(--text-xs); color: var(--error); margin-top: 2px; }
     .error-banner { flex: 1; font-size: var(--text-xs); color: var(--error); padding: var(--space-1) 0; }
+
+    .tpms-dir[dir="rtl"] .dialog-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] mat-dialog-content {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .form-group label {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] mat-dialog-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] input,
+    .tpms-dir[dir="rtl"] select {
+      direction: rtl;
+    }
   `]
 })
 export class UnitCostDialogComponent implements OnInit {
@@ -334,6 +412,7 @@ export class UnitCostDialogComponent implements OnInit {
   private dialogRef = inject(MatDialogRef<UnitCostDialogComponent>);
   private unitCostService = inject(UnitCostService);
   private snackBar = inject(MatSnackBar);
+  readonly translation = inject(TranslationService);
 
   public data = inject<{ unitCost: UnitCost | null, materials: Material[], existingCosts: UnitCost[] }>(MAT_DIALOG_DATA);
 
@@ -398,13 +477,13 @@ export class UnitCostDialogComponent implements OnInit {
     save$.subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Unit Cost saved successfully', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translation.translate('settings.unitCosts.snackbar.saved'), this.translation.translate('common.close'), { duration: 3000 });
         this.dialogRef.close(true);
       },
       error: (err) => {
         console.error('Failed to save unit cost', err);
         this.saving = false;
-        this.errorMessage = err?.message || 'Failed to save unit cost. Please try again.';
+        this.errorMessage = err?.message || this.translation.translate('settings.unitCosts.dialog.saveError');
       }
     });
   }

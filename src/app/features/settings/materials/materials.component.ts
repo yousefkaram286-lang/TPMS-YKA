@@ -12,6 +12,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
 import { MaterialDialogComponent } from './material-dialog.component';
 import { MaterialService } from '../../../core/services/material.service';
 import { Material } from '../../../core/models/material.model';
+import { TranslationService } from '../../../core/services/translation.service';
 
 @Component({
   selector: 'app-settings-materials',
@@ -27,19 +28,19 @@ import { Material } from '../../../core/models/material.model';
     EmptyStateComponent
   ],
   template: `
-    <div class="settings-section">
+    <div class="settings-section tpms-dir" [attr.dir]="translation.dir()">
       <div class="section-header">
         <div class="header-text">
-          <h2>Master Materials</h2>
-          <p>Manage raw materials available for recipes and production.</p>
+          <h2>{{ translation.translate('settings.materials.title') }}</h2>
+          <p>{{ translation.translate('settings.materials.subtitle') }}</p>
         </div>
         <div class="header-actions">
           <div class="search-bar">
             <mat-icon class="search-icon">search</mat-icon>
-            <input type="text" placeholder="Search materials..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+            <input type="text" [placeholder]="translation.translate('settings.materials.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
           </div>
           <button  color="primary" class="btn-primary  " (click)="openDialog()">
-            <mat-icon>add</mat-icon> Add Material
+            <mat-icon>add</mat-icon> {{ translation.translate('settings.materials.add') }}
           </button>
         </div>
       </div>
@@ -47,40 +48,40 @@ import { Material } from '../../../core/models/material.model';
       <div class="table-container" *ngIf="filteredMaterials.length > 0">
         <table mat-table [dataSource]="filteredMaterials" class="tpms-table">
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef> Name </th>
+            <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.materials.table.name') }} </th>
             <td mat-cell *matCellDef="let element"> <span class="font-medium">{{element.name}}</span> </td>
           </ng-container>
 
           <ng-container matColumnDef="unit">
-            <th mat-header-cell *matHeaderCellDef> Production Unit </th>
+            <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.materials.table.unit') }} </th>
             <td mat-cell *matCellDef="let element"> {{element.unit}} </td>
           </ng-container>
 
           <ng-container matColumnDef="conversionKgPerM3">
-            <th mat-header-cell *matHeaderCellDef> Kg / m³ </th>
+            <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.materials.table.conversion') }} </th>
             <td mat-cell *matCellDef="let element">
               <span *ngIf="element.conversionKgPerM3 != null && element.conversionKgPerM3 > 0">{{element.conversionKgPerM3}}</span>
-              <span *ngIf="element.conversionKgPerM3 == null || element.conversionKgPerM3 <= 0" class="unconfigured">Not set</span>
+              <span *ngIf="element.conversionKgPerM3 == null || element.conversionKgPerM3 <= 0" class="unconfigured">{{ translation.translate('settings.materials.conversion.notSet') }}</span>
             </td>
           </ng-container>
 
           <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef> Status </th>
+            <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.materials.table.status') }} </th>
             <td mat-cell *matCellDef="let element">
               <span class="status-badge" [class.status-active]="element.active" [class.status-inactive]="!element.active">
-                {{element.active ? 'Active' : 'Inactive'}}
+                {{element.active ? translation.translate('settings.materials.status.active') : translation.translate('settings.materials.status.inactive')}}
               </span>
             </td>
           </ng-container>
 
           <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+            <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('settings.materials.table.actions') }} </th>
             <td mat-cell *matCellDef="let element" class="actions-col">
               <div class="table-actions">
-                <button mat-icon-button class="action-btn" title="Edit" (click)="openDialog(element)">
+                <button mat-icon-button class="action-btn" [title]="translation.translate('common.edit')" (click)="openDialog(element)">
                   <mat-icon>edit</mat-icon>
                 </button>
-                <button mat-icon-button class="action-btn delete-btn" title="Delete" (click)="deleteMaterial(element)">
+                <button mat-icon-button class="action-btn delete-btn" [title]="translation.translate('common.delete')" (click)="deleteMaterial(element)">
                   <mat-icon>delete</mat-icon>
                 </button>
               </div>
@@ -95,11 +96,13 @@ import { Material } from '../../../core/models/material.model';
       <app-empty-state
         *ngIf="!loading && filteredMaterials.length === 0"
         icon="inventory_2"
-        title="No materials found"
-        description="Add your first raw material to get started."
-        actionLabel="Add Material"
-        (action)="openDialog()"
-      ></app-empty-state>
+        [title]="translation.translate('settings.materials.empty.title')"
+        [description]="translation.translate('settings.materials.empty.desc')"
+      >
+        <button class="btn-primary btn-sm" (click)="openDialog()">
+          <mat-icon>add</mat-icon> {{ translation.translate('settings.materials.add') }}
+        </button>
+      </app-empty-state>
     </div>
   `,
   styles: [`
@@ -132,12 +135,38 @@ import { Material } from '../../../core/models/material.model';
       font-style: italic;
       font-size: var(--text-xs);
     }
+
+    .tpms-dir[dir="rtl"] .section-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .header-text {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .header-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .search-bar input {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-header-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-cell {
+      text-align: right;
+    }
   `]
 })
 export class MaterialsSettingsComponent implements OnInit {
   private materialService = inject(MaterialService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  readonly translation = inject(TranslationService);
 
   materials: Material[] = [];
   filteredMaterials: Material[] = [];
@@ -158,7 +187,7 @@ export class MaterialsSettingsComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        this.snackBar.open('Failed to load materials', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translation.translate('settings.materials.snackbar.loadError'), this.translation.translate('common.close'), { duration: 3000 });
         this.loading = false;
       }
     });
@@ -188,14 +217,14 @@ export class MaterialsSettingsComponent implements OnInit {
           const updated: Material = { ...material, ...result, updatedAt: new Date().toISOString() };
           this.materialService.update(updated).subscribe({
             next: () => {
-              this.snackBar.open('Material updated successfully', 'Close', { duration: 3000 });
+              this.snackBar.open(this.translation.translate('settings.materials.snackbar.updated'), this.translation.translate('common.close'), { duration: 3000 });
               this.loadMaterials();
             },
             error: (err) => {
               console.error('[MaterialsSettings] Update failed:', err);
               this.snackBar.open(
-                err?.message || 'Failed to update material. Please try again.',
-                'Close', { duration: 5000 }
+                err?.message || this.translation.translate('settings.materials.snackbar.updateError'),
+                this.translation.translate('common.close'), { duration: 5000 }
               );
             }
           });
@@ -207,14 +236,14 @@ export class MaterialsSettingsComponent implements OnInit {
           };
           this.materialService.create(newMaterial).subscribe({
             next: () => {
-              this.snackBar.open('Material created successfully', 'Close', { duration: 3000 });
+              this.snackBar.open(this.translation.translate('settings.materials.snackbar.created'), this.translation.translate('common.close'), { duration: 3000 });
               this.loadMaterials();
             },
             error: (err) => {
               console.error('[MaterialsSettings] Create failed:', err);
               this.snackBar.open(
-                err?.message || 'Failed to create material. Please try again.',
-                'Close', { duration: 5000 }
+                err?.message || this.translation.translate('settings.materials.snackbar.createError'),
+                this.translation.translate('common.close'), { duration: 5000 }
               );
             }
           });
@@ -226,24 +255,24 @@ export class MaterialsSettingsComponent implements OnInit {
   deleteMaterial(material: Material): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Material',
-        message: 'Are you sure you want to delete ' + material.name + '? This action cannot be undone.',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        title: this.translation.translate('settings.materials.delete.title'),
+        message: this.translation.translate('settings.materials.delete.message', { name: material.name }),
+        confirmText: this.translation.translate('settings.materials.delete.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'danger'
       }
     }).afterClosed().subscribe(confirm => {
       if (confirm) {
         this.materialService.delete(material.id).subscribe({
           next: () => {
-            this.snackBar.open('Material deleted', 'Close', { duration: 3000 });
+            this.snackBar.open(this.translation.translate('settings.materials.snackbar.deleted'), this.translation.translate('common.close'), { duration: 3000 });
             this.loadMaterials();
           },
           error: (err) => {
             console.error('[MaterialsSettings] Delete failed:', err);
             this.snackBar.open(
-              err?.message || 'Failed to delete material. Please try again.',
-              'Close', { duration: 5000 }
+              err?.message || this.translation.translate('settings.materials.snackbar.deleteError'),
+              this.translation.translate('common.close'), { duration: 5000 }
             );
           }
         });

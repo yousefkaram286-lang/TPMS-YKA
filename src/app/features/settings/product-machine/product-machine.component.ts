@@ -13,6 +13,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { forkJoin } from 'rxjs';
 import { ProductMachineDialogComponent } from './product-machine-dialog.component';
+import { TranslationService } from '../../../core/services/translation.service';
 
 @Component({
   selector: 'app-product-machine',
@@ -27,81 +28,83 @@ import { ProductMachineDialogComponent } from './product-machine-dialog.componen
     EmptyStateComponent
   ],
   template: `
-    <div class="settings-section">
+    <div class="settings-section tpms-dir" [attr.dir]="translation.dir()">
       <div class="section-header">
         <div class="section-title">
-          <h2>Production Config</h2>
-          <p>Define pieces produced per press for each product and machine combination</p>
+          <h2>{{ translation.translate('settings.productionConfig.title') }}</h2>
+          <p>{{ translation.translate('settings.productionConfig.subtitle') }}</p>
         </div>
         <div class="section-actions">
           <div class="search-bar">
             <mat-icon class="search-icon">search</mat-icon>
-            <input type="text" placeholder="Search configs..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+            <input type="text" [placeholder]="translation.translate('settings.productionConfig.search')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
             <button *ngIf="searchTerm" mat-icon-button class="clear-btn" (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
           </div>
           <button class="btn-primary" (click)="openDialog()">
-            <mat-icon>add</mat-icon> Add Config
+            <mat-icon>add</mat-icon> {{ translation.translate('settings.productionConfig.add') }}
           </button>
         </div>
       </div>
 
       <div class="section-content">
         <div *ngIf="loading" class="loading-state">
-          Loading configurations...
+          {{ translation.translate('settings.productionConfig.loading') }}
         </div>
 
         <ng-container *ngIf="!loading">
           <app-empty-state
             *ngIf="!configs.length && !searchTerm"
             icon="settings_applications"
-            title="No configurations yet"
-            description="Add your first product-machine configuration."
-            (action)="openDialog()"
-            actionLabel="Add Config"
-          ></app-empty-state>
+            [title]="translation.translate('settings.productionConfig.empty.title')"
+            [description]="translation.translate('settings.productionConfig.empty.desc')"
+          >
+            <button class="btn-primary btn-sm" (click)="openDialog()">
+              <mat-icon>add</mat-icon> {{ translation.translate('settings.productionConfig.add') }}
+            </button>
+          </app-empty-state>
 
           <app-empty-state
             *ngIf="!filteredConfigs.length && searchTerm"
             icon="search_off"
-            title="No configurations found"
-            description="No configurations matched your search."
+            [title]="translation.translate('settings.productionConfig.searchEmpty.title')"
+            [description]="translation.translate('settings.productionConfig.searchEmpty.desc')"
             variant="neutral"
           ></app-empty-state>
 
           <div class="table-container" *ngIf="filteredConfigs.length > 0">
             <table mat-table [dataSource]="filteredConfigs" class="tpms-table">
               <ng-container matColumnDef="product">
-                <th mat-header-cell *matHeaderCellDef> Product </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.productionConfig.table.product') }} </th>
                 <td mat-cell *matCellDef="let element"> 
                   <div class="font-medium text-primary">{{getProductName(element.productId)}}</div>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="machine">
-                <th mat-header-cell *matHeaderCellDef> Machine </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.productionConfig.table.machine') }} </th>
                 <td mat-cell *matCellDef="let element"> {{getMachineName(element.machineId)}} </td>
               </ng-container>
 
               <ng-container matColumnDef="piecesPerPress">
-                <th mat-header-cell *matHeaderCellDef> Pieces / Press </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.productionConfig.table.piecesPerPress') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.piecesPerPress}} </td>
               </ng-container>
 
               <ng-container matColumnDef="createdAt">
-                <th mat-header-cell *matHeaderCellDef> Created </th>
+                <th mat-header-cell *matHeaderCellDef> {{ translation.translate('settings.productionConfig.table.created') }} </th>
                 <td mat-cell *matCellDef="let element"> {{element.createdAt | date:'shortDate'}} </td>
               </ng-container>
 
               <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="actions-col"> Actions </th>
+                <th mat-header-cell *matHeaderCellDef class="actions-col"> {{ translation.translate('settings.productionConfig.table.actions') }} </th>
                 <td mat-cell *matCellDef="let element" class="actions-col">
                   <div class="table-actions">
-                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" title="Edit">
+                    <button mat-icon-button (click)="openDialog(element)" class="action-btn" [title]="translation.translate('common.edit')">
                       <mat-icon>edit</mat-icon>
                     </button>
-                    <button mat-icon-button (click)="deleteConfig(element)" class="action-btn delete-btn" title="Delete">
+                    <button mat-icon-button (click)="deleteConfig(element)" class="action-btn delete-btn" [title]="translation.translate('common.delete')">
                       <mat-icon>delete</mat-icon>
                     </button>
                   </div>
@@ -241,6 +244,31 @@ import { ProductMachineDialogComponent } from './product-machine-dialog.componen
       color: var(--error);
       background: var(--error-light);
     }
+
+    .tpms-dir[dir="rtl"] .section-header {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .section-title {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .section-actions {
+      flex-direction: row-reverse;
+    }
+    .tpms-dir[dir="rtl"] .search-bar input {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] .actions-col {
+      text-align: left;
+    }
+    .tpms-dir[dir="rtl"] .table-actions {
+      justify-content: flex-start;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-header-cell {
+      text-align: right;
+    }
+    .tpms-dir[dir="rtl"] ::ng-deep .tpms-table .mat-mdc-cell {
+      text-align: right;
+    }
   `]
 })
 export class ProductMachineComponent implements OnInit {
@@ -248,6 +276,7 @@ export class ProductMachineComponent implements OnInit {
   private productService = inject(ProductService);
   private machineService = inject(MachineService);
   private dialog = inject(MatDialog);
+  readonly translation = inject(TranslationService);
 
   configs: ProductMachineConfig[] = [];
   filteredConfigs: ProductMachineConfig[] = [];
@@ -288,11 +317,11 @@ export class ProductMachineComponent implements OnInit {
   }
 
   getProductName(id: string): string {
-    return this.productMap.get(id) || 'Unknown Product';
+    return this.productMap.get(id) || this.translation.translate('settings.productionConfig.product.unknown');
   }
 
   getMachineName(id: string): string {
-    return this.machineMap.get(id) || 'Unknown Machine';
+    return this.machineMap.get(id) || this.translation.translate('settings.productionConfig.machine.unknown');
   }
 
   applyFilter(): void {
@@ -330,10 +359,10 @@ export class ProductMachineComponent implements OnInit {
   deleteConfig(config: ProductMachineConfig): void {
     this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Delete Configuration?',
-        message: 'Are you sure you want to delete this configuration? Production entries will no longer be able to use this combination.',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        title: this.translation.translate('settings.productionConfig.delete.title'),
+        message: this.translation.translate('settings.productionConfig.delete.message'),
+        confirmText: this.translation.translate('settings.productionConfig.delete.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'danger'
       }
     }).afterClosed().subscribe(confirm => {
