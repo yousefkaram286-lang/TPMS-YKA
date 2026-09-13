@@ -21,7 +21,7 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent, data: { rtl: true } },
       { path: 'production', component: ProductionComponent, canActivate: [adminGuard], data: { rtl: true } },
-      { path: 'output-release', component: OutputReleaseComponent, canActivate: [adminGuard] },
+      { path: 'output-release', component: OutputReleaseComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'materials', component: MaterialsComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'quality', component: QualityComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'profile', loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent), canActivate: [adminGuard] },

@@ -23,6 +23,7 @@ import { OutputReleaseDetailsDialogComponent } from './output-release-details-di
 import { OutputReleaseService, OutputReleaseInput } from '../../core/services/output-release.service';
 import { ProductService } from '../../core/services/product.service';
 import { LineService } from '../../core/services/line.service';
+import { TranslationService } from '../../core/services/translation.service';
 import { OutputRelease } from '../../core/models/output-release.model';
 import { Product } from '../../core/models/product.model';
 import { Line } from '../../core/models/line.model';
@@ -51,8 +52,8 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
   template: `
     <div class="output-container">
       <app-page-header
-        title="Output Release"
-        subtitle="Record and track physical output released from the curing stage"
+        [title]="translation.translate('outputRelease.title')"
+        [subtitle]="translation.translate('outputRelease.subtitle')"
         icon="output"
       ></app-page-header>
 
@@ -62,18 +63,19 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
         <div class="info-notice">
           <mat-icon>info</mat-icon>
           <span>
-            Output Release is <strong>independent</strong> from Production —
-            recording output neither requires nor links to a production record.
-            Product and Line are <strong>required</strong> for new entries and
-            are validated against master data.
+            {{ translation.translate('outputRelease.info.noticePre') }}
+            <strong>{{ translation.translate('outputRelease.info.independent') }}</strong>
+            {{ translation.translate('outputRelease.info.noticeMid') }}
+            <strong>{{ translation.translate('outputRelease.info.required') }}</strong>
+            {{ translation.translate('outputRelease.info.noticePost') }}
           </span>
         </div>
 
         <!-- ── Entry Form ──────────────────────────────────────── -->
         <div class="card entry-card">
           <div class="card-header">
-            <h3>{{ editingId ? 'Edit Output Release' : 'Record Output Release' }}</h3>
-            <span class="source-badge" *ngIf="editingId">MANUAL ENTRY</span>
+            <h3>{{ editingId ? translation.translate('outputRelease.entry.title.edit') : translation.translate('outputRelease.entry.title.create') }}</h3>
+            <span class="source-badge" *ngIf="editingId">{{ translation.translate('outputRelease.entry.manualBadge') }}</span>
           </div>
 
           <form [formGroup]="releaseForm" class="card-body tpms-form">
@@ -81,7 +83,7 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
 
               <!-- Release Date — MANDATORY -->
               <div class="form-group">
-                <label>Release Date *</label>
+                <label>{{ translation.translate('outputRelease.form.date') }}</label>
                 <div class="date-input-wrapper">
                   <input matInput [matDatepicker]="datePicker"
                     formControlName="releaseDate"
@@ -90,68 +92,68 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
                   <mat-datepicker-toggle matIconSuffix [for]="datePicker"></mat-datepicker-toggle>
                   <mat-datepicker #datePicker></mat-datepicker>
                 </div>
-                <div class="invalid-feedback" *ngIf="isInvalid('releaseDate')">Release date is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('releaseDate')">{{ translation.translate('outputRelease.form.dateRequired') }}</div>
               </div>
 
               <!-- Released Quantity — MANDATORY -->
               <div class="form-group">
-                <label>Released Quantity *</label>
+                <label>{{ translation.translate('outputRelease.form.quantity') }}</label>
                 <input type="number"
                   formControlName="releasedQuantity"
                   class="form-control"
                   [class.is-invalid]="isInvalid('releasedQuantity')"
                   min="1"
                   step="1"
-                  placeholder="e.g. 1500">
+                  [placeholder]="translation.translate('outputRelease.form.quantityPlaceholder')">
                 <div class="invalid-feedback" *ngIf="isInvalid('releasedQuantity')">
-                  Quantity is required and must be greater than 0.
+                  {{ translation.translate('outputRelease.form.quantityRequired') }}
                 </div>
               </div>
 
               <!-- Product — MANDATORY for manual output entries -->
               <div class="form-group">
-                <label>Product *</label>
+                <label>{{ translation.translate('outputRelease.form.product') }}</label>
                 <select formControlName="productId" class="form-control"
                   [class.is-invalid]="isInvalid('productId')">
-                  <option value="">— Select product —</option>
+                  <option value="">{{ translation.translate('outputRelease.form.productPlaceholder') }}</option>
                   <option *ngFor="let p of activeProducts" [value]="p.id">{{ p.name }}</option>
                 </select>
-                <div class="invalid-feedback" *ngIf="isInvalid('productId')">Product is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('productId')">{{ translation.translate('outputRelease.form.productRequired') }}</div>
               </div>
 
               <!-- Production Line — MANDATORY for manual output entries -->
               <div class="form-group">
-                <label>Line *</label>
+                <label>{{ translation.translate('outputRelease.form.line') }}</label>
                 <select formControlName="lineId" class="form-control"
                   [class.is-invalid]="isInvalid('lineId')">
-                  <option value="">— Select line —</option>
+                  <option value="">{{ translation.translate('outputRelease.form.linePlaceholder') }}</option>
                   <option *ngFor="let l of activeLines" [value]="l.id">{{ l.name }}</option>
                 </select>
-                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">Line is required.</div>
+                <div class="invalid-feedback" *ngIf="isInvalid('lineId')">{{ translation.translate('outputRelease.form.lineRequired') }}</div>
               </div>
 
               <!-- Notes — OPTIONAL -->
               <div class="form-group full-col">
                 <label>
-                  Notes
-                  <span class="optional-tag">optional</span>
+                  {{ translation.translate('outputRelease.form.notes') }}
+                  <span class="optional-tag">{{ translation.translate('outputRelease.form.notesOptional') }}</span>
                 </label>
                 <input type="text"
                   formControlName="notes"
                   class="form-control"
-                  placeholder="Optional notes about this release">
+                  [placeholder]="translation.translate('outputRelease.form.notesPlaceholder')">
               </div>
 
             </div>
 
             <div class="form-actions">
               <button type="button" class="btn-secondary" (click)="confirmClear()">
-                {{ editingId ? 'Cancel Edit' : 'Clear' }}
+                {{ editingId ? translation.translate('outputRelease.actions.cancelEdit') : translation.translate('outputRelease.actions.clear') }}
               </button>
               <button type="button" class="btn-primary"
                 (click)="save()"
                 [disabled]="releaseForm.invalid || saving">
-                {{ saving ? 'Saving...' : (editingId ? 'Update Release' : 'Record Release') }}
+                {{ saving ? translation.translate('outputRelease.actions.saving') : (editingId ? translation.translate('outputRelease.actions.update') : translation.translate('outputRelease.actions.save')) }}
               </button>
             </div>
           </form>
@@ -160,11 +162,11 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
         <!-- ── History ─────────────────────────────────────────── -->
         <div class="card history-card">
           <div class="card-header history-header">
-            <h3>Release History</h3>
+            <h3>{{ translation.translate('outputRelease.history.title') }}</h3>
             <div class="history-actions">
               <div class="search-bar">
                 <mat-icon class="search-icon">search</mat-icon>
-                <input type="text" placeholder="Search releases..." [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
+                <input type="text" [placeholder]="translation.translate('outputRelease.search.placeholder')" [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()">
               </div>
             </div>
           </div>
@@ -172,47 +174,47 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
           <!-- Filters -->
           <div class="filters-section">
             <div class="filter-group">
-              <label>Date:</label>
+              <label>{{ translation.translate('outputRelease.filter.date') }}</label>
               <select [(ngModel)]="dateFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Dates</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
+                <option value="">{{ translation.translate('outputRelease.filter.allDates') }}</option>
+                <option value="today">{{ translation.translate('outputRelease.filter.today') }}</option>
+                <option value="week">{{ translation.translate('outputRelease.filter.week') }}</option>
+                <option value="month">{{ translation.translate('outputRelease.filter.month') }}</option>
               </select>
             </div>
             <div class="filter-group">
-              <label>Product:</label>
+              <label>{{ translation.translate('outputRelease.filter.product') }}</label>
               <select [(ngModel)]="productFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Products</option>
+                <option value="">{{ translation.translate('outputRelease.filter.allProducts') }}</option>
                 <option *ngFor="let p of activeProducts" [value]="p.id">{{ p.name }}</option>
               </select>
             </div>
             <div class="filter-group">
-              <label>Line:</label>
+              <label>{{ translation.translate('outputRelease.filter.line') }}</label>
               <select [(ngModel)]="lineFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Lines</option>
+                <option value="">{{ translation.translate('outputRelease.filter.allLines') }}</option>
                 <option *ngFor="let l of activeLines" [value]="l.id">{{ l.name }}</option>
               </select>
             </div>
             <div class="filter-group">
-              <label>Source:</label>
+              <label>{{ translation.translate('outputRelease.filter.source') }}</label>
               <select [(ngModel)]="sourceFilter" (ngModelChange)="applyFilter()" class="filter-select">
-                <option value="">All Sources</option>
-                <option value="MANUAL_ENTRY">Manual Entry</option>
-                <option value="LEGACY_AMBIGUOUS_SESSION">Legacy</option>
+                <option value="">{{ translation.translate('outputRelease.filter.allSources') }}</option>
+                <option value="MANUAL_ENTRY">{{ translation.translate('outputRelease.filter.manualEntry') }}</option>
+                <option value="LEGACY_AMBIGUOUS_SESSION">{{ translation.translate('outputRelease.filter.legacy') }}</option>
               </select>
             </div>
-            <button type="button" class="btn-text" (click)="clearFilters()">Clear Filters</button>
+            <button type="button" class="btn-text" (click)="clearFilters()">{{ translation.translate('outputRelease.filter.clear') }}</button>
           </div>
 
           <div class="card-body p-0">
-            <div *ngIf="loadingHistory" class="loading-state">Loading history...</div>
+            <div *ngIf="loadingHistory" class="loading-state">{{ translation.translate('outputRelease.state.loading') }}</div>
 
             <app-empty-state
               *ngIf="!loadingHistory && !filteredHistory.length"
               icon="output"
-              title="No output releases recorded yet."
-              description="Start by recording the first physical release."
+              [title]="translation.translate('outputRelease.state.emptyTitle')"
+              [description]="translation.translate('outputRelease.state.emptyDescription')"
               variant="neutral">
             </app-empty-state>
 
@@ -220,22 +222,22 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
               <table mat-table [dataSource]="dataSource" class="tpms-table">
 
                 <ng-container matColumnDef="releaseDate">
-                  <th mat-header-cell *matHeaderCellDef>Release Date</th>
+                  <th mat-header-cell *matHeaderCellDef>{{ translation.translate('outputRelease.table.releaseDate') }}</th>
                   <td mat-cell *matCellDef="let r">{{ r.releaseDate | date:'shortDate' }}</td>
                 </ng-container>
 
                 <ng-container matColumnDef="product">
-                  <th mat-header-cell *matHeaderCellDef>Product</th>
+                  <th mat-header-cell *matHeaderCellDef>{{ translation.translate('outputRelease.table.product') }}</th>
                   <td mat-cell *matCellDef="let r">
                     <span *ngIf="getProductName(r)" class="font-medium text-primary-color">{{ getProductName(r) }}</span>
                     <span *ngIf="!getProductName(r)" class="text-tertiary">
-                      {{ r.dataSource === 'LEGACY_AMBIGUOUS_SESSION' ? 'Unknown (legacy)' : '—' }}
+                      {{ r.dataSource === 'LEGACY_AMBIGUOUS_SESSION' ? translation.translate('outputRelease.table.unknownLegacy') : '—' }}
                     </span>
                   </td>
                 </ng-container>
 
                 <ng-container matColumnDef="line">
-                  <th mat-header-cell *matHeaderCellDef>Line</th>
+                  <th mat-header-cell *matHeaderCellDef>{{ translation.translate('outputRelease.table.line') }}</th>
                   <td mat-cell *matCellDef="let r">
                     <span *ngIf="getLineName(r)" class="line-badge">{{ getLineName(r) }}</span>
                     <span *ngIf="!getLineName(r)" class="text-tertiary">—</span>
@@ -243,33 +245,33 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
                 </ng-container>
 
                 <ng-container matColumnDef="releasedQuantity">
-                  <th mat-header-cell *matHeaderCellDef>Quantity</th>
+                  <th mat-header-cell *matHeaderCellDef>{{ translation.translate('outputRelease.table.quantity') }}</th>
                   <td mat-cell *matCellDef="let r">
                     <span class="qty-cell">{{ r.releasedQuantity | number }}</span>
                   </td>
                 </ng-container>
 
                 <ng-container matColumnDef="dataSource">
-                  <th mat-header-cell *matHeaderCellDef>Source</th>
+                  <th mat-header-cell *matHeaderCellDef>{{ translation.translate('outputRelease.table.source') }}</th>
                   <td mat-cell *matCellDef="let r">
                     <span class="provenance-badge"
                       [class.provenance-badge--manual]="r.dataSource === 'MANUAL_ENTRY'"
                       [class.provenance-badge--legacy]="r.dataSource === 'LEGACY_AMBIGUOUS_SESSION'"
-                      [matTooltip]="r.dataSource === 'LEGACY_AMBIGUOUS_SESSION' ? 'Migrated from legacy session — product unknown' : 'Manually entered record'">
-                      {{ r.dataSource === 'MANUAL_ENTRY' ? 'Manual' : 'Legacy' }}
+                      [matTooltip]="r.dataSource === 'LEGACY_AMBIGUOUS_SESSION' ? translation.translate('outputRelease.table.tooltip.legacy') : translation.translate('outputRelease.table.tooltip.manual')">
+                      {{ r.dataSource === 'MANUAL_ENTRY' ? translation.translate('outputRelease.table.manual') : translation.translate('outputRelease.table.legacy') }}
                     </span>
                   </td>
                 </ng-container>
 
                 <ng-container matColumnDef="actions">
-                  <th mat-header-cell *matHeaderCellDef class="actions-col">Actions</th>
+                  <th mat-header-cell *matHeaderCellDef class="actions-col">{{ translation.translate('outputRelease.table.actions') }}</th>
                   <td mat-cell *matCellDef="let r" class="actions-col">
                     <div class="table-actions">
-                      <button mat-icon-button class="action-btn" title="View Details" (click)="viewDetails(r)">
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('outputRelease.action.view')" (click)="viewDetails(r)">
                         <mat-icon>visibility</mat-icon>
                       </button>
                       <!-- Edit only allowed for MANUAL_ENTRY records -->
-                      <button mat-icon-button class="action-btn" title="Edit"
+                      <button mat-icon-button class="action-btn" [title]="translation.translate('outputRelease.action.edit')"
                         (click)="editRecord(r)"
                         *ngIf="r.dataSource === 'MANUAL_ENTRY'"
                         [disabled]="!!editingId && editingId !== r.id">
@@ -278,11 +280,11 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
                       <!-- For legacy records: view-only indicator -->
                       <mat-icon class="legacy-lock-icon"
                         *ngIf="r.dataSource === 'LEGACY_AMBIGUOUS_SESSION'"
-                        matTooltip="Legacy records cannot be edited"
+                        [matTooltip]="translation.translate('outputRelease.table.tooltip.legacyLock')"
                         [matTooltipShowDelay]="300">
                         lock
                       </mat-icon>
-                      <button mat-icon-button class="action-btn delete-btn" title="Delete" (click)="deleteRecord(r)">
+                      <button mat-icon-button class="action-btn delete-btn" [title]="translation.translate('outputRelease.action.delete')" (click)="deleteRecord(r)">
                         <mat-icon>delete</mat-icon>
                       </button>
                     </div>
@@ -614,6 +616,32 @@ import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/
       }
     }
 
+    /* ── RTL (scoped to output-release drained pages) ────────── */
+    .tpms-dir[dir="rtl"] {
+      label {
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .form-actions {
+        justify-content: flex-start;
+      }
+      .date-input-wrapper {
+        input { padding-right: var(--space-3); padding-left: 40px; }
+        mat-datepicker-toggle { right: auto; left: 0; }
+      }
+      .actions-col { text-align: left; }
+      .table-actions { justify-content: flex-start; }
+      .filter-group label {
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      ::ng-deep .tpms-table .mat-mdc-header-cell {
+        text-align: right;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+    }
+
     @keyframes fadeSlideUp {
       from { opacity: 0; transform: translateY(16px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -654,6 +682,7 @@ export class OutputReleaseComponent implements OnInit {
   private outputSvc   = inject(OutputReleaseService);
   private productSvc  = inject(ProductService);
   private lineSvc     = inject(LineService);
+  readonly translation = inject(TranslationService);
 
   releaseForm!: FormGroup;
   saving       = false;
@@ -827,12 +856,12 @@ export class OutputReleaseComponent implements OnInit {
     const isLegacy = record.dataSource === 'LEGACY_AMBIGUOUS_SESSION';
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: isLegacy ? 'Delete Legacy Record?' : 'Delete Output Release?',
+        title: isLegacy ? this.translation.translate('outputRelease.delete.legacyTitle') : this.translation.translate('outputRelease.delete.title'),
         message: isLegacy
-          ? 'This is a migrated legacy record. Deleting it will remove it permanently. Are you sure?'
-          : 'Are you sure you want to delete this output release?',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+          ? this.translation.translate('outputRelease.delete.legacyMessage')
+          : this.translation.translate('outputRelease.delete.message'),
+        confirmText: this.translation.translate('outputRelease.delete.confirm'),
+        cancelText: this.translation.translate('common.cancel'),
         variant: 'danger'
       }
     });
@@ -865,10 +894,10 @@ export class OutputReleaseComponent implements OnInit {
     if (this.releaseForm.dirty || this.editingId) {
       const dialogRef = this.dialog.open(ConfirmDialogComponent, {
         data: {
-          title: 'Clear form?',
-          message: 'All unsaved data will be lost.',
-          confirmText: 'Clear',
-          cancelText: 'Cancel',
+          title: this.translation.translate('outputRelease.clear.title'),
+          message: this.translation.translate('outputRelease.clear.message'),
+          confirmText: this.translation.translate('outputRelease.clear.confirm'),
+          cancelText: this.translation.translate('common.cancel'),
           variant: 'warning'
         }
       });

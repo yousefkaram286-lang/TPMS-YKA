@@ -1,70 +1,73 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { OutputRelease } from '../../core/models/output-release.model';
+import { TranslationService } from '../../core/services/translation.service';
 
 @Component({
   selector: 'app-output-release-details-dialog',
   standalone: true,
   imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
   template: `
-    <h2 mat-dialog-title>Output Release Details</h2>
-    <mat-dialog-content>
+    <div class="dialog-wrapper tpms-dir" [attr.dir]="translation.dir()">
+      <h2 mat-dialog-title>{{ translation.translate('outputRelease.details.title') }}</h2>
+      <mat-dialog-content>
 
-      <!-- Legacy provenance banner -->
-      <div class="legacy-banner" *ngIf="data.record.dataSource === 'LEGACY_AMBIGUOUS_SESSION'">
-        <mat-icon>history</mat-icon>
-        <div>
-          <strong>Legacy Migrated Record</strong>
-          <p>This record was migrated from a legacy production session. Product attribution is unknown.
-             Source session: <code>{{ data.record.legacySessionId }}</code></p>
+        <!-- Legacy provenance banner -->
+        <div class="legacy-banner" *ngIf="data.record.dataSource === 'LEGACY_AMBIGUOUS_SESSION'">
+          <mat-icon>history</mat-icon>
+          <div>
+            <strong>{{ translation.translate('outputRelease.details.legacyBannerTitle') }}</strong>
+            <p>{{ translation.translate('outputRelease.details.legacyBannerPre') }}
+               <code>{{ data.record.legacySessionId }}</code></p>
+          </div>
         </div>
-      </div>
 
-      <div class="details-grid">
-        <div class="detail-item">
-          <span class="detail-label">Release Date</span>
-          <span class="detail-value font-medium">{{ data.record.releaseDate | date:'mediumDate' }}</span>
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('outputRelease.details.releaseDate') }}</span>
+            <span class="detail-value font-medium">{{ data.record.releaseDate | date:'mediumDate' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('outputRelease.details.quantityReleased') }}</span>
+            <span class="detail-value font-medium qty-value">{{ data.record.releasedQuantity | number }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('outputRelease.details.product') }}</span>
+            <span class="detail-value" *ngIf="data.productName">{{ data.productName }}</span>
+            <span class="detail-value text-tertiary" *ngIf="!data.productName">
+              {{ data.record.dataSource === 'LEGACY_AMBIGUOUS_SESSION' ? translation.translate('outputRelease.details.unknownLegacy') : translation.translate('outputRelease.details.notSpecified') }}
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('outputRelease.details.line') }}</span>
+            <span class="detail-value" *ngIf="data.lineName">{{ data.lineName }}</span>
+            <span class="detail-value text-tertiary" *ngIf="!data.lineName">{{ translation.translate('outputRelease.details.notSpecified') }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('outputRelease.details.dataSource') }}</span>
+            <span class="detail-value provenance"
+              [class.provenance--manual]="data.record.dataSource === 'MANUAL_ENTRY'"
+              [class.provenance--legacy]="data.record.dataSource === 'LEGACY_AMBIGUOUS_SESSION'">
+              {{ data.record.dataSource === 'MANUAL_ENTRY' ? translation.translate('outputRelease.details.provenanceManual') : translation.translate('outputRelease.details.provenanceLegacy') }}
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">{{ translation.translate('outputRelease.details.recordedAt') }}</span>
+            <span class="detail-value text-sm">{{ data.record.createdAt | date:'medium' }}</span>
+          </div>
+          <div class="detail-item full-width" *ngIf="data.record.notes">
+            <span class="detail-label">{{ translation.translate('outputRelease.details.notes') }}</span>
+            <span class="detail-value">{{ data.record.notes }}</span>
+          </div>
         </div>
-        <div class="detail-item">
-          <span class="detail-label">Quantity Released</span>
-          <span class="detail-value font-medium qty-value">{{ data.record.releasedQuantity | number }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Product</span>
-          <span class="detail-value" *ngIf="data.productName">{{ data.productName }}</span>
-          <span class="detail-value text-tertiary" *ngIf="!data.productName">
-            {{ data.record.dataSource === 'LEGACY_AMBIGUOUS_SESSION' ? 'Unknown (legacy — ambiguous)' : 'Not specified' }}
-          </span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Production Line</span>
-          <span class="detail-value" *ngIf="data.lineName">{{ data.lineName }}</span>
-          <span class="detail-value text-tertiary" *ngIf="!data.lineName">Not specified</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Data Source</span>
-          <span class="detail-value provenance"
-            [class.provenance--manual]="data.record.dataSource === 'MANUAL_ENTRY'"
-            [class.provenance--legacy]="data.record.dataSource === 'LEGACY_AMBIGUOUS_SESSION'">
-            {{ data.record.dataSource === 'MANUAL_ENTRY' ? 'Manual Entry' : 'Legacy (Ambiguous Session)' }}
-          </span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Recorded At</span>
-          <span class="detail-value text-sm">{{ data.record.createdAt | date:'medium' }}</span>
-        </div>
-        <div class="detail-item full-width" *ngIf="data.record.notes">
-          <span class="detail-label">Notes</span>
-          <span class="detail-value">{{ data.record.notes }}</span>
-        </div>
-      </div>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Close</button>
-    </mat-dialog-actions>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <button mat-button mat-dialog-close>{{ translation.translate('outputRelease.details.close') }}</button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
     .legacy-banner {
@@ -133,9 +136,15 @@ import { OutputRelease } from '../../core/models/output-release.model';
       background: rgba(245, 158, 11, 0.12);
       color: var(--warning-dark, #92400e);
     }
+
+    .tpms-dir[dir="rtl"] .detail-label {
+      text-transform: none;
+      letter-spacing: 0;
+    }
   `]
 })
 export class OutputReleaseDetailsDialogComponent {
+  readonly translation = inject(TranslationService);
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: {
       record: OutputRelease;
