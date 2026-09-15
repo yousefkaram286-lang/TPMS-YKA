@@ -195,12 +195,104 @@ function kpi(ws: XLSX.WorkSheet, label: string): any {
 describe('ReportService', () => {
   let svc: ReportService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     TestBed.configureTestingModule({ providers: [ReportService] });
     svc = TestBed.inject(ReportService);
     TestBed.inject(TranslationService).setLanguage('en');
+    await Promise.all([(svc as any).loadExcelLibrary(), (svc as any).loadPdfLibraries()]);
   });
 
+  describe('on-demand export dependencies', () => {
+    it('loads XLSX only for an Excel export', async () => {
+      const excelLoader = spyOn(svc as any, 'loadExcelLibrary').and.callThrough();
+      const pdfLoader = spyOn(svc as any, 'loadPdfLibraries').and.callThrough();
+      const excelExport = spyOn(svc as any, 'generateExcel').and.stub();
+
+      expect(await svc.generate(buildParams({ format: 'xlsx' }))).toBeTrue();
+      expect(excelLoader).toHaveBeenCalledTimes(1);
+      expect(pdfLoader).not.toHaveBeenCalled();
+      expect(excelExport).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads PDF libraries and the existing Arabic font only for a PDF export', async () => {
+      const excelLoader = spyOn(svc as any, 'loadExcelLibrary').and.callThrough();
+      const pdfLoader = spyOn(svc as any, 'loadPdfLibraries').and.callThrough();
+      const save = jasmine.createSpy('save');
+      const build = spyOn(svc as any, 'buildPdfDoc').and.returnValue({ save });
+      TestBed.inject(TranslationService).setLanguage('ar');
+
+      expect(await svc.generate(buildParams({ format: 'pdf' }))).toBeTrue();
+      expect(excelLoader).not.toHaveBeenCalled();
+      expect(pdfLoader).toHaveBeenCalledTimes(1);
+      expect((build.calls.mostRecent().args[1] as typeof import('../utils/pdf-arabic-font')).PDF_FONT_AMIRI_REGULAR_BASE64).toBeTruthy();
+      expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    it('builds all six actual PDF reports in English and Arabic with the embedded font', async () => {
+      const originalBuild = (svc as any).buildPdfDoc.bind(svc);
+      const documents: any[] = [];
+      spyOn(svc as any, 'buildPdfDoc').and.callFake((p: ReportParams, fonts: typeof import('../utils/pdf-arabic-font')) => {
+        const doc = originalBuild(p, fonts);
+        spyOn(doc, 'save').and.stub();
+        documents.push(doc);
+        return doc;
+      });
+
+      for (const language of ['en', 'ar'] as const) {
+        TestBed.inject(TranslationService).setLanguage(language);
+        for (const type of ['production', 'materials', 'quality', 'complete', 'daily', 'monthly'] as const) {
+          expect(await svc.generate(buildParams({ type, format: 'pdf' }))).toBeTrue();
+          const doc = documents[documents.length - 1];
+          expect(doc.getNumberOfPages()).toBeGreaterThan(0);
+          expect(doc.getFontList()['Amiri']).toBeDefined();
+          expect(doc.save).toHaveBeenCalledTimes(1);
+        }
+      }
+    });
+
+    it('preserves sheet names and numeric cells across all six Excel report types', async () => {
+      const originalBuild = (svc as any).buildExcelWorkbook.bind(svc);
+      const workbooks: XLSX.WorkBook[] = [];
+      spyOn(svc as any, 'buildExcelWorkbook').and.callFake((p: ReportParams) => {
+        const workbook = originalBuild(p);
+        workbooks.push(workbook);
+        return workbook;
+      });
+      spyOn(svc as any, 'generateExcel').and.callFake((p: ReportParams) => {
+        (svc as any).buildExcelWorkbook(p);
+      });
+      const numericCells = (ws: XLSX.WorkSheet) => Object.entries(ws)
+        .filter(([address, cell]) => /^[A-Z]+[0-9]+$/.test(address) && (cell as XLSX.CellObject).t === 'n')
+        .map(([address, cell]) => [address, (cell as XLSX.CellObject).v]);
+
+      for (const type of ['production', 'materials', 'quality', 'complete', 'daily', 'monthly'] as const) {
+        TestBed.inject(TranslationService).setLanguage('en');
+        expect(await svc.generate(buildParams({ type, format: 'xlsx' }))).toBeTrue();
+        const english = workbooks[workbooks.length - 1];
+        TestBed.inject(TranslationService).setLanguage('ar');
+        expect(await svc.generate(buildParams({ type, format: 'xlsx' }))).toBeTrue();
+        const arabic = workbooks[workbooks.length - 1];
+        expect(arabic.SheetNames).toEqual(english.SheetNames);
+        for (const name of english.SheetNames) {
+          expect(numericCells(arabic.Sheets[name])).toEqual(numericCells(english.Sheets[name]));
+        }
+      }
+    });
+    it('does not start a second export while dependencies are loading', async () => {
+      let finishLoading!: () => void;
+      spyOn(svc as any, 'loadExcelLibrary').and.returnValue(new Promise<void>(resolve => {
+        finishLoading = resolve;
+      }));
+      const excelExport = spyOn(svc as any, 'generateExcel').and.stub();
+      const params = buildParams({ format: 'xlsx' });
+      const first = svc.generate(params);
+
+      expect(await svc.generate(params)).toBeFalse();
+      finishLoading();
+      expect(await first).toBeTrue();
+      expect(excelExport).toHaveBeenCalledTimes(1);
+    });
+  });
   describe('localized report presentation', () => {
     it('shows Arabic PASS and FAIL in PDF rows while preserving source status', () => {
       const translation = TestBed.inject(TranslationService);

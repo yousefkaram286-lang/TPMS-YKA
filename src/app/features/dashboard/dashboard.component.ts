@@ -61,7 +61,7 @@ import { Component as NgComponent } from '@angular/core';
       <div class="report-dialog__header">
         <mat-icon class="report-dialog__icon">download</mat-icon>
         <h2>{{ translation.translate('dashboard.report.title') }}</h2>
-        <button mat-icon-button class="report-dialog__close" [attr.aria-label]="translation.t('common.close')" (click)="close()">
+        <button mat-icon-button class="report-dialog__close" [disabled]="exporting" [attr.aria-label]="translation.t('common.close')" (click)="close()">
           <mat-icon>close</mat-icon>
         </button>
       </div>
@@ -129,10 +129,10 @@ import { Component as NgComponent } from '@angular/core';
       </div>
 
       <div class="report-dialog__footer">
-        <button mat-button (click)="close()" class="btn-cancel">{{ translation.translate('common.cancel') }}</button>
-        <button mat-button class="btn-download" (click)="download()">
+        <button mat-button (click)="close()" [disabled]="exporting" class="btn-cancel">{{ translation.translate('common.cancel') }}</button>
+        <button mat-button class="btn-download" [disabled]="exporting" (click)="download()">
           <mat-icon>download</mat-icon>
-          {{ translation.translate('dashboard.report.download') }}
+          {{ translation.translate(exporting ? 'common.loading' : 'dashboard.report.download') }}
         </button>
       </div>
     </div>
@@ -400,6 +400,7 @@ export class ReportDialogComponent {
   private dashboardSvc = inject(DashboardService);
   readonly translation = inject(TranslationService);
 
+  exporting = false;
   reportType: ReportType = 'production';
   format: ReportFormat = 'xlsx';
   datePreset: DatePreset = 'today';
@@ -430,29 +431,37 @@ export class ReportDialogComponent {
     return presetLabelFor(this.translation, preset);
   }
 
-  download(): void {
-    const range = this.dashboardSvc.buildDateRange(
-      this.datePreset,
-      this.datePreset === 'custom' ? this.customStart : undefined,
-      this.datePreset === 'custom' ? this.customEnd : undefined
-    );
-    const filtered = this.dashboardSvc.filterData(this.data, range);
-    this.reportService.generate({
-      type: this.reportType,
-      format: this.format,
-      range,
-      productions: filtered.productions,
-      sessions: filtered.sessions,
-      materials: filtered.materials,
-      qualityTests: filtered.qualityTests,
-      releases: filtered.releases,
-      products: this.data.products,
-      shifts: this.data.shifts,
-      lines: this.data.lines,
-      materialsMaster: this.data.materialsMaster,
-      unitCostsMaster: this.data.unitCostsMaster
-    });
-    this.dialogRef.close();
+  async download(): Promise<void> {
+    if (this.exporting) return;
+    this.exporting = true;
+    try {
+      const range = this.dashboardSvc.buildDateRange(
+        this.datePreset,
+        this.datePreset === 'custom' ? this.customStart : undefined,
+        this.datePreset === 'custom' ? this.customEnd : undefined
+      );
+      const filtered = this.dashboardSvc.filterData(this.data, range);
+      const exported = await this.reportService.generate({
+        type: this.reportType,
+        format: this.format,
+        range,
+        productions: filtered.productions,
+        sessions: filtered.sessions,
+        materials: filtered.materials,
+        qualityTests: filtered.qualityTests,
+        releases: filtered.releases,
+        products: this.data.products,
+        shifts: this.data.shifts,
+        lines: this.data.lines,
+        materialsMaster: this.data.materialsMaster,
+        unitCostsMaster: this.data.unitCostsMaster
+      });
+      if (exported) this.dialogRef.close();
+    } catch (err) {
+      console.error('Failed to generate report', err);
+    } finally {
+      this.exporting = false;
+    }
   }
 
   close(): void {

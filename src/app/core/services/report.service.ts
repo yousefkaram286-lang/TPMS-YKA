@@ -2,9 +2,8 @@ import { EXPORT_LABEL_KEYS } from '../i18n/export-labels';
 import { TranslationService } from './translation.service';
 import { PDF_LABEL_KEYS } from '../i18n/pdf-labels';
 import { Injectable, inject } from '@angular/core';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type * as XLSX from 'xlsx';
+import type { jsPDF } from 'jspdf';
 
 import { Production } from '../models/production.model';
 import { ProductionSession } from '../models/production-session.model';
@@ -202,6 +201,21 @@ export interface PdfTableVisuals {
 @Injectable({ providedIn: 'root' })
 export class ReportService {
   private readonly translation = inject(TranslationService);
+  private xlsx?: typeof import('xlsx');
+  private pdf?: typeof import('jspdf')['default'];
+  private pdfTable?: typeof import('jspdf-autotable')['default'];
+  private exportInProgress = false;
+
+  private async loadExcelLibrary(): Promise<void> {
+    this.xlsx ??= await import('xlsx');
+  }
+
+  private async loadPdfLibraries(): Promise<void> {
+    if (this.pdf && this.pdfTable) return;
+    const [pdf, table] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+    this.pdf = pdf.default;
+    this.pdfTable = table.default;
+  }
 
   private readonly BRAND_DARK: [number, number, number] = [43, 33, 24];
   private readonly BRAND_GOLD: [number, number, number] = [176, 141, 87];
@@ -231,13 +245,19 @@ export class ReportService {
 
   // ─── Public Entry Point ──────────────────────────────────────────────────
 
-  generate(params: ReportParams): void {
-    if (params.format === 'xlsx') {
-      this.generateExcel(params);
-    } else {
-      // PDF embedding font is lazy-loaded (keeps the heavy TTF base64 out of
-      // the initial bundle). Void-returned for callers; failures are logged.
-      void this.generatePdf(params);
+  async generate(params: ReportParams): Promise<boolean> {
+    if (this.exportInProgress) return false;
+    this.exportInProgress = true;
+    try {
+      if (params.format === 'xlsx') {
+        await this.loadExcelLibrary();
+        this.generateExcel(params);
+      } else {
+        await this.generatePdf(params);
+      }
+      return true;
+    } finally {
+      this.exportInProgress = false;
     }
   }
 
@@ -262,11 +282,11 @@ export class ReportService {
   private generateExcel(p: ReportParams): void {
     const wb = this.buildExcelWorkbook(p);
     const filename = this.buildFilename(p, 'xlsx');
-    XLSX.writeFile(wb, filename, { cellStyles: true } as any);
+    this.xlsx!.writeFile(wb, filename, { cellStyles: true } as any);
   }
 
   private buildExcelWorkbook(p: ReportParams): XLSX.WorkBook {
-    const wb = XLSX.utils.book_new();
+    const wb = this.xlsx!.utils.book_new();
 
     wb.Props = {
       Title: `TPMS ${p.type.charAt(0).toUpperCase() + p.type.slice(1)} Report`,
@@ -303,10 +323,10 @@ export class ReportService {
   }
 
   private exRangeStyle(ws: XLSX.WorkSheet, range: string, style: Record<string, any>): void {
-    const dec = XLSX.utils.decode_range(range);
+    const dec = this.xlsx!.utils.decode_range(range);
     for (let r = dec.s.r; r <= dec.e.r; r++) {
       for (let c = dec.s.c; c <= dec.e.c; c++) {
-        this.exStyle(ws, XLSX.utils.encode_cell({ r, c }), style);
+        this.exStyle(ws, this.xlsx!.utils.encode_cell({ r, c }), style);
       }
     }
   }
@@ -520,7 +540,7 @@ export class ReportService {
   }
 
   private exWriteReportHeader(ws: XLSX.WorkSheet, title: string, p: ReportParams, colCount: number): number {
-    const lastCol = XLSX.utils.encode_col(colCount - 1);
+    const lastCol = this.xlsx!.utils.encode_col(colCount - 1);
     const merges: XLSX.Range[] = [];
 
     ws['A1'] = { v: 'TPMS', t: 's' };
@@ -560,7 +580,7 @@ export class ReportService {
   private exWriteKpiRow(ws: XLSX.WorkSheet, labels: string[], values: (string | number)[], startRow: number): number {
     const merges: XLSX.Range[] = [];
     labels.forEach((label, i) => {
-      const col = XLSX.utils.encode_col(i);
+      const col = this.xlsx!.utils.encode_col(i);
       const labelRef = `${col}${startRow + 1}`;
       const valueRef = `${col}${startRow + 2}`;
 
@@ -584,7 +604,7 @@ export class ReportService {
 
   private exWriteTableHeader(ws: XLSX.WorkSheet, headers: string[], row: number): void {
     headers.forEach((h, i) => {
-      const ref = XLSX.utils.encode_cell({ r: row, c: i });
+      const ref = this.xlsx!.utils.encode_cell({ r: row, c: i });
       ws[ref] = { v: this.exLabel(h), t: 's' };
       this.exStyle(ws, ref, this.exTableHeaderStyle());
     });
@@ -595,7 +615,7 @@ export class ReportService {
   private exWriteTableRow(ws: XLSX.WorkSheet, values: (string | number)[], row: number, numericCols?: Set<number>, decimalCols?: Set<number>, currencyCols?: Set<number>): void {
     const alt = row % 2 === 0;
     values.forEach((val, i) => {
-      const ref = XLSX.utils.encode_cell({ r: row, c: i });
+      const ref = this.xlsx!.utils.encode_cell({ r: row, c: i });
       const isNum = typeof val === 'number';
       ws[ref] = { v: val, t: isNum ? 'n' : 's' };
 
@@ -615,7 +635,7 @@ export class ReportService {
 
   private exWriteTotalsRow(ws: XLSX.WorkSheet, values: (string | number)[], row: number, numericCols?: Set<number>): void {
     values.forEach((val, i) => {
-      const ref = XLSX.utils.encode_cell({ r: row, c: i });
+      const ref = this.xlsx!.utils.encode_cell({ r: row, c: i });
       const isNum = typeof val === 'number';
       ws[ref] = { v: typeof val === 'string' ? this.exLabel(val) : val, t: isNum ? 'n' : 's' };
 
@@ -655,18 +675,18 @@ export class ReportService {
     let maxC = 0;
     Object.keys(ws).forEach(key => {
       if (key.startsWith('!')) return;
-      const addr = XLSX.utils.decode_cell(key);
+      const addr = this.xlsx!.utils.decode_cell(key);
       if (addr.r > maxR) maxR = addr.r;
       if (addr.c > maxC) maxC = addr.c;
     });
-    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } });
+    ws['!ref'] = this.xlsx!.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } });
 
     ws['!cols'] = colWidths.map(w => ({ wch: w }));
     if (freezeRow > 0) {
-      ws['!freeze'] = { xSplit: 0, ySplit: freezeRow, topLeftCell: XLSX.utils.encode_cell({ r: freezeRow, c: 0 }), state: 'frozen' } as any;
+      ws['!freeze'] = { xSplit: 0, ySplit: freezeRow, topLeftCell: this.xlsx!.utils.encode_cell({ r: freezeRow, c: 0 }), state: 'frozen' } as any;
     }
     if (filterRange) {
-      ws['!autofilter'] = { ref: XLSX.utils.encode_range(filterRange) };
+      ws['!autofilter'] = { ref: this.xlsx!.utils.encode_range(filterRange) };
     }
     ws['!pageSetup'] = { paper: 9, orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 } as any;
     ws['!pageMargins'] = { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } as any;
@@ -676,7 +696,7 @@ export class ReportService {
 
   private exAddExecutiveSummary(wb: XLSX.WorkBook, p: ReportParams): void {
     const stats = this.computeStats(p);
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = this.xlsx!.utils.aoa_to_sheet([]);
     const COLS = 10;
 
     let row = this.exWriteReportHeader(ws, 'Executive Summary', p, COLS);
@@ -778,7 +798,7 @@ export class ReportService {
 
     this.exFinalizeSheet(ws, [22, 14, 14, 12, 12, 14, 14, 14, 14, 14], 7);
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Executive Summary');
+    this.xlsx!.utils.book_append_sheet(wb, ws, 'Executive Summary');
 
     const summaryIdx = wb.SheetNames.indexOf('Executive Summary');
     if (summaryIdx > 0) {
@@ -825,7 +845,7 @@ export class ReportService {
     const sessionMap = this.buildSessionMap(p.sessions);
     const COLS = 12;
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = this.xlsx!.utils.aoa_to_sheet([]);
     let row = this.exWriteReportHeader(ws, 'Production Report', p, COLS);
     row++;
 
@@ -893,7 +913,7 @@ export class ReportService {
       e: { r: row - 2, c: COLS - 1 }
     });
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Production');
+    this.xlsx!.utils.book_append_sheet(wb, ws, 'Production');
   }
 
   // ─── Materials Sheet ───────────────────────────────────────────────────────
@@ -903,7 +923,7 @@ export class ReportService {
     const lineMap = this.buildMap(p.lines);
     const COLS = 11;
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = this.xlsx!.utils.aoa_to_sheet([]);
     let row = this.exWriteReportHeader(ws, 'Materials Report', p, COLS);
     row++;
 
@@ -991,7 +1011,7 @@ export class ReportService {
       e: { r: row - 2, c: COLS - 1 }
     });
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Materials');
+    this.xlsx!.utils.book_append_sheet(wb, ws, 'Materials');
   }
 
   // ─── Quality Sheet ─────────────────────────────────────────────────────────
@@ -1002,7 +1022,7 @@ export class ReportService {
 
     const stats = this.qualityStats(p.qualityTests);
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = this.xlsx!.utils.aoa_to_sheet([]);
     let row = this.exWriteReportHeader(ws, sheetTitle, p, COLS);
     row++;
 
@@ -1024,7 +1044,7 @@ export class ReportService {
     const writeDetailRow = (values: (string | number)[], average: boolean) => {
       const alt = (row - 1) % 2 === 0 || average;
       values.forEach((val, i) => {
-        const ref = XLSX.utils.encode_cell({ r: row - 1, c: i });
+        const ref = this.xlsx!.utils.encode_cell({ r: row - 1, c: i });
         const isNum = !average && typeof val === 'number';
         ws[ref] = { v: val, t: isNum ? 'n' : 's' };
 
@@ -1094,7 +1114,7 @@ export class ReportService {
       e: { r: tableStartRow + detailRows - 1, c: COLS - 1 }
     });
 
-    XLSX.utils.book_append_sheet(wb, ws, sheetTitle === 'Daily Quality Detail' ? 'Daily Quality Detail' : 'Quality');
+    this.xlsx!.utils.book_append_sheet(wb, ws, sheetTitle === 'Daily Quality Detail' ? 'Daily Quality Detail' : 'Quality');
   }
 
   /**
@@ -1108,7 +1128,7 @@ export class ReportService {
     const stats = this.qualityStats(p.qualityTests);
     const rows = this.buildQualityManagementRows(p);
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = this.xlsx!.utils.aoa_to_sheet([]);
     let row = this.exWriteReportHeader(ws, 'Quality Report', p, COLS);
     row++;
 
@@ -1139,7 +1159,7 @@ export class ReportService {
       s: { r: tableStartRow - 1, c: 0 },
       e: { r: Math.max(tableStartRow, row - 2), c: COLS - 1 }
     });
-    XLSX.utils.book_append_sheet(wb, ws, 'Quality');
+    this.xlsx!.utils.book_append_sheet(wb, ws, 'Quality');
   }
 
   // ─── Daily / Monthly Operational Report Builder Helpers ─────────────────────
@@ -1577,7 +1597,7 @@ export class ReportService {
     const lines = this.buildLineOperations(p);
     const materials = this.buildMaterialUsageRows(p);
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = this.xlsx!.utils.aoa_to_sheet([]);
     let row = this.exWriteReportHeader(ws, 'Daily Operational Report', p, COLS);
     row++;
 
@@ -1647,7 +1667,7 @@ export class ReportService {
     }
 
     this.exFinalizeSheet(ws, [13, 20, 20, 12, 10, 10, 10, 10, 11, 11, 12, 11, 14, 14, 14, 11, 9, 9, 9], 7);
-    XLSX.utils.book_append_sheet(wb, ws, 'Daily Operational');
+    this.xlsx!.utils.book_append_sheet(wb, ws, 'Daily Operational');
   }
 
   // ─── Monthly Operational Sheet ──────────────────────────────────────────────
@@ -1661,7 +1681,7 @@ export class ReportService {
     const q = this.qualityStats(p.qualityTests);
     const monthLabel = p.range.startDate.substring(0, 7);
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = this.xlsx!.utils.aoa_to_sheet([]);
     let row = this.exWriteReportHeader(ws, 'Monthly Operational Report', p, COLS);
     row++;
 
@@ -1725,7 +1745,7 @@ export class ReportService {
     this.exWriteTableRow(ws, [q.recorded, q.assessed, q.passed, q.failed, q.recorded - q.assessed, `${q.passRate}%`], row - 1, new Set([0, 1, 2, 3]));
 
     this.exFinalizeSheet(ws, [13, 20, 20, 12, 10, 10, 10, 10, 11, 11, 12, 11, 14, 14, 14, 11, 9, 9, 9], 7);
-    XLSX.utils.book_append_sheet(wb, ws, 'Monthly Operational');
+    this.xlsx!.utils.book_append_sheet(wb, ws, 'Monthly Operational');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1733,14 +1753,13 @@ export class ReportService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   private async generatePdf(p: ReportParams): Promise<void> {
-    try {
-      const fonts = await import('../utils/pdf-arabic-font');
-      const doc = this.buildPdfDoc(p, fonts);
-      const filename = this.buildFilename(p, 'pdf');
-      doc.save(filename);
-    } catch (err) {
-      console.error('Failed to generate PDF report', err);
-    }
+    const [fonts] = await Promise.all([
+      import('../utils/pdf-arabic-font'),
+      this.loadPdfLibraries()
+    ]);
+    const doc = this.buildPdfDoc(p, fonts);
+    const filename = this.buildFilename(p, 'pdf');
+    doc.save(filename);
   }
 
   private buildPdfDoc(
@@ -1748,7 +1767,8 @@ export class ReportService {
     fonts: typeof import('../utils/pdf-arabic-font')
   ): jsPDF {
     const landscape = p.type === 'daily' || p.type === 'monthly' || p.type === 'quality';
-    const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+    const Pdf = this.pdf!;
+    const doc = new Pdf({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
 
     // Embed the Arabic-capable font family so report cells render Arabic
     // (helvetica is a base-14 standard font with no Arabic glyphs). jsPDF
@@ -1897,7 +1917,7 @@ export class ReportService {
   private drawTable(doc: jsPDF, head: string[][], body: string[][], startY: number, columnStylesOverride?: Record<number, object>, avoidRowSplit = false, visuals: PdfTableVisuals = {}): number {
     const v = visuals;
     const displayHead = head.map(row => row.map(label => this.translation.t(PDF_LABEL_KEYS[label] ?? label)));
-    autoTable(doc, {
+    this.pdfTable!(doc, {
       head: displayHead,
       body: this.pdfDisplayRows(displayHead, body),
       startY,
