@@ -146,7 +146,7 @@ export const VERIFIED_PRODUCTS: VerifiedProductSeed[] = [
     nameAr: 'بلوك 10',
     type: 'BLOCK',
     piecesPerPress: 22.5,
-    compressionStandard: 70,
+    compressionStandard: 45,
     standardHeight: 10,
     standardWeight: 12,
     productArea: 400,

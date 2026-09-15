@@ -79,6 +79,27 @@ describe('SupabaseMasterSeed util', () => {
     expect(aggregate.conversion_kg_per_m3).toBe(1550);
   });
 
+  it('plans Block 10 at 45 when missing and never overwrites an existing record', () => {
+    const block10 = VERIFIED_PRODUCTS.find(p => p.id === 'prd-008')!;
+    expect(block10.compressionStandard).toBe(45);
+
+    const missingPlan = computeSupabaseMasterSeedPlan([], [], [], [], { now: NOW });
+    const missingRow = missingPlan.productsToInsert.find(p => p.id === 'prd-008')!;
+    expect(missingRow.standard_strength).toBe(45);
+
+    const existing = { ...missingRow, standard_strength: 45 };
+    const matchingPlan = computeSupabaseMasterSeedPlan([], [existing], [], [], { now: NOW });
+    expect(matchingPlan.productsToInsert.find(p => p.id === 'prd-008')).toBeUndefined();
+    expect(existing.standard_strength).toBe(45);
+
+    const operatorValue = { ...existing, standard_strength: 40 };
+    const conflictPlan = computeSupabaseMasterSeedPlan([], [operatorValue], [], [], { now: NOW });
+    expect(conflictPlan.productsToInsert.find(p => p.id === 'prd-008')).toBeUndefined();
+    expect(operatorValue.standard_strength).toBe(40);
+    expect(conflictPlan.conflicts.some(c => c.entity === 'product' && c.seedId === 'prd-008'
+      && c.field === 'standard_strength' && c.expected === 45 && c.actual === 40)).toBeTrue();
+  });
+
   it('Line 5 receives NO mappings (Interlock unconfirmed — never invented)', () => {
     const plan = computeSupabaseMasterSeedPlan([], [], [], [], { now: NOW });
     expect(plan.mappingsToInsert.filter(m => m.line_id === 'lin-005').length).toBe(0);

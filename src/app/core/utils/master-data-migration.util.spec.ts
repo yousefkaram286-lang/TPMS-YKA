@@ -1,7 +1,7 @@
 import { Product } from '../models/product.model';
 import { Material } from '../models/material.model';
 import { Recipe } from '../models/recipe.model';
-import { VERIFIED_PRODUCTS, DEMO_LEGACY_PRODUCT_NAMES } from '../constants/seed-data';
+import { VERIFIED_PRODUCTS, DEMO_LEGACY_PRODUCT_NAMES, SEED_PRODUCTS } from '../constants/seed-data';
 import { computeMasterDataMigration, buildVerifiedProduct } from './master-data-migration.util';
 
 function product(overrides: Partial<Product> = {}): Product {
@@ -125,24 +125,25 @@ it('verifies Product 6 is Block 12 (prd-007) — 18.5 pieces/press, C70, H12, W1
     expect(s.densityKgPerM3).toBe(1350);
   });
 
-  it('verifies Product 7 is Block 10 (prd-008) — 22.5 pieces/press, C70, H10, W12, area 400, density 1500', () => {
+  it('verifies Product 7 is Block 10 (prd-008) — 22.5 pieces/press, C45, H10, W12, area 400, density 1500', () => {
     const s = specFor('Block 10');
     expect(s.id).toBe('prd-008');
     expect(s.piecesPerPress).toBe(22.5);
-    expect(s.compressionStandard).toBe(70);
+    expect(s.compressionStandard).toBe(45);
+    expect(SEED_PRODUCTS.find(p => p.id === 'prd-008')?.standardStrength).toBe(45);
     expect(s.standardHeight).toBe(10);
     expect(s.standardWeight).toBe(12);
     expect(s.productArea).toBe(400);
     expect(s.densityKgPerM3).toBe(1500);
   });
 
-  it('verifies product 8: single Compression Standard per type — Solid 180 / Block 70', () => {
+  it('verifies product 8: per-product Compression Standards — Solids 180, other Blocks 70, Block 10 45', () => {
     const solids = specs.filter(s => s.name.startsWith('Solid'));
     const blocks = specs.filter(s => s.name.startsWith('Block'));
     expect(solids.length).toBeGreaterThan(0);
     expect(blocks.length).toBeGreaterThan(0);
     for (const s of solids) expect(s.compressionStandard).toBe(180);
-    for (const s of blocks) expect(s.compressionStandard).toBe(70);
+    for (const s of blocks) expect(s.compressionStandard).toBe(s.id === 'prd-008' ? 45 : 70);
   });
 
   it('verifies product 9: Solid halves are never rounded — all verified pieces/press values are exact', () => {
