@@ -9,6 +9,7 @@ describe('TranslatePipe', () => {
   let service: TranslationService;
 
   beforeEach(() => {
+    localStorage.removeItem(LANGUAGE_STORAGE_KEY);
     TestBed.configureTestingModule({});
     service = TestBed.inject(TranslationService);
     pipe = TestBed.runInInjectionContext(() => new TranslatePipe());
@@ -42,8 +43,8 @@ describe('TranslatePipe', () => {
     expect(pipe.transform('users.action.deactivateFor', { name: 'Sara' })).toBe('Deactivate Sara');
   });
 
-  it('falls back to English when Arabic key is missing', () => {
+  it('translates the matching Arabic catalog entry', () => {
     service.setLanguage('ar');
-    expect(pipe.transform('users.count.accounts')).toBe('accounts');
+    expect(pipe.transform('users.count.accounts')).toBe('حسابات');
   });
 });

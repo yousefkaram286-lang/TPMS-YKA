@@ -1,3 +1,4 @@
+import { authErrorKey } from '../../core/i18n/auth-error-keys';
 // ============================================================
 // TPMS — Login Component
 // ------------------------------------------------------------
@@ -72,7 +73,7 @@ import { LanguageSwitcherComponent } from '../../shared/components/language-swit
               <!-- Error Alert -->
               <div class="alert alert-error animate-slide-down" *ngIf="errorMessage()">
                 <mat-icon>error_outline</mat-icon>
-                <span>{{ errorMessage() }}</span>
+                <span>{{ translation.t(errorMessage()) }}</span>
               </div>
 
               <!-- Username -->
@@ -81,7 +82,7 @@ import { LanguageSwitcherComponent } from '../../shared/components/language-swit
                   <mat-icon class="input-icon">person_outline</mat-icon>
                   <input
                     type="text"
-                    id="username"
+                    dir="ltr" id="username"
                     formControlName="username"
                     class="form-control"
                     placeholder=" "
@@ -99,7 +100,7 @@ import { LanguageSwitcherComponent } from '../../shared/components/language-swit
                 <div class="form-field input-icon-wrapper" [class.has-value]="loginForm.get('password')?.value">
                   <mat-icon class="input-icon">lock_outline</mat-icon>
                   <input
-                    [type]="showPassword ? 'text' : 'password'"
+                    dir="ltr" [type]="showPassword ? 'text' : 'password'"
                     id="password"
                     formControlName="password"
                     class="form-control has-right-icon"
@@ -196,7 +197,7 @@ export class LoginComponent {
     if (res.success) {
       this.router.navigate(['/dashboard']);
     } else {
-      this.errorMessage.set(res.error || this.translation.translate('auth.login.failed'));
+      this.errorMessage.set(authErrorKey(res.error) || 'auth.login.failed');
     }
   }
 }

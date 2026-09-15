@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../pipes/translate.pipe';
 // ============================================================
 // TPMS — PageHeader Component
 // ============================================================
@@ -14,12 +15,12 @@ export interface Breadcrumb {
 @Component({
   selector: 'app-page-header',
   standalone: true,
-  imports: [CommonModule, MatIconModule, RouterModule],
+  imports: [TranslatePipe, CommonModule, MatIconModule, RouterModule],
   template: `
     <div class="page-header">
       <div class="page-header__content">
         <div class="page-header__meta">
-          <nav *ngIf="breadcrumbs.length" class="breadcrumbs" aria-label="Breadcrumb">
+          <nav *ngIf="breadcrumbs.length" class="breadcrumbs" [attr.aria-label]="'common.breadcrumb' | translate">
             <ol>
               <li *ngFor="let crumb of breadcrumbs; let last = last">
                 <a *ngIf="crumb.route && !last" [routerLink]="crumb.route">{{ crumb.label }}</a>

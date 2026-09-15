@@ -1,3 +1,5 @@
+import { displayServiceMessage } from '../../core/i18n/service-message-keys';
+import { authErrorKey } from '../../core/i18n/auth-error-keys';
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -60,7 +62,7 @@ export class UserManagementComponent implements OnInit {
     try {
       this.users = await this.userSvc.listUsers();
     } catch (err: any) {
-      this.message = { success: false, text: err?.message ?? this.translation.translate('users.error.loadFailed') };
+      this.message = { success: false, text: displayServiceMessage(err?.message, this.translation) ?? this.translation.translate('users.error.loadFailed') };
     } finally {
       this.loading = false;
     }
@@ -78,7 +80,7 @@ export class UserManagementComponent implements OnInit {
         this.createForm.reset();
         await this.loadUsers();
       } else {
-        this.message = { success: false, text: result.error || this.translation.translate('users.error.unexpected') };
+        this.message = { success: false, text: displayServiceMessage(result.error, this.translation) || this.translation.translate('users.error.unexpected') };
       }
     } catch (err) {
       this.message = { success: false, text: this.translation.translate('users.error.unexpected') };
@@ -146,10 +148,10 @@ export class UserManagementComponent implements OnInit {
         this.message = { success: true, text: this.translation.translate('users.success.updated') };
         this.scheduleMessageClear();
       } else {
-        this.editMessage = { success: false, text: result.error || 'Failed to update user.' };
+        this.editMessage = { success: false, text: authErrorKey(result.error) || this.translation.t('users.error.updateFailed') };
       }
     } catch (err) {
-      this.editMessage = { success: false, text: 'An unexpected error occurred.' };
+      this.editMessage = { success: false, text: this.translation.t('users.error.unexpected') };
     } finally {
       this.saving = false;
     }
@@ -181,7 +183,7 @@ export class UserManagementComponent implements OnInit {
         };
         this.scheduleMessageClear();
       } else {
-        this.message = { success: false, text: result.error || this.translation.translate('users.error.unexpected') };
+        this.message = { success: false, text: displayServiceMessage(result.error, this.translation) || this.translation.translate('users.error.unexpected') };
       }
     } catch (err) {
       this.message = { success: false, text: this.translation.translate('users.error.unexpected') };

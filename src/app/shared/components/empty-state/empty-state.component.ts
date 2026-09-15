@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../pipes/translate.pipe';
 // ============================================================
 // TPMS — EmptyState Component
 // ============================================================
@@ -8,7 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 @Component({
   selector: 'app-empty-state',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [TranslatePipe, CommonModule, MatIconModule],
   template: `
     <div class="empty-state" [class.empty-state--page]="isPage">
       <div class="empty-state__icon-wrap" [class]="'empty-state__icon-wrap--' + variant">
@@ -17,7 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
       <div class="empty-state__badge" *ngIf="badge">
         <span>{{ badge }}</span>
       </div>
-      <h2 class="empty-state__title">{{ title }}</h2>
+      <h2 class="empty-state__title">{{ title | translate }}</h2>
       <p class="empty-state__description">{{ description }}</p>
       <div class="empty-state__actions">
         <ng-content></ng-content>
@@ -124,7 +125,7 @@ import { MatIconModule } from '@angular/material/icon';
 })
 export class EmptyStateComponent {
   @Input() icon:        string  = 'inbox';
-  @Input() title:       string  = 'Nothing here yet';
+  @Input() title:       string  = 'common.nothingYet';
   @Input() description: string  = '';
   @Input() badge?:      string;
   @Input() variant:     'primary' | 'success' | 'warning' | 'neutral' | 'coming' = 'primary';

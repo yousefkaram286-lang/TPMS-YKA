@@ -1,11 +1,11 @@
+import { authErrorKey } from '../../core/i18n/auth-error-keys';
+import { LanguageSwitcherComponent } from '../../shared/components/language-switcher/language-switcher.component';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { TranslationService } from '../../core/services/translation.service';
 // ============================================================
 // TPMS — Forgot Password Component
 // ------------------------------------------------------------
-// Mixed-language safety: this page is NOT translated yet, so it
-// pins its own content direction to LTR via CDK `Dir`. This keeps
-// the English form and layout readable while the shell/auth chrome
-// renders Arabic RTL. Remove the `Dir` binding when the page is
-// translated (it will then follow the UI language like Login).
+// Translated auth page: direction follows the active UI language.
 // ============================================================
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -29,9 +29,9 @@ type Step = 'email' | 'reset' | 'success';
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, Dir],
+  imports: [LanguageSwitcherComponent, TranslatePipe, CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, Dir],
   template: `
-    <div class="login-page tpms-dir" [dir]="'ltr'">
+    <div class="login-page tpms-dir" [dir]="translation.dir()">
       <div class="login-split">
 
         <!-- Left banner (identical to login) -->
@@ -42,11 +42,11 @@ type Step = 'email' | 'reset' | 'success';
               <mat-icon>precision_manufacturing</mat-icon>
             </div>
             <h1 class="login-banner__title">TPMS</h1>
-            <p class="login-banner__subtitle">Production Management System</p>
+            <p class="login-banner__subtitle">{{ 'auth.forgot.system' | translate }}</p>
             <div class="login-banner__features">
-              <div class="feature-item"><mat-icon>lock_reset</mat-icon> Secure password reset</div>
-              <div class="feature-item"><mat-icon>check_circle</mat-icon> Instant access restoration</div>
-              <div class="feature-item"><mat-icon>verified_user</mat-icon> Identity verification</div>
+              <div class="feature-item"><mat-icon>lock_reset</mat-icon> {{ 'auth.forgot.secure' | translate }}</div>
+              <div class="feature-item"><mat-icon>check_circle</mat-icon> {{ 'auth.forgot.restore' | translate }}</div>
+              <div class="feature-item"><mat-icon>verified_user</mat-icon> {{ 'auth.forgot.identity' | translate }}</div>
             </div>
           </div>
         </div>
@@ -54,13 +54,14 @@ type Step = 'email' | 'reset' | 'success';
         <!-- Right: multi-step form -->
         <div class="login-form-container page-content">
           <div class="login-form-wrapper">
+            <app-language-switcher></app-language-switcher>
 
             <!-- ── Step 1: Enter Email ── -->
             <ng-container *ngIf="step() === 'email'">
               <div class="fp-back">
                 <a routerLink="/login" class="back-link">
-                  <mat-icon>arrow_back</mat-icon>
-                  Back to Sign In
+                  <mat-icon>{{ translation.isArabic() ? 'arrow_forward' : 'arrow_back' }}</mat-icon>
+                  {{ 'auth.forgot.back' | translate }}
                 </a>
               </div>
 
@@ -68,13 +69,13 @@ type Step = 'email' | 'reset' | 'success';
                 <div class="fp-icon-wrap">
                   <mat-icon class="fp-icon">lock_reset</mat-icon>
                 </div>
-                <h2>Forgot Password?</h2>
-                <p>Enter the email address associated with your account and we'll verify it.</p>
+                <h2>{{ 'auth.forgot.title' | translate }}</h2>
+                <p>{{ 'auth.forgot.subtitle' | translate }}</p>
               </div>
 
               <div class="alert alert-error" *ngIf="emailError()">
                 <mat-icon>error_outline</mat-icon>
-                <span>{{ emailError() }}</span>
+                <span>{{ emailError() | translate }}</span>
               </div>
 
               <form [formGroup]="emailForm" (ngSubmit)="submitEmail()" class="login-form">
@@ -82,19 +83,19 @@ type Step = 'email' | 'reset' | 'success';
                   <div class="form-field input-icon-wrapper" [class.has-value]="emailForm.get('email')?.value">
                     <mat-icon class="input-icon">email</mat-icon>
                     <input
-                      type="email"
+                      dir="ltr" type="email"
                       id="fp-email"
                       formControlName="email"
                       class="form-control"
                       placeholder=" "
                       autocomplete="email"
                     />
-                    <label for="fp-email" class="form-label">Email Address</label>
+                    <label for="fp-email" class="form-label">{{ 'auth.forgot.email' | translate }}</label>
                   </div>
                   <div class="form-error" *ngIf="isEmailFieldInvalid('email')">
                     <mat-icon>error</mat-icon>
-                    <span *ngIf="emailForm.get('email')?.errors?.['required']">Email is required.</span>
-                    <span *ngIf="emailForm.get('email')?.errors?.['email']">Please enter a valid email address.</span>
+                    <span *ngIf="emailForm.get('email')?.errors?.['required']">{{ 'auth.forgot.emailRequired' | translate }}</span>
+                    <span *ngIf="emailForm.get('email')?.errors?.['email']">{{ 'auth.forgot.emailValid' | translate }}</span>
                   </div>
                 </div>
 
@@ -104,18 +105,18 @@ type Step = 'email' | 'reset' | 'success';
                   [disabled]="emailForm.invalid || emailLoading()"
                   [class.btn-loading]="emailLoading()"
                 >
-                  <span *ngIf="!emailLoading()">Continue</span>
+                  <span *ngIf="!emailLoading()">{{ 'auth.forgot.continue' | translate }}</span>
                   <span *ngIf="emailLoading()" class="btn-spinner"></span>
                 </button>
               </form>
             </ng-container>
 
-            <!-- ── Step 2: Set New Password ── -->
+            <!-- ── Step 2: {{ 'auth.forgot.resetTitle' | translate }} ── -->
             <ng-container *ngIf="step() === 'reset'">
               <div class="fp-back">
                 <a href="javascript:void(0)" class="back-link" (click)="goBackToEmail()">
                   <mat-icon>arrow_back</mat-icon>
-                  Change Email
+                  {{ 'auth.forgot.changeEmail' | translate }}
                 </a>
               </div>
 
@@ -123,37 +124,37 @@ type Step = 'email' | 'reset' | 'success';
                 <div class="fp-icon-wrap fp-icon-wrap--success">
                   <mat-icon class="fp-icon">key</mat-icon>
                 </div>
-                <h2>Set New Password</h2>
-                <p>Create a strong password for <strong>{{ verifiedEmail() }}</strong></p>
+                <h2>{{ 'auth.forgot.resetTitle' | translate }}</h2>
+                <p>{{ 'auth.forgot.strong' | translate }} <strong><bdi>{{ verifiedEmail() }}</bdi></strong></p>
               </div>
 
               <div class="alert alert-error" *ngIf="resetError()">
                 <mat-icon>error_outline</mat-icon>
-                <span>{{ resetError() }}</span>
+                <span>{{ resetError() | translate }}</span>
               </div>
 
               <form [formGroup]="resetForm" (ngSubmit)="submitReset()" class="login-form">
-                <!-- New Password -->
+                <!-- -->
                 <div class="form-group">
                   <div class="form-field input-icon-wrapper" [class.has-value]="resetForm.get('newPassword')?.value">
                     <mat-icon class="input-icon">lock_outline</mat-icon>
                     <input
-                      [type]="showNew ? 'text' : 'password'"
+                      dir="ltr" [type]="showNew ? 'text' : 'password'"
                       id="fp-new-password"
                       formControlName="newPassword"
                       class="form-control has-right-icon"
                       placeholder=" "
                       autocomplete="new-password"
                     />
-                    <label for="fp-new-password" class="form-label">New Password</label>
-                    <button type="button" class="input-icon-right" (click)="showNew = !showNew">
+                    <label for="fp-new-password" class="form-label">{{ 'auth.forgot.newPassword' | translate }}</label>
+                    <button type="button" class="input-icon-right" (click)="showNew = !showNew" [attr.aria-label]="(showNew ? 'header.hidePassword' : 'header.showPassword') | translate">
                       <mat-icon>{{ showNew ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>
                   </div>
                   <div class="form-error" *ngIf="isResetFieldInvalid('newPassword')">
                     <mat-icon>error</mat-icon>
-                    <span *ngIf="resetForm.get('newPassword')?.errors?.['required']">Password is required.</span>
-                    <span *ngIf="resetForm.get('newPassword')?.errors?.['minlength']">Must be at least 6 characters.</span>
+                    <span *ngIf="resetForm.get('newPassword')?.errors?.['required']">{{ 'auth.forgot.passwordRequired' | translate }}</span>
+                    <span *ngIf="resetForm.get('newPassword')?.errors?.['minlength']">{{ 'auth.forgot.minimum' | translate }}</span>
                   </div>
                 </div>
 
@@ -169,22 +170,22 @@ type Step = 'email' | 'reset' | 'success';
                       placeholder=" "
                       autocomplete="new-password"
                     />
-                    <label for="fp-confirm-password" class="form-label">Confirm New Password</label>
-                    <button type="button" class="input-icon-right" (click)="showConfirm = !showConfirm">
+                    <label for="fp-confirm-password" class="form-label">{{ 'auth.forgot.confirm' | translate }}</label>
+                    <button type="button" class="input-icon-right" (click)="showConfirm = !showConfirm" [attr.aria-label]="(showConfirm ? 'header.hidePassword' : 'header.showPassword') | translate">
                       <mat-icon>{{ showConfirm ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>
                   </div>
                   <div class="form-error" *ngIf="isResetFieldInvalid('confirmPassword') || (resetForm.hasError('passwordMismatch') && resetForm.get('confirmPassword')?.touched)">
                     <mat-icon>error</mat-icon>
-                    <span *ngIf="resetForm.get('confirmPassword')?.errors?.['required']">Please confirm your password.</span>
-                    <span *ngIf="resetForm.hasError('passwordMismatch') && !resetForm.get('confirmPassword')?.errors?.['required']">Passwords do not match.</span>
+                    <span *ngIf="resetForm.get('confirmPassword')?.errors?.['required']">{{ 'auth.forgot.confirmRequired' | translate }}</span>
+                    <span *ngIf="resetForm.hasError('passwordMismatch') && !resetForm.get('confirmPassword')?.errors?.['required']">{{ 'auth.forgot.mismatch' | translate }}</span>
                   </div>
                 </div>
 
                 <!-- Password requirements hint -->
                 <div class="fp-hint">
                   <mat-icon>info_outline</mat-icon>
-                  Minimum 6 characters required.
+                  {{ 'auth.forgot.hint' | translate }}
                 </div>
 
                 <button
@@ -193,7 +194,7 @@ type Step = 'email' | 'reset' | 'success';
                   [disabled]="resetForm.invalid || resetLoading()"
                   [class.btn-loading]="resetLoading()"
                 >
-                  <span *ngIf="!resetLoading()">Reset Password</span>
+                  <span *ngIf="!resetLoading()">{{ 'auth.forgot.reset' | translate }}</span>
                   <span *ngIf="resetLoading()" class="btn-spinner"></span>
                 </button>
               </form>
@@ -205,11 +206,11 @@ type Step = 'email' | 'reset' | 'success';
                 <div class="fp-success__icon">
                   <mat-icon>check_circle</mat-icon>
                 </div>
-                <h2>Check Your Email</h2>
-                <p>If an account exists for that email, we've sent you a password reset link.</p>
+                <h2>{{ 'auth.forgot.checkEmail' | translate }}</h2>
+                <p>{{ 'auth.forgot.sent' | translate }}</p>
                 <a routerLink="/login" class="btn-primary btn-lg btn-full fp-success__btn">
                   <mat-icon>login</mat-icon>
-                  Back to Sign In
+                  {{ 'auth.forgot.back' | translate }}
                 </a>
               </div>
             </ng-container>
@@ -344,6 +345,7 @@ type Step = 'email' | 'reset' | 'success';
 })
 export class ForgotPasswordComponent {
   private fb   = inject(FormBuilder);
+  readonly translation = inject(TranslationService);
   private auth = inject(AuthService);
   private router = inject(Router);
 
@@ -400,10 +402,10 @@ export class ForgotPasswordComponent {
         this.verifiedEmail.set(email);
         this.step.set('success');
       } else {
-        this.emailError.set(result.error || 'Email lookup failed.');
+        this.emailError.set(authErrorKey(result.error) || 'auth.forgot.lookupFailed');
       }
     } catch {
-      this.emailError.set('An unexpected error occurred. Please try again.');
+      this.emailError.set('auth.forgot.unexpected');
     } finally {
       this.emailLoading.set(false);
     }
@@ -423,10 +425,10 @@ export class ForgotPasswordComponent {
       if (result.success) {
         this.step.set('success');
       } else {
-        this.resetError.set(result.error || 'Failed to reset password. Please try again.');
+        this.resetError.set(authErrorKey(result.error) || 'auth.forgot.resetFailed');
       }
     } catch {
-      this.resetError.set('An unexpected error occurred. Please try again.');
+      this.resetError.set('auth.forgot.unexpected');
     } finally {
       this.resetLoading.set(false);
     }

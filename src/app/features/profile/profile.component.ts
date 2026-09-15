@@ -1,3 +1,6 @@
+import { authErrorKey } from '../../core/i18n/auth-error-keys';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { TranslationService } from '../../core/services/translation.service';
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
@@ -19,36 +22,36 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatIconModule, PageHeaderComponent, AppCardComponent, UserAvatarComponent],
+  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, MatIconModule, PageHeaderComponent, AppCardComponent, UserAvatarComponent],
   template: `
     <div class="profile-page page-content">
       <app-page-header
-        title="My Profile"
-        subtitle="Manage your personal information and security settings"
+        [title]="'profile.title' | translate"
+        [subtitle]="'profile.subtitle' | translate"
         icon="person"
       ></app-page-header>
 
       <div class="profile-content">
-        <!-- Personal Information Section -->
-        <app-card title="Personal Information" class="profile-card">
+        <!-- Section -->
+        <app-card [title]="'profile.personal' | translate" class="profile-card">
           <div class="avatar-section">
             <app-user-avatar [user]="currentUser()" size="xl"></app-user-avatar>
             <div class="avatar-info">
-              <h3>{{ currentUser()?.displayName }}</h3>
-              <p>{{ currentUser()?.email }}</p>
-              <div class="role-badge">{{ currentUser()?.role }}</div>
+              <h3><bdi>{{ currentUser()?.displayName }}</bdi></h3>
+              <p><bdi>{{ currentUser()?.email }}</bdi></p>
+              <div class="role-badge">{{ ('nav.role.' + currentUser()?.role?.toLowerCase()) | translate }}</div>
             </div>
           </div>
 
           <div *ngIf="profileMessage" class="alert" [ngClass]="{'alert-success': profileMessage.success, 'alert-error': !profileMessage.success}">
             <mat-icon>{{ profileMessage.success ? 'check_circle' : 'error' }}</mat-icon>
-            {{ profileMessage.text }}
+            {{ profileMessage.text | translate }}
           </div>
 
           <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="tpms-form">
             <div class="form-row">
               <div class="form-group">
-                <label for="displayName">Display Name</label>
+                <label for="displayName">{{ 'profile.displayName' | translate }}</label>
                 <input 
                   type="text" 
                   id="displayName" 
@@ -57,20 +60,20 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
                   [class.is-invalid]="profileForm.get('displayName')?.invalid && profileForm.get('displayName')?.touched"
                 >
                 <div class="invalid-feedback" *ngIf="profileForm.get('displayName')?.invalid && profileForm.get('displayName')?.touched">
-                  Display name is required.
+                  {{ 'profile.displayRequired' | translate }}
                 </div>
               </div>
               <div class="form-group">
-                <label for="username">Username</label>
+                <label for="username">{{ 'profile.username' | translate }}</label>
                 <input 
                   type="text" 
-                  id="username" 
+                  dir="ltr"
                   formControlName="username" 
                   class="form-control"
                   [class.is-invalid]="profileForm.get('username')?.invalid && profileForm.get('username')?.touched"
                 >
                 <div class="invalid-feedback" *ngIf="profileForm.get('username')?.invalid && profileForm.get('username')?.touched">
-                  Username is required.
+                  {{ 'profile.usernameRequired' | translate }}
                 </div>
               </div>
             </div>
@@ -79,66 +82,66 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               <button type="submit" class="btn-primary" [disabled]="profileForm.invalid || profileSaving || !profileForm.dirty">
                 <mat-icon *ngIf="!profileSaving">save</mat-icon>
                 <span class="btn-spinner" *ngIf="profileSaving"></span>
-                {{ profileSaving ? 'Saving...' : 'Save Profile' }}
+                {{ (profileSaving ? 'profile.saving' : 'profile.save') | translate }}
               </button>
             </div>
           </form>
         </app-card>
 
-        <!-- Change Password Section -->
-        <app-card title="Change Password" class="profile-card">
+        <!-- Section -->
+        <app-card [title]="'profile.changePassword' | translate" class="profile-card">
           <div *ngIf="passwordMessage" class="alert" [ngClass]="{'alert-success': passwordMessage.success, 'alert-error': !passwordMessage.success}">
             <mat-icon>{{ passwordMessage.success ? 'check_circle' : 'error' }}</mat-icon>
-            {{ passwordMessage.text }}
+            {{ passwordMessage.text | translate }}
           </div>
 
           <form [formGroup]="passwordForm" (ngSubmit)="savePassword()" class="tpms-form">
             <div class="form-group">
-              <label for="currentPassword">Current Password</label>
+              <label for="currentPassword">{{ 'profile.currentPassword' | translate }}</label>
               <input 
-                type="password" 
+                dir="ltr" type="password"
                 id="currentPassword" 
                 formControlName="currentPassword" 
                 class="form-control"
                 [class.is-invalid]="passwordForm.get('currentPassword')?.invalid && passwordForm.get('currentPassword')?.touched"
               >
               <div class="invalid-feedback" *ngIf="passwordForm.get('currentPassword')?.invalid && passwordForm.get('currentPassword')?.touched">
-                Current password is required.
+                {{ 'profile.currentRequired' | translate }}
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label for="newPassword">New Password</label>
+                <label for="newPassword">{{ 'profile.newPassword' | translate }}</label>
                 <input 
                   type="password" 
-                  id="newPassword" 
+                  dir="ltr" id="newPassword"
                   formControlName="newPassword" 
                   class="form-control"
                   [class.is-invalid]="passwordForm.get('newPassword')?.invalid && passwordForm.get('newPassword')?.touched"
                 >
                 <div class="invalid-feedback" *ngIf="passwordForm.get('newPassword')?.errors?.['required'] && passwordForm.get('newPassword')?.touched">
-                  New password is required.
+                  {{ 'profile.newRequired' | translate }}
                 </div>
                 <div class="invalid-feedback" *ngIf="passwordForm.get('newPassword')?.errors?.['minlength'] && passwordForm.get('newPassword')?.touched">
-                  Password must be at least 6 characters.
+                  {{ 'profile.minimum' | translate }}
                 </div>
               </div>
               
               <div class="form-group">
-                <label for="confirmPassword">Confirm New Password</label>
+                <label for="confirmPassword">{{ 'profile.confirm' | translate }}</label>
                 <input 
                   type="password" 
-                  id="confirmPassword" 
+                  dir="ltr" id="confirmPassword"
                   formControlName="confirmPassword" 
                   class="form-control"
                   [class.is-invalid]="(passwordForm.get('confirmPassword')?.invalid || passwordForm.hasError('passwordMismatch')) && passwordForm.get('confirmPassword')?.touched"
                 >
                 <div class="invalid-feedback" *ngIf="passwordForm.get('confirmPassword')?.errors?.['required'] && passwordForm.get('confirmPassword')?.touched">
-                  Please confirm your new password.
+                  {{ 'profile.confirmRequired' | translate }}
                 </div>
                 <div class="invalid-feedback" *ngIf="passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched && !passwordForm.get('confirmPassword')?.errors?.['required']">
-                  Passwords do not match.
+                  {{ 'profile.mismatch' | translate }}
                 </div>
               </div>
             </div>
@@ -147,7 +150,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               <button type="submit" class="btn-primary" [disabled]="passwordForm.invalid || passwordSaving">
                 <mat-icon *ngIf="!passwordSaving">lock_reset</mat-icon>
                 <span class="btn-spinner" *ngIf="passwordSaving"></span>
-                {{ passwordSaving ? 'Updating...' : 'Update Password' }}
+                {{ (passwordSaving ? 'profile.updating' : 'profile.update') | translate }}
               </button>
             </div>
           </form>
@@ -338,6 +341,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
 })
 export class ProfileComponent implements OnInit {
   private fb = inject(FormBuilder);
+  readonly translation = inject(TranslationService);
   private auth = inject(AuthService);
 
   readonly currentUser = this.auth.currentUser;
@@ -375,13 +379,13 @@ export class ProfileComponent implements OnInit {
     try {
       const result = await this.auth.updateProfile(this.profileForm.value);
       if (result.success) {
-        this.profileMessage = { success: true, text: 'Profile updated successfully.' };
+        this.profileMessage = { success: true, text: 'profile.saved' };
         this.profileForm.markAsPristine();
       } else {
-        this.profileMessage = { success: false, text: result.error || 'Failed to update profile.' };
+        this.profileMessage = { success: false, text: authErrorKey(result.error) || 'profile.failed' };
       }
     } catch (e) {
-      this.profileMessage = { success: false, text: 'An unexpected error occurred.' };
+      this.profileMessage = { success: false, text: 'profile.unexpected' };
     } finally {
       this.profileSaving = false;
       
@@ -402,13 +406,13 @@ export class ProfileComponent implements OnInit {
       const result = await this.auth.updatePassword(currentPassword, newPassword);
       
       if (result.success) {
-        this.passwordMessage = { success: true, text: 'Password changed successfully.' };
+        this.passwordMessage = { success: true, text: 'profile.passwordSaved' };
         this.passwordForm.reset();
       } else {
-        this.passwordMessage = { success: false, text: result.error || 'Failed to change password.' };
+        this.passwordMessage = { success: false, text: authErrorKey(result.error) || 'profile.passwordFailed' };
       }
     } catch (e) {
-      this.passwordMessage = { success: false, text: 'An unexpected error occurred.' };
+      this.passwordMessage = { success: false, text: 'profile.unexpected' };
     } finally {
       this.passwordSaving = false;
 

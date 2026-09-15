@@ -1,4 +1,7 @@
-import { Injectable } from '@angular/core';
+import { EXPORT_LABEL_KEYS } from '../i18n/export-labels';
+import { TranslationService } from './translation.service';
+import { PDF_LABEL_KEYS } from '../i18n/pdf-labels';
+import { Injectable, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -198,6 +201,7 @@ export interface PdfTableVisuals {
 
 @Injectable({ providedIn: 'root' })
 export class ReportService {
+  private readonly translation = inject(TranslationService);
 
   private readonly BRAND_DARK: [number, number, number] = [43, 33, 24];
   private readonly BRAND_GOLD: [number, number, number] = [176, 141, 87];
@@ -479,6 +483,42 @@ export class ReportService {
 
   // ─── Sheet Layout Helpers ─────────────────────────────────────────────────
 
+  private exLabel(label: string): string {
+    const pdfKey = PDF_LABEL_KEYS[label] ?? Object.entries(PDF_LABEL_KEYS).find(([english]) => english.toUpperCase() === label)?.[1];
+    const key = EXPORT_LABEL_KEYS[label] ?? pdfKey;
+    return key ? this.translation.t(key) : label;
+  }
+
+  /** Convert only known status cells in the PDF copy of a table. Internal rows stay unchanged. */
+  private pdfDisplayRows(head: string[][], body: string[][]): string[][] {
+    const headers = head[0] ?? [];
+    const result = headers.indexOf(this.translation.t('reports.pdf.Result'));
+    const theoretical = headers.indexOf(this.translation.t('reports.pdf.Theoretical'));
+    const sample = headers.indexOf(this.translation.t('reports.pdf.Sample'));
+    const volumeLabels = ['Sand_m_', 'Agg_m_', 'Sand_m_compact', 'Agg_m_compact']
+      .map(key => this.translation.t('reports.pdf.' + key));
+    const volumes = new Set(headers.map((header, index) => volumeLabels.includes(header) ? index : -1).filter(index => index >= 0));
+    const status = (value: string, key: string): string => this.translation.isArabic() ? this.translation.t('reports.status.' + key) : value;
+    return body.map(row => row.map((value, column) => {
+      if (result >= 0 && column === result) {
+        if (value === 'PASS') return status(value, 'pass');
+        if (value === 'FAIL') return status(value, 'fail');
+        if (value === 'CONFIGURATION_REQUIRED' || value === 'Configuration Required') return status(value, 'configRequired');
+        if (value === 'N/A') return status(value, 'notApplicable');
+      }
+      if (column === theoretical && value === 'Not Configured') return status(value, 'notConfigured');
+      if (volumes.has(column) && (value === 'CONFIGURATION_REQUIRED' || value === 'Configuration Required')) return status(value, 'configRequired');
+      if (result >= 0 && column === 0 && value === 'AVERAGE') return status(value, 'average');
+      if (sample >= 0 && column === sample) {
+        const number = value.match(/^Sample (\d+)$/);
+        if (number && this.translation.isArabic()) return this.translation.t('reports.status.sampleNumber', { number: number[1] });
+        const count = value.match(/^(\d+) samples$/);
+        if (count && this.translation.isArabic()) return this.translation.t('reports.status.samplesCount', { count: count[1] });
+      }
+      return value;
+    }));
+  }
+
   private exWriteReportHeader(ws: XLSX.WorkSheet, title: string, p: ReportParams, colCount: number): number {
     const lastCol = XLSX.utils.encode_col(colCount - 1);
     const merges: XLSX.Range[] = [];
@@ -487,20 +527,20 @@ export class ReportService {
     this.exStyle(ws, 'A1', this.exHeaderStyle());
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } });
 
-    ws['A2'] = { v: 'Production Management System', t: 's' };
+    ws['A2'] = { v: this.exLabel('Production Management System'), t: 's' };
     this.exStyle(ws, 'A2', this.exSubtitleStyle());
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } });
 
-    ws['A4'] = { v: title.toUpperCase(), t: 's' };
+    ws['A4'] = { v: this.exLabel(title).toUpperCase(), t: 's' };
     this.exStyle(ws, 'A4', this.exReportTitleStyle());
     merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: colCount - 1 } });
 
-    const period = `Report Period:  ${this.fmtDate(p.range.startDate)}  –  ${this.fmtDate(p.range.endDate)}`;
+    const period = `${this.exLabel('Report Period:')}  ${this.fmtDate(p.range.startDate)}  –  ${this.fmtDate(p.range.endDate)}`;
     ws['A5'] = { v: period, t: 's' };
     this.exStyle(ws, 'A5', this.exMetaLabelStyle());
     merges.push({ s: { r: 4, c: 0 }, e: { r: 4, c: colCount - 1 } });
 
-    const gen = `Generated:  ${this.fmtDate(new Date().toISOString().substring(0, 10))}    |    Report Type:  ${title}`;
+    const gen = `${this.exLabel('Generated:')}  ${this.fmtDate(new Date().toISOString().substring(0, 10))}    |    ${this.exLabel('Report Type:')}  ${this.exLabel(title)}`;
     ws['A6'] = { v: gen, t: 's' };
     this.exStyle(ws, 'A6', this.exMetaLabelStyle());
     merges.push({ s: { r: 5, c: 0 }, e: { r: 5, c: colCount - 1 } });
@@ -524,7 +564,7 @@ export class ReportService {
       const labelRef = `${col}${startRow + 1}`;
       const valueRef = `${col}${startRow + 2}`;
 
-      ws[labelRef] = { v: label, t: 's' };
+      ws[labelRef] = { v: this.exLabel(label), t: 's' };
       this.exStyle(ws, labelRef, this.exKpiLabelStyle());
 
       const val = values[i];
@@ -545,7 +585,7 @@ export class ReportService {
   private exWriteTableHeader(ws: XLSX.WorkSheet, headers: string[], row: number): void {
     headers.forEach((h, i) => {
       const ref = XLSX.utils.encode_cell({ r: row, c: i });
-      ws[ref] = { v: h, t: 's' };
+      ws[ref] = { v: this.exLabel(h), t: 's' };
       this.exStyle(ws, ref, this.exTableHeaderStyle());
     });
     ws['!rows'] = ws['!rows'] || [];
@@ -577,7 +617,7 @@ export class ReportService {
     values.forEach((val, i) => {
       const ref = XLSX.utils.encode_cell({ r: row, c: i });
       const isNum = typeof val === 'number';
-      ws[ref] = { v: val, t: isNum ? 'n' : 's' };
+      ws[ref] = { v: typeof val === 'string' ? this.exLabel(val) : val, t: isNum ? 'n' : 's' };
 
       const style: any = this.exTotalsStyle();
       if (numericCols?.has(i) || isNum) {
@@ -592,7 +632,7 @@ export class ReportService {
 
   private exWriteNoData(ws: XLSX.WorkSheet, row: number, colCount: number): number {
     const ref = `A${row}`;
-    ws[ref] = { v: 'No data available for this report type in the selected date range.', t: 's' };
+    ws[ref] = { v: this.exLabel('No data available for this report type in the selected date range.'), t: 's' };
     this.exStyle(ws, ref, {
       font: { italic: true, sz: 10, color: { rgb: this.EX_LIGHT }, name: 'Calibri' },
       alignment: { horizontal: 'center', vertical: 'center' }
@@ -603,7 +643,7 @@ export class ReportService {
 
   private exWriteSectionTitle(ws: XLSX.WorkSheet, title: string, row: number, colCount: number): number {
     const ref = `A${row}`;
-    ws[ref] = { v: title, t: 's' };
+    ws[ref] = { v: this.exLabel(title), t: 's' };
     this.exStyle(ws, ref, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: colCount - 1 } }]);
     return row + 1;
@@ -644,7 +684,7 @@ export class ReportService {
 
     // ── Production KPIs ──
     const secRef = `A${row}`;
-    ws[secRef] = { v: 'KEY PERFORMANCE INDICATORS', t: 's' };
+    ws[secRef] = { v: this.exLabel('KEY PERFORMANCE INDICATORS'), t: 's' };
     this.exStyle(ws, secRef, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } }]);
     row++;
@@ -671,7 +711,7 @@ export class ReportService {
     const prodEntries = Array.from(productProduction.entries()).sort(([, a], [, b]) => b - a);
 
     const sec2Ref = `A${row}`;
-    ws[sec2Ref] = { v: 'PRODUCTION BY PRODUCT', t: 's' };
+    ws[sec2Ref] = { v: this.exLabel('PRODUCTION BY PRODUCT'), t: 's' };
     this.exStyle(ws, sec2Ref, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } }]);
     row++;
@@ -690,7 +730,7 @@ export class ReportService {
 
     // ── Quality Summary ──
     const sec3Ref = `A${row}`;
-    ws[sec3Ref] = { v: 'QUALITY SUMMARY', t: 's' };
+    ws[sec3Ref] = { v: this.exLabel('QUALITY SUMMARY'), t: 's' };
     this.exStyle(ws, sec3Ref, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } }]);
     row++;
@@ -702,7 +742,7 @@ export class ReportService {
 
     // ── Production by Day ──
     const sec4Ref = `A${row}`;
-    ws[sec4Ref] = { v: 'PRODUCTION BY DAY', t: 's' };
+    ws[sec4Ref] = { v: this.exLabel('PRODUCTION BY DAY'), t: 's' };
     this.exStyle(ws, sec4Ref, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } }]);
     row++;
@@ -723,7 +763,7 @@ export class ReportService {
 
     // ── Materials Summary ──
     const sec5Ref = `A${row}`;
-    ws[sec5Ref] = { v: 'MATERIALS OVERVIEW', t: 's' };
+    ws[sec5Ref] = { v: this.exLabel('MATERIALS OVERVIEW'), t: 's' };
     this.exStyle(ws, sec5Ref, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } }]);
     row++;
@@ -806,7 +846,7 @@ export class ReportService {
 
     // Section title
     const secRef = `A${row}`;
-    ws[secRef] = { v: 'PRODUCTION DETAILS', t: 's' };
+    ws[secRef] = { v: this.exLabel('PRODUCTION DETAILS'), t: 's' };
     this.exStyle(ws, secRef, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } }]);
     row++;
@@ -898,7 +938,7 @@ export class ReportService {
     row++;
 
     const secRef = `A${row}`;
-    ws[secRef] = { v: 'MATERIALS DETAILS', t: 's' };
+    ws[secRef] = { v: this.exLabel('MATERIALS DETAILS'), t: 's' };
     this.exStyle(ws, secRef, this.exSectionTitleStyle());
     ws['!merges'] = (ws['!merges'] || []).concat([{ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } }]);
     row++;
@@ -1751,26 +1791,26 @@ export class ReportService {
     doc.setFillColor(...this.BRAND_GOLD);
     doc.rect(0, 32, pageW, 1.5, 'F');
 
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(...this.WHITE);
     doc.text('TPMS', 14, 16);
 
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setTextColor(180, 170, 155);
-    doc.text('Production Management System', 14, 23);
+    doc.text(this.translation.t('reports.pdf.Production_Management_System'), 14, 23);
 
     doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.setTextColor(...this.WHITE);
     doc.text(title.toUpperCase(), pageW - 14, 16, { align: 'right' });
 
     const refNo = `RPT-${Date.now().toString(36).toUpperCase().slice(-6)}`;
     doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setTextColor(180, 170, 155);
-    doc.text(`Ref: ${refNo}`, pageW - 14, 23, { align: 'right' });
+    doc.text(this.translation.t('reports.pdf.ref', { ref: refNo }), pageW - 14, 23, { align: 'right' });
   }
 
   // ─── PDF Metadata ──────────────────────────────────────────────────────────
@@ -1786,27 +1826,27 @@ export class ReportService {
     doc.roundedRect(x, y, pageW - 28, 18, 2, 2, 'S');
 
     y += 6;
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...this.TEXT_MED);
-    doc.text('Report Period:', x + 4, y);
+    doc.text(this.translation.t('reports.pdf.Report_Period_'), x + 4, y);
     doc.setTextColor(...this.TEXT_DARK);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.text(`${this.fmtDate(p.range.startDate)} – ${this.fmtDate(p.range.endDate)}`, x + 30, y);
 
     y += 7;
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setTextColor(...this.TEXT_MED);
-    doc.text('Generated:', x + 4, y);
+    doc.text(this.translation.t('reports.pdf.Generated_'), x + 4, y);
     doc.setTextColor(...this.TEXT_DARK);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.text(this.fmtDate(new Date().toISOString().substring(0, 10)), x + 30, y);
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setTextColor(...this.TEXT_MED);
-    doc.text('Report Type:', pageW / 2 + 5, y - 7);
+    doc.text(this.translation.t('reports.pdf.Report_Type_'), pageW / 2 + 5, y - 7);
     doc.setTextColor(...this.BRAND_DARK);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.text(title, pageW / 2 + 28, y - 7);
 
     return y + 10;
@@ -1837,12 +1877,12 @@ export class ReportService {
       doc.setFillColor(...card.color);
       doc.rect(cx, cy, 3, cardH, 'F');
 
-      doc.setFont('helvetica', 'bold');
+      doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
       doc.setFontSize(13);
       doc.setTextColor(...this.TEXT_DARK);
       doc.text(card.value, cx + 8, cy + 10);
 
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(...this.TEXT_MED);
       doc.text(card.label, cx + 8, cy + 16);
@@ -1856,9 +1896,10 @@ export class ReportService {
 
   private drawTable(doc: jsPDF, head: string[][], body: string[][], startY: number, columnStylesOverride?: Record<number, object>, avoidRowSplit = false, visuals: PdfTableVisuals = {}): number {
     const v = visuals;
+    const displayHead = head.map(row => row.map(label => this.translation.t(PDF_LABEL_KEYS[label] ?? label)));
     autoTable(doc, {
-      head,
-      body,
+      head: displayHead,
+      body: this.pdfDisplayRows(displayHead, body),
       startY,
       margin: { left: 14, right: 14 },
       theme: v.theme ?? 'striped',
@@ -1957,7 +1998,7 @@ export class ReportService {
     doc.setFillColor(...this.BRAND_GOLD);
     doc.rect(14, y, 3, 8, 'F');
 
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(...this.BRAND_DARK);
     doc.text(title, 21, y + 5.5);
@@ -1974,11 +2015,11 @@ export class ReportService {
     doc.setDrawColor(...this.TABLE_BORDER);
     doc.line(14, pageH - 14, pageW - 14, pageH - 14);
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...this.TEXT_LIGHT);
-    doc.text('Generated by TPMS', 14, pageH - 8);
-    doc.text(`Page ${pageNumber}`, pageW - 14, pageH - 8, { align: 'right' });
+    doc.text(this.translation.t('reports.pdf.Generated_by_TPMS'), 14, pageH - 8);
+    doc.text(this.translation.t('reports.pdf.page', { page: pageNumber }), pageW - 14, pageH - 8, { align: 'right' });
 
     doc.setFillColor(...this.BRAND_GOLD);
     doc.rect(0, pageH - 3, pageW, 3, 'F');
@@ -2000,36 +2041,36 @@ export class ReportService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   private buildPdfProduction(doc: jsPDF, p: ReportParams): void {
-    this.drawHeader(doc, 'Production Report');
-    let y = this.drawMetadata(doc, p, 'Production', 40);
+    this.drawHeader(doc, this.translation.t('reports.pdf.Production_Report'));
+    let y = this.drawMetadata(doc, p, this.translation.t('reports.pdf.Production'), 40);
 
     const stats = this.computeStats(p);
 
     y = this.drawSummaryCards(doc, [
-      { label: 'Total Production', value: this.fmtNum(stats.totalProduced), color: this.BRAND_DARK },
-      { label: 'Total Presses', value: this.fmtNum(stats.totalPresses), color: this.BRAND_GOLD },
-      { label: 'Total Products', value: String(this.countUnique(p.productions, 'productId')), color: [63, 125, 90] },
-      { label: 'Total Lines', value: String(this.countUnique(p.productions, 'lineId')), color: [70, 130, 180] },
-      { label: 'Total Overtime', value: `${stats.totalOvertime}h`, color: [180, 130, 50] },
-      { label: 'Total Downtime', value: `${stats.totalDowntime}m`, color: [160, 82, 45] }
+      { label: this.translation.t('reports.pdf.Total_Production'), value: this.fmtNum(stats.totalProduced), color: this.BRAND_DARK },
+      { label: this.translation.t('reports.pdf.Total_Presses'), value: this.fmtNum(stats.totalPresses), color: this.BRAND_GOLD },
+      { label: this.translation.t('reports.pdf.Total_Products'), value: String(this.countUnique(p.productions, 'productId')), color: [63, 125, 90] },
+      { label: this.translation.t('reports.pdf.Total_Lines'), value: String(this.countUnique(p.productions, 'lineId')), color: [70, 130, 180] },
+      { label: this.translation.t('reports.pdf.Total_Overtime'), value: `${stats.totalOvertime}h`, color: [180, 130, 50] },
+      { label: this.translation.t('reports.pdf.Total_Downtime'), value: `${stats.totalDowntime}m`, color: [160, 82, 45] }
     ], y);
 
     if (p.productions.length === 0) {
       y = this.drawNoData(doc, y);
     } else {
-      y = this.drawSectionTitle(doc, 'Production Details', y);
-      const head = [['Date', 'Line', 'Product', 'Shift', 'Supervisor', 'PP', 'Press', 'Produced', 'OT(h)', 'DT(m)', 'DT Reason', 'Notes']];
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Production_Details'), y);
+      const head = [[this.translation.t('reports.pdf.Date'), this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Shift'), this.translation.t('reports.pdf.Supervisor'), this.translation.t('reports.pdf.PP'), this.translation.t('reports.pdf.Press'), this.translation.t('reports.pdf.Produced'), this.translation.t('reports.pdf.OT_h_'), this.translation.t('reports.pdf.DT_m_'), this.translation.t('reports.pdf.DT_Reason'), this.translation.t('reports.pdf.Notes')]];
       const body = this.buildProductionBody(p);
       y = this.drawTable(doc, head, body, y);
 
       y += 3;
       y = this.checkPageBreak(doc, y, 20, p);
-      y = this.drawSectionTitle(doc, 'Production Totals', y);
-      y = this.drawTable(doc, [['Metric', 'Value']], [
-        ['Total Presses', this.fmtNum(stats.totalPresses)],
-        ['Total Produced', this.fmtNum(stats.totalProduced)],
-        ['Total Overtime', `${stats.totalOvertime} hrs`],
-        ['Total Downtime', `${stats.totalDowntime} min`]
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Production_Totals'), y);
+      y = this.drawTable(doc, [[this.translation.t('reports.pdf.Metric'), this.translation.t('reports.pdf.Value')]], [
+        [this.translation.t('reports.pdf.Total_Presses'), this.fmtNum(stats.totalPresses)],
+        [this.translation.t('reports.pdf.Total_Produced'), this.fmtNum(stats.totalProduced)],
+        [this.translation.t('reports.pdf.Total_Overtime'), `${stats.totalOvertime} hrs`],
+        [this.translation.t('reports.pdf.Total_Downtime'), `${stats.totalDowntime} min`]
       ], y);
     }
   }
@@ -2065,8 +2106,8 @@ export class ReportService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   private buildPdfMaterials(doc: jsPDF, p: ReportParams): void {
-    this.drawHeader(doc, 'Materials Report');
-    let y = this.drawMetadata(doc, p, 'Materials', 40);
+    this.drawHeader(doc, this.translation.t('reports.pdf.Materials_Report'));
+    let y = this.drawMetadata(doc, p, this.translation.t('reports.pdf.Materials'), 40);
 
     const totalMixes = p.materials.reduce((s, m) => s + (m.mixCount || 0), 0);
     const totalCost = p.materials.reduce((s, m) => s + this.effectiveRecordCost(p, m), 0);
@@ -2075,17 +2116,17 @@ export class ReportService {
     const lineSummary = this.buildLineMaterialRows(p);
 
     y = this.drawSummaryCards(doc, [
-      { label: 'Total Mixes', value: this.fmtNum(totalMixes), color: this.BRAND_DARK },
-      { label: 'Total Cost', value: this.fmtCurrency(totalCost), color: this.BRAND_GOLD },
-      { label: 'Material Types', value: String(materialTypes.size), color: [63, 125, 90] },
-      { label: 'Batch Records', value: String(p.materials.length), color: [70, 130, 180] }
+      { label: this.translation.t('reports.pdf.Total_Mixes'), value: this.fmtNum(totalMixes), color: this.BRAND_DARK },
+      { label: this.translation.t('reports.pdf.Total_Cost'), value: this.fmtCurrency(totalCost), color: this.BRAND_GOLD },
+      { label: this.translation.t('reports.pdf.Material_Types'), value: String(materialTypes.size), color: [63, 125, 90] },
+      { label: this.translation.t('reports.pdf.Batch_Records'), value: String(p.materials.length), color: [70, 130, 180] }
     ], y);
 
     if (p.materials.length === 0) {
       y = this.drawNoData(doc, y);
     } else {
-      y = this.drawSectionTitle(doc, 'Materials by Line', y);
-      y = this.drawTable(doc, [['Line', 'Mixes', 'Cement (kg)', 'Sand (kg)', 'Sand (m³)', 'Agg. (kg)', 'Agg. (m³)', 'Water (L)']],
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Materials_by_Line'), y);
+      y = this.drawTable(doc, [[this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Mixes'), this.translation.t('reports.pdf.Cement_kg_'), this.translation.t('reports.pdf.Sand_kg_'), this.translation.t('reports.pdf.Sand_m_'), this.translation.t('reports.pdf.Agg_kg_'), this.translation.t('reports.pdf.Agg_m_'), this.translation.t('reports.pdf.Water_L_')]],
         lineSummary.map(l => [
           l.lineName, this.fmtNum(l.mixCount), this.fmtNum(l.cementKg),
           this.fmtNum(l.sandKg), this.fmtM3(l.sandM3),
@@ -2094,18 +2135,18 @@ export class ReportService {
 
       y += 3;
       y = this.checkPageBreak(doc, y, 16, p);
-      y = this.drawSectionTitle(doc, 'Materials Details', y);
-      const head = [['Date', 'Line', 'Product', 'Mixes', 'Material', 'Unit', 'Theoretical', 'Actual', 'Variance', 'Unit Cost', 'Total Cost']];
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Materials_Details'), y);
+      const head = [[this.translation.t('reports.pdf.Date'), this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Mixes'), this.translation.t('reports.pdf.Material'), this.translation.t('reports.pdf.Unit'), this.translation.t('reports.pdf.Theoretical'), this.translation.t('reports.pdf.Actual'), this.translation.t('reports.pdf.Variance'), this.translation.t('reports.pdf.Unit_Cost'), this.translation.t('reports.pdf.Total_Cost')]];
       const body = this.buildMaterialsBody(p);
       y = this.drawTable(doc, head, body, y);
 
       y += 3;
       y = this.checkPageBreak(doc, y, 16, p);
-      y = this.drawSectionTitle(doc, 'Materials Totals', y);
-      y = this.drawTable(doc, [['Metric', 'Value']], [
-        ['Total Records', String(p.materials.length)],
-        ['Total Mixes', this.fmtNum(totalMixes)],
-        ['Grand Total Cost', this.fmtCurrency(totalCost)]
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Materials_Totals'), y);
+      y = this.drawTable(doc, [[this.translation.t('reports.pdf.Metric'), this.translation.t('reports.pdf.Value')]], [
+        [this.translation.t('reports.pdf.Total_Records'), String(p.materials.length)],
+        [this.translation.t('reports.pdf.Total_Mixes'), this.fmtNum(totalMixes)],
+        [this.translation.t('reports.pdf.Grand_Total_Cost'), this.fmtCurrency(totalCost)]
       ], y);
     }
   }
@@ -2149,29 +2190,29 @@ export class ReportService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   private buildPdfQuality(doc: jsPDF, p: ReportParams): void {
-    this.drawHeader(doc, 'Quality Report');
-    let y = this.drawMetadata(doc, p, 'Quality', 40);
+    this.drawHeader(doc, this.translation.t('reports.pdf.Quality_Report'));
+    let y = this.drawMetadata(doc, p, this.translation.t('reports.pdf.Quality'), 40);
 
     const stats = this.qualityStats(p.qualityTests);
 
     y = this.drawSummaryCards(doc, [
-      { label: 'Samples Recorded', value: String(stats.recorded), color: this.BRAND_DARK },
-      { label: 'Samples Passed', value: String(stats.passed), color: this.SUCCESS },
-      { label: 'Samples Failed', value: String(stats.failed), color: this.ERROR },
-      { label: 'Sample Pass Rate', value: `${stats.passRate}%`, color: this.BRAND_GOLD }
+      { label: this.translation.t('reports.pdf.Samples_Recorded'), value: String(stats.recorded), color: this.BRAND_DARK },
+      { label: this.translation.t('reports.pdf.Samples_Passed'), value: String(stats.passed), color: this.SUCCESS },
+      { label: this.translation.t('reports.pdf.Samples_Failed'), value: String(stats.failed), color: this.ERROR },
+      { label: this.translation.t('reports.pdf.Sample_Pass_Rate'), value: `${stats.passRate}%`, color: this.BRAND_GOLD }
     ], y);
 
     if (p.qualityTests.length === 0) {
       y = this.drawNoData(doc, y);
     } else {
-      y = this.drawSectionTitle(doc, 'Quality Test Results', y);
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Quality_Test_Results'), y);
       const head = this.buildQualityHead();
       const body = this.buildQualityBody(p);
       y = this.drawTable(doc, head, body, y, this.buildQualityColumnStyles(), true);
 
       y += 3;
       y = this.checkPageBreak(doc, y, 24, p);
-      y = this.drawSectionTitle(doc, 'Quality Summary', y);
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Quality_Summary'), y);
       y = this.drawQualityMetricsTable(doc, {
         recorded: stats.recorded, assessed: stats.assessed,
         passed: stats.passed, failed: stats.failed, passRate: stats.passRate
@@ -2352,86 +2393,86 @@ export class ReportService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   private buildPdfComplete(doc: jsPDF, p: ReportParams): void {
-    this.drawHeader(doc, 'Complete Report');
-    let y = this.drawMetadata(doc, p, 'Complete', 40);
+    this.drawHeader(doc, this.translation.t('reports.pdf.Complete_Report'));
+    let y = this.drawMetadata(doc, p, this.translation.t('reports.pdf.Complete'), 40);
 
     const stats = this.computeStats(p);
 
     y = this.drawSummaryCards(doc, [
-      { label: 'Total Production', value: this.fmtNum(stats.totalProduced), color: this.BRAND_DARK },
-      { label: 'Total Mixes', value: this.fmtNum(stats.totalMixes), color: this.BRAND_GOLD },
-      { label: 'Samples Recorded', value: String(stats.recorded), color: [63, 125, 90] },
-      { label: 'Sample Pass Rate', value: `${stats.passRate}%`, color: [70, 130, 180] },
-      { label: 'Total Cost', value: this.fmtCurrency(stats.totalCost), color: [180, 130, 50] },
-      { label: 'Total Overtime', value: `${stats.totalOvertime}h`, color: [160, 82, 45] }
+      { label: this.translation.t('reports.pdf.Total_Production'), value: this.fmtNum(stats.totalProduced), color: this.BRAND_DARK },
+      { label: this.translation.t('reports.pdf.Total_Mixes'), value: this.fmtNum(stats.totalMixes), color: this.BRAND_GOLD },
+      { label: this.translation.t('reports.pdf.Samples_Recorded'), value: String(stats.recorded), color: [63, 125, 90] },
+      { label: this.translation.t('reports.pdf.Sample_Pass_Rate'), value: `${stats.passRate}%`, color: [70, 130, 180] },
+      { label: this.translation.t('reports.pdf.Total_Cost'), value: this.fmtCurrency(stats.totalCost), color: [180, 130, 50] },
+      { label: this.translation.t('reports.pdf.Total_Overtime'), value: `${stats.totalOvertime}h`, color: [160, 82, 45] }
     ], y);
 
     // ── Section 1: Executive Summary ─────────────────────────────────────────
-    y = this.drawSectionTitle(doc, 'Executive Summary', y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Executive_Summary'), y);
     const summaryBody = [
-      ['Total Production', this.fmtNum(stats.totalProduced), 'pieces'],
-      ['Total Presses', this.fmtNum(stats.totalPresses), 'presses'],
-      ['Total Mixes', this.fmtNum(stats.totalMixes), 'mixes'],
-      ['Total Material Cost', this.fmtCurrency(stats.totalCost), ''],
-      ['Samples Recorded', String(stats.recorded), 'samples'],
-      ['Samples Assessed', String(stats.assessed), 'samples'],
-      ['Sample Pass Rate', `${stats.passRate}%`, ''],
-      ['Total Released Output', this.fmtNum(stats.totalReleased), 'pieces'],
-      ['Total Overtime', `${stats.totalOvertime}`, 'hours'],
-      ['Total Downtime', `${stats.totalDowntime}`, 'minutes'],
-      ['Time Efficiency', `${stats.timeEfficiency}`, '']
+      [this.translation.t('reports.pdf.Total_Production'), this.fmtNum(stats.totalProduced), this.translation.t('reports.pdf.pieces')],
+      [this.translation.t('reports.pdf.Total_Presses'), this.fmtNum(stats.totalPresses), this.translation.t('reports.pdf.presses')],
+      [this.translation.t('reports.pdf.Total_Mixes'), this.fmtNum(stats.totalMixes), this.translation.t('reports.pdf.mixes')],
+      [this.translation.t('reports.pdf.Total_Material_Cost'), this.fmtCurrency(stats.totalCost), ''],
+      [this.translation.t('reports.pdf.Samples_Recorded'), String(stats.recorded), this.translation.t('reports.pdf.samples')],
+      [this.translation.t('reports.pdf.Samples_Assessed'), String(stats.assessed), this.translation.t('reports.pdf.samples')],
+      [this.translation.t('reports.pdf.Sample_Pass_Rate'), `${stats.passRate}%`, ''],
+      [this.translation.t('reports.pdf.Total_Released_Output'), this.fmtNum(stats.totalReleased), this.translation.t('reports.pdf.pieces')],
+      [this.translation.t('reports.pdf.Total_Overtime'), `${stats.totalOvertime}`, this.translation.t('reports.pdf.hours')],
+      [this.translation.t('reports.pdf.Total_Downtime'), `${stats.totalDowntime}`, this.translation.t('reports.pdf.minutes')],
+      [this.translation.t('reports.pdf.Time_Efficiency'), `${stats.timeEfficiency}`, '']
     ];
-    y = this.drawTable(doc, [['Metric', 'Value', 'Unit']], summaryBody, y);
+    y = this.drawTable(doc, [[this.translation.t('reports.pdf.Metric'), this.translation.t('reports.pdf.Value'), this.translation.t('reports.pdf.Unit')]], summaryBody, y);
 
     // ── Section 2: Production ────────────────────────────────────────────────
     doc.addPage();
     y = 25;
-    y = this.drawSectionTitle(doc, 'Production', y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Production'), y);
 
     if (p.productions.length === 0) {
       y = this.drawNoData(doc, y);
     } else {
-      const head = [['Date', 'Line', 'Product', 'Shift', 'Supervisor', 'PP', 'Press', 'Produced', 'OT(h)', 'DT(m)', 'DT Reason', 'Notes']];
+      const head = [[this.translation.t('reports.pdf.Date'), this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Shift'), this.translation.t('reports.pdf.Supervisor'), this.translation.t('reports.pdf.PP'), this.translation.t('reports.pdf.Press'), this.translation.t('reports.pdf.Produced'), this.translation.t('reports.pdf.OT_h_'), this.translation.t('reports.pdf.DT_m_'), this.translation.t('reports.pdf.DT_Reason'), this.translation.t('reports.pdf.Notes')]];
       const body = this.buildProductionBody(p);
       y = this.drawTable(doc, head, body, y);
 
       y += 3;
       y = this.checkPageBreak(doc, y, 20, p);
-      y = this.drawSectionTitle(doc, 'Released Output', y);
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Released_Output'), y);
       const prodOutput = this.buildProductionOutput(p);
-      y = this.drawTable(doc, [['Date', 'Line', 'Product', 'Presses', 'Press Production', 'Released Output']],
+      y = this.drawTable(doc, [[this.translation.t('reports.pdf.Date'), this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Presses'), this.translation.t('reports.pdf.Press_Production'), this.translation.t('reports.pdf.Released_Output')]],
         prodOutput.map(po => [po.date, po.lineName, po.productName, this.fmtNum(po.presses), this.fmtNum(po.produced), this.fmtNum(po.releasedOutput)]), y);
 
       y += 3;
       y = this.checkPageBreak(doc, y, 20, p);
-      y = this.drawSectionTitle(doc, 'Production Totals', y);
-      y = this.drawTable(doc, [['Metric', 'Value']], [
-        ['Total Presses', this.fmtNum(stats.totalPresses)],
-        ['Total Produced', this.fmtNum(stats.totalProduced)],
-        ['Total Released Output', this.fmtNum(stats.totalReleased)],
-        ['Total Overtime', `${stats.totalOvertime} hrs`],
-        ['Total Downtime', `${stats.totalDowntime} min`]
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Production_Totals'), y);
+      y = this.drawTable(doc, [[this.translation.t('reports.pdf.Metric'), this.translation.t('reports.pdf.Value')]], [
+        [this.translation.t('reports.pdf.Total_Presses'), this.fmtNum(stats.totalPresses)],
+        [this.translation.t('reports.pdf.Total_Produced'), this.fmtNum(stats.totalProduced)],
+        [this.translation.t('reports.pdf.Total_Released_Output'), this.fmtNum(stats.totalReleased)],
+        [this.translation.t('reports.pdf.Total_Overtime'), `${stats.totalOvertime} hrs`],
+        [this.translation.t('reports.pdf.Total_Downtime'), `${stats.totalDowntime} min`]
       ], y);
     }
 
     // ── Section 3: Materials ─────────────────────────────────────────────────
     doc.addPage();
     y = 25;
-    y = this.drawSectionTitle(doc, 'Materials', y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Materials'), y);
 
     if (p.materials.length === 0) {
       y = this.drawNoData(doc, y);
     } else {
-      const head = [['Date', 'Line', 'Product', 'Mixes', 'Material', 'Unit', 'Theoretical', 'Actual', 'Variance', 'Unit Cost', 'Total Cost']];
+      const head = [[this.translation.t('reports.pdf.Date'), this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Mixes'), this.translation.t('reports.pdf.Material'), this.translation.t('reports.pdf.Unit'), this.translation.t('reports.pdf.Theoretical'), this.translation.t('reports.pdf.Actual'), this.translation.t('reports.pdf.Variance'), this.translation.t('reports.pdf.Unit_Cost'), this.translation.t('reports.pdf.Total_Cost')]];
       const body = this.buildMaterialsBody(p);
       y = this.drawTable(doc, head, body, y);
 
       y += 3;
       y = this.checkPageBreak(doc, y, 16, p);
-      y = this.drawTable(doc, [['Metric', 'Value']], [
-        ['Total Records', String(p.materials.length)],
-        ['Total Mixes', this.fmtNum(stats.totalMixes)],
-        ['Grand Total Cost', this.fmtCurrency(stats.totalCost)]
+      y = this.drawTable(doc, [[this.translation.t('reports.pdf.Metric'), this.translation.t('reports.pdf.Value')]], [
+        [this.translation.t('reports.pdf.Total_Records'), String(p.materials.length)],
+        [this.translation.t('reports.pdf.Total_Mixes'), this.fmtNum(stats.totalMixes)],
+        [this.translation.t('reports.pdf.Grand_Total_Cost'), this.fmtCurrency(stats.totalCost)]
       ], y);
     }
 
@@ -2441,14 +2482,14 @@ export class ReportService {
     // report keeps the full detail on its landscape pages.
     doc.addPage('a4', 'portrait');
     y = 25;
-    y = this.drawSectionTitle(doc, 'Quality', y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Quality'), y);
 
     if (p.qualityTests.length === 0) {
       y = this.drawNoData(doc, y);
     } else {
       const mgmt = this.buildQualityManagementRows(p);
       y = this.drawTable(doc,
-        [['Line', 'Product', 'Recorded', 'Assessed', 'Avg Height', 'Avg Weight (kg)', 'Avg Load (kN)', 'Avg Compression', 'Passed', 'Failed', 'Pass Rate']],
+        [[this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Recorded'), this.translation.t('reports.pdf.Assessed'), this.translation.t('reports.pdf.Avg_Height'), this.translation.t('reports.pdf.Avg_Weight_kg_'), this.translation.t('reports.pdf.Avg_Load_kN_'), this.translation.t('reports.pdf.Avg_Compression'), this.translation.t('reports.pdf.Passed'), this.translation.t('reports.pdf.Failed'), this.translation.t('reports.pdf.Pass_Rate')]],
         mgmt.map(m => [
           m.lineName, m.productName,
           String(m.recorded), String(m.assessed),
@@ -2462,7 +2503,7 @@ export class ReportService {
 
       y += 3;
       y = this.checkPageBreak(doc, y, 24, p);
-      y = this.drawSectionTitle(doc, 'Quality Summary', y);
+      y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Quality_Summary'), y);
       y = this.drawQualityMetricsTable(doc, {
         recorded: stats.recorded, assessed: stats.assessed,
         passed: stats.passed, failed: stats.failed, passRate: stats.passRate
@@ -2472,11 +2513,11 @@ export class ReportService {
     // ── Section 5: Performance Summary ───────────────────────────────────────
     doc.addPage('a4', 'portrait');
     y = 25;
-    y = this.drawSectionTitle(doc, 'Performance Summary', y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Performance_Summary'), y);
 
     const breakdown = this.buildProductBreakdown(p);
     if (breakdown.length > 0) {
-      y = this.drawTable(doc, [['Product', 'Presses', 'Press Production', 'Released Output']],
+      y = this.drawTable(doc, [[this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Presses'), this.translation.t('reports.pdf.Press_Production'), this.translation.t('reports.pdf.Released_Output')]],
         breakdown.map(b => [b.productName, this.fmtNum(b.presses), this.fmtNum(b.produced), this.fmtNum(b.releasedOutput)]), y);
     } else {
       y = this.drawNoData(doc, y);
@@ -2484,8 +2525,8 @@ export class ReportService {
 
     y += 5;
     y = this.checkPageBreak(doc, y, 20, p);
-    y = this.drawSectionTitle(doc, 'Overall KPIs', y);
-    y = this.drawTable(doc, [['KPI', 'Value']], this.buildOverallKpiRows(stats), y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Overall_KPIs'), y);
+    y = this.drawTable(doc, [[this.translation.t('reports.pdf.KPI'), this.translation.t('reports.pdf.Value')]], this.buildOverallKpiRows(stats), y);
   }
 
   /**
@@ -2500,10 +2541,10 @@ export class ReportService {
     passRate: string; passed: number; assessed: number;
   }): string[][] {
     return [
-      ['Output per Press', stats.totalPresses > 0 ? `${this.fmtNum(stats.totalProduced)} pieces / ${this.fmtNum(stats.totalPresses)} presses` : 'No data'],
-      ['Quality Performance', `${stats.passRate}% sample pass rate (${stats.passed}/${stats.assessed} assessed samples passed)`],
-      ['Material Cost', this.fmtCurrency(stats.totalCost)],
-      ['Operational Time', `${stats.totalOvertime}h overtime, ${stats.totalDowntime}m downtime`]
+      [this.translation.t('reports.pdf.Output_per_Press'), stats.totalPresses > 0 ? this.translation.t('reports.pdf.outputRatio', { pieces: this.fmtNum(stats.totalProduced), presses: this.fmtNum(stats.totalPresses) }) : this.translation.t('reports.pdf.No_data')],
+      [this.translation.t('reports.pdf.Quality_Performance'), this.translation.t('reports.pdf.qualityRatio', { rate: stats.passRate, passed: stats.passed, assessed: stats.assessed })],
+      [this.translation.t('reports.pdf.Material_Cost'), this.fmtCurrency(stats.totalCost)],
+      [this.translation.t('reports.pdf.Operational_Time'), this.translation.t('reports.pdf.operationalTime', { overtime: stats.totalOvertime, downtime: stats.totalDowntime })]
     ];
   }
 
@@ -2556,30 +2597,30 @@ export class ReportService {
     const pageW = doc.internal.pageSize.getWidth();
     const m = 14;
 
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.setFontSize(15);
     doc.setTextColor(...this.BW_TEXT);
     doc.text('TPMS', m, 14);
     doc.text(title.toUpperCase(), pageW - m, 14, { align: 'right' });
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...this.BW_MUTED);
-    doc.text('Production Management System', m, 18.5);
-    doc.text(`Ref: RPT-${Date.now().toString(36).toUpperCase().slice(-6)}`, pageW - m, 18.5, { align: 'right' });
+    doc.text(this.translation.t('reports.pdf.Production_Management_System'), m, 18.5);
+    doc.text(this.translation.t('reports.pdf.ref', { ref: `RPT-${Date.now().toString(36).toUpperCase().slice(-6)}` }), pageW - m, 18.5, { align: 'right' });
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...this.BW_MUTED);
-    doc.text('Report Period:', m, 24.5);
-    doc.setFont('helvetica', 'bold');
+    doc.text(this.translation.t('reports.pdf.Report_Period_'), m, 24.5);
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.setTextColor(...this.BW_TEXT);
     doc.text(`${this.fmtDate(p.range.startDate)} – ${this.fmtDate(p.range.endDate)}`, m + 22, 24.5, { maxWidth: 115 });
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
     doc.setTextColor(...this.BW_MUTED);
-    doc.text('Generated:', pageW - m - 125, 24.5);
-    doc.setFont('helvetica', 'bold');
+    doc.text(this.translation.t('reports.pdf.Generated_'), pageW - m - 125, 24.5);
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.setTextColor(...this.BW_TEXT);
     doc.text(this.fmtDate(new Date().toISOString().substring(0, 10)), pageW - m - 125 + 16, 24.5, { maxWidth: 100 });
 
@@ -2608,12 +2649,12 @@ export class ReportService {
 
       doc.roundedRect(cx, cy, cellW, rowHeight, 1, 1, 'S');
 
-      doc.setFont('helvetica', 'bold');
+      doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
       doc.setFontSize(valueSize);
       doc.setTextColor(...this.BW_TEXT);
       doc.text(item.value, cx + 3, cy + rowHeight / 2, { maxWidth: cellW - 6 });
 
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
       doc.setFontSize(5.5);
       doc.setTextColor(...this.BW_MUTED);
       doc.text(item.label, cx + 3, cy + rowHeight - 3, { maxWidth: cellW - 6 });
@@ -2626,7 +2667,7 @@ export class ReportService {
   /** Uppercase bold heading + thin rule. */
   private drawDailySectionTitle(doc: jsPDF, title: string, y: number): number {
     const pageW = doc.internal.pageSize.getWidth();
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...this.BW_TEXT);
     doc.text(title.toUpperCase(), 14, y);
@@ -2648,17 +2689,17 @@ export class ReportService {
       doc.setDrawColor(...this.BW_RULE);
       doc.setLineWidth(0.2);
       doc.line(14, pageH - 13.5, pageW - 14, pageH - 13.5);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...this.BW_MUTED);
       doc.text(`TPMS - ${label}`, 14, pageH - 8);
-      doc.text(`Page ${i} of ${total}`, pageW - 14, pageH - 8, { align: 'right' });
+      doc.text(this.translation.t('reports.pdf.pageOf', { page: i, total }), pageW - 14, pageH - 8, { align: 'right' });
     }
     doc.setPage(total);
   }
 
   private drawLineOpsTable(doc: jsPDF, lines: ReportLineOpsRow[], y: number, columnStyles?: Record<number, object>, visuals?: PdfTableVisuals): number {
-    return this.drawTable(doc, [['Line', 'Pressed\nProduct(s)', 'Released\nProduct(s)', 'Shift', 'Presses', 'Produced', 'Released', 'Mix', 'Cement\n(kg)', 'Sand\n(m³)', 'Agg.\n(m³)', 'Water\n(L)', 'DT\n(min)', 'Avail\n(min)', 'Run\n(min)', 'Time Eff\n(%)', 'Samples', 'Passed', 'Failed']],
+    return this.drawTable(doc, [[this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Pressed_Product_s_'), this.translation.t('reports.pdf.Released_Product_s_'), this.translation.t('reports.pdf.Shift'), this.translation.t('reports.pdf.Presses'), this.translation.t('reports.pdf.Produced'), this.translation.t('reports.pdf.Released'), this.translation.t('reports.pdf.Mix'), this.translation.t('reports.pdf.Cement_kg_compact'), this.translation.t('reports.pdf.Sand_m_compact'), this.translation.t('reports.pdf.Agg_m_compact'), this.translation.t('reports.pdf.Water_L_compact'), this.translation.t('reports.pdf.DT_min_'), this.translation.t('reports.pdf.Avail_min_'), this.translation.t('reports.pdf.Run_min_'), this.translation.t('reports.pdf.Time_Eff_'), this.translation.t('reports.pdf.Samples'), this.translation.t('reports.pdf.Passed'), this.translation.t('reports.pdf.Failed')]],
       lines.map(l => [
         l.lineName, l.pressedProductsLabel, l.releasedProductsLabel, l.shiftsLabel,
         this.fmtNum(l.presses), this.fmtNum(l.produced), this.fmtNum(l.releasedOutput), this.fmtNum(l.mixCount),
@@ -2669,13 +2710,13 @@ export class ReportService {
   }
 
   private drawQualityMetricsTable(doc: jsPDF, q: { recorded: number; assessed: number; passed: number; failed: number; passRate: string }, y: number, columnStyles?: Record<number, object>, visuals?: PdfTableVisuals): number {
-    return this.drawTable(doc, [['Metric', 'Value']], [
-      ['Samples Recorded', String(q.recorded)],
-      ['Samples Assessed', String(q.assessed)],
-      ['Samples Passed', String(q.passed)],
-      ['Samples Failed', String(q.failed)],
-      ['Samples Pending Configuration', String(q.recorded - q.assessed)],
-      ['Sample Pass Rate', `${q.passRate}%`]
+    return this.drawTable(doc, [[this.translation.t('reports.pdf.Metric'), this.translation.t('reports.pdf.Value')]], [
+      [this.translation.t('reports.pdf.Samples_Recorded'), String(q.recorded)],
+      [this.translation.t('reports.pdf.Samples_Assessed'), String(q.assessed)],
+      [this.translation.t('reports.pdf.Samples_Passed'), String(q.passed)],
+      [this.translation.t('reports.pdf.Samples_Failed'), String(q.failed)],
+      [this.translation.t('reports.pdf.Samples_Pending_Configuration'), String(q.recorded - q.assessed)],
+      [this.translation.t('reports.pdf.Sample_Pass_Rate'), `${q.passRate}%`]
     ], y, columnStyles, false, visuals);
   }
 
@@ -2686,17 +2727,17 @@ export class ReportService {
     const lines = this.buildLineOperations(p);
     const materials = this.buildMaterialUsageRows(p);
     const q = this.qualityStats(p.qualityTests);
-    const reportLabel = 'Daily Operational Report';
+    const reportLabel = this.translation.t('reports.pdf.Daily_Operational_Report');
 
     this.drawDailyHeader(doc, p, reportLabel);
 
     let y = this.drawDailyCells(doc, [
-      { label: 'Press Production', value: this.fmtNum(kpis.produced) },
-      { label: 'Total Presses', value: this.fmtNum(kpis.presses) },
-      { label: 'Released Output', value: this.fmtNum(kpis.released) },
-      { label: 'Total Mixes', value: this.fmtNum(kpis.mixes) },
-      { label: 'Time Efficiency', value: `${kpis.timeEfficiency.toFixed(1)}%` },
-      { label: 'Sample Pass Rate', value: `${q.passRate}%` }
+      { label: this.translation.t('reports.pdf.Press_Production'), value: this.fmtNum(kpis.produced) },
+      { label: this.translation.t('reports.pdf.Total_Presses'), value: this.fmtNum(kpis.presses) },
+      { label: this.translation.t('reports.pdf.Released_Output'), value: this.fmtNum(kpis.released) },
+      { label: this.translation.t('reports.pdf.Total_Mixes'), value: this.fmtNum(kpis.mixes) },
+      { label: this.translation.t('reports.pdf.Time_Efficiency'), value: `${kpis.timeEfficiency.toFixed(1)}%` },
+      { label: this.translation.t('reports.pdf.Sample_Pass_Rate'), value: `${q.passRate}%` }
     ], 33, 6, 13, 11);
 
     if (!this.hasOperationalData(p)) {
@@ -2706,8 +2747,8 @@ export class ReportService {
     }
 
     y = this.checkPageBreak(doc, y, 24, p);
-    y = this.drawDailySectionTitle(doc, 'Product Breakdown', y);
-    y = this.drawTable(doc, [['Product', 'Presses', 'Press Production', 'Released Output']],
+    y = this.drawDailySectionTitle(doc, this.translation.t('reports.pdf.Product_Breakdown'), y);
+    y = this.drawTable(doc, [[this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Presses'), this.translation.t('reports.pdf.Press_Production'), this.translation.t('reports.pdf.Released_Output')]],
       breakdown.map(b => [b.productName, this.fmtNum(b.presses), this.fmtNum(b.produced), this.fmtNum(b.releasedOutput)]),
       y,
       this.dailyColStyles([136, 38, 50, 45], [1, 2, 3]),
@@ -2716,8 +2757,8 @@ export class ReportService {
 
     y += 3;
     y = this.checkPageBreak(doc, y, 24, p);
-    y = this.drawDailySectionTitle(doc, 'Production + Output', y);
-    y = this.drawTable(doc, [['Date', 'Line', 'Product', 'Presses', 'Press Production', 'Released Output']],
+    y = this.drawDailySectionTitle(doc, this.translation.t('reports.pdf.Production_Output'), y);
+    y = this.drawTable(doc, [[this.translation.t('reports.pdf.Date'), this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Presses'), this.translation.t('reports.pdf.Press_Production'), this.translation.t('reports.pdf.Released_Output')]],
       prodOutput.map(po => [po.date, po.lineName, po.productName, this.fmtNum(po.presses), this.fmtNum(po.produced), this.fmtNum(po.releasedOutput)]),
       y,
       this.dailyColStyles([26, 55, 76, 30, 44, 38], [3, 4, 5]),
@@ -2726,15 +2767,15 @@ export class ReportService {
 
     y += 3;
     y = this.checkPageBreak(doc, y, 24, p);
-    y = this.drawDailySectionTitle(doc, 'Line-Level Operations', y);
+    y = this.drawDailySectionTitle(doc, this.translation.t('reports.pdf.Line_Level_Operations'), y);
     y = this.drawLineOpsTable(doc, lines, y,
       this.dailyColStyles([26, 52, 32, 10, 11, 13, 10, 9, 12, 10, 10, 9, 9, 10, 9, 13, 8, 8, 8], [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]),
       this.dailyVisuals(6.6, true));
 
     y += 3;
     y = this.checkPageBreak(doc, y, 24, p);
-    y = this.drawDailySectionTitle(doc, 'Materials by Record', y);
-    y = this.drawTable(doc, [['Date', 'Line', 'Mix', 'Cement (kg)', 'Sand (kg)', 'Sand (m³)', 'Agg. (kg)', 'Agg. (m³)', 'Water (L)']],
+    y = this.drawDailySectionTitle(doc, this.translation.t('reports.pdf.Materials_by_Record'), y);
+    y = this.drawTable(doc, [[this.translation.t('reports.pdf.Date'), this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Mix'), this.translation.t('reports.pdf.Cement_kg_'), this.translation.t('reports.pdf.Sand_kg_'), this.translation.t('reports.pdf.Sand_m_'), this.translation.t('reports.pdf.Agg_kg_'), this.translation.t('reports.pdf.Agg_m_'), this.translation.t('reports.pdf.Water_L_')]],
       materials.map(m => [m.date, m.lineName, this.fmtNum(m.mixCount), this.fmtNum(m.cementKg), this.fmtNum(m.sandKg), this.fmtM3(m.sandM3), this.fmtNum(m.aggregateKg), this.fmtM3(m.aggregateM3), this.fmtNum(m.waterL)]),
       y,
       this.dailyColStyles([26, 68, 22, 34, 36, 27, 26, 18, 12], [2, 3, 4, 5, 6, 7, 8]),
@@ -2743,7 +2784,7 @@ export class ReportService {
 
     y += 3;
     y = this.checkPageBreak(doc, y, 24, p);
-    y = this.drawDailySectionTitle(doc, 'Quality Summary', y);
+    y = this.drawDailySectionTitle(doc, this.translation.t('reports.pdf.Quality_Summary'), y);
     y = this.drawQualityMetricsTable(doc, q, y,
       this.dailyColStyles([215, 54], [1]),
       this.dailyVisuals(7));
@@ -2752,21 +2793,21 @@ export class ReportService {
   }
 
   private buildPdfMonthly(doc: jsPDF, p: ReportParams): void {
-    this.drawHeader(doc, 'Monthly Operational Report');
+    this.drawHeader(doc, this.translation.t('reports.pdf.Monthly_Operational_Report'));
     const kpis = this.buildOperationKpis(p);
     const breakdown = this.buildProductBreakdown(p);
     const lines = this.buildLineOperations(p);
     const materials = this.buildLineMaterialRows(p);
     const q = this.qualityStats(p.qualityTests);
 
-    let y = this.drawMetadata(doc, p, 'Monthly', 40);
+    let y = this.drawMetadata(doc, p, this.translation.t('reports.pdf.Monthly'), 40);
     y = this.drawSummaryCards(doc, [
-      { label: 'Total Produced', value: this.fmtNum(kpis.produced), color: this.BRAND_DARK },
-      { label: 'Total Presses', value: this.fmtNum(kpis.presses), color: this.BRAND_GOLD },
-      { label: 'Released Output', value: this.fmtNum(kpis.released), color: [63, 125, 90] },
-      { label: 'Total Mixes', value: this.fmtNum(kpis.mixes), color: [70, 130, 180] },
-      { label: 'Time Efficiency', value: `${kpis.timeEfficiency.toFixed(1)}%`, color: [180, 130, 50] },
-      { label: 'Sample Pass Rate', value: `${q.passRate}%`, color: [160, 82, 45] }
+      { label: this.translation.t('reports.pdf.Total_Produced'), value: this.fmtNum(kpis.produced), color: this.BRAND_DARK },
+      { label: this.translation.t('reports.pdf.Total_Presses'), value: this.fmtNum(kpis.presses), color: this.BRAND_GOLD },
+      { label: this.translation.t('reports.pdf.Released_Output'), value: this.fmtNum(kpis.released), color: [63, 125, 90] },
+      { label: this.translation.t('reports.pdf.Total_Mixes'), value: this.fmtNum(kpis.mixes), color: [70, 130, 180] },
+      { label: this.translation.t('reports.pdf.Time_Efficiency'), value: `${kpis.timeEfficiency.toFixed(1)}%`, color: [180, 130, 50] },
+      { label: this.translation.t('reports.pdf.Sample_Pass_Rate'), value: `${q.passRate}%`, color: [160, 82, 45] }
     ], y);
 
     if (!this.hasOperationalData(p)) {
@@ -2774,24 +2815,24 @@ export class ReportService {
       return;
     }
 
-    y = this.drawSectionTitle(doc, 'Monthly Production + Output by Product', y);
-    y = this.drawTable(doc, [['Product', 'Total Presses', 'Total Produced', 'Total Released']],
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Monthly_Production_Output_by_Product'), y);
+    y = this.drawTable(doc, [[this.translation.t('reports.pdf.Product'), this.translation.t('reports.pdf.Total_Presses'), this.translation.t('reports.pdf.Total_Produced'), this.translation.t('reports.pdf.Total_Released')]],
       breakdown.map(b => [b.productName, this.fmtNum(b.presses), this.fmtNum(b.produced), this.fmtNum(b.releasedOutput)]), y);
 
     y += 3;
     y = this.checkPageBreak(doc, y, 20, p);
-    y = this.drawSectionTitle(doc, 'Monthly Line Summary', y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Monthly_Line_Summary'), y);
     y = this.drawLineOpsTable(doc, lines, y);
 
     y += 3;
     y = this.checkPageBreak(doc, y, 20, p);
-    y = this.drawSectionTitle(doc, 'Monthly Materials by Line', y);
-    y = this.drawTable(doc, [['Line', 'Mix', 'Cement (kg)', 'Sand (kg)', 'Sand (m³)', 'Agg. (kg)', 'Agg. (m³)', 'Water (L)']],
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Monthly_Materials_by_Line'), y);
+    y = this.drawTable(doc, [[this.translation.t('reports.pdf.Line'), this.translation.t('reports.pdf.Mix'), this.translation.t('reports.pdf.Cement_kg_'), this.translation.t('reports.pdf.Sand_kg_'), this.translation.t('reports.pdf.Sand_m_'), this.translation.t('reports.pdf.Agg_kg_'), this.translation.t('reports.pdf.Agg_m_'), this.translation.t('reports.pdf.Water_L_')]],
       materials.map(m => [m.lineName, this.fmtNum(m.mixCount), this.fmtNum(m.cementKg), this.fmtNum(m.sandKg), this.fmtM3(m.sandM3), this.fmtNum(m.aggregateKg), this.fmtM3(m.aggregateM3), this.fmtNum(m.waterL)]), y);
 
     y += 3;
     y = this.checkPageBreak(doc, y, 20, p);
-    y = this.drawSectionTitle(doc, 'Monthly Quality Summary', y);
+    y = this.drawSectionTitle(doc, this.translation.t('reports.pdf.Monthly_Quality_Summary'), y);
     y = this.drawQualityMetricsTable(doc, q, y);
   }
 
@@ -2799,10 +2840,10 @@ export class ReportService {
 
   private drawNoData(doc: jsPDF, y: number): number {
     const pageW = doc.internal.pageSize.getWidth();
-    doc.setFont('helvetica', 'italic');
+    doc.setFont(this.translation.isArabic() ? this.ARABIC_FONT : 'helvetica', this.translation.isArabic() ? 'normal' : 'italic');
     doc.setFontSize(9);
     doc.setTextColor(...this.TEXT_LIGHT);
-    doc.text('No data available for this report type in the selected date range.', pageW / 2, y + 5, { align: 'center' });
+    doc.text(this.translation.t('reports.pdf.No_data_available_for_this_report_type_in_the_selected_date_range_'), pageW / 2, y + 5, { align: 'center' });
     return y + 15;
   }
 

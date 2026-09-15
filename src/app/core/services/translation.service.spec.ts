@@ -65,13 +65,13 @@ describe('TranslationService', () => {
     expect(document.documentElement.getAttribute('dir')).toBe('rtl');
   });
 
-  it('falls back to English when an Arabic key is missing', () => {
+  it('uses the matching Arabic catalog entry', () => {
     const service = setup();
     service.setLanguage('ar');
     // 'nav.production' exists in both; 'users.col.user' exists in AR.
     expect(service.translate('nav.production')).toBe('الإنتاج');
-    // 'users.count.accounts' exists only in EN -> English fallback.
-    expect(service.translate('users.count.accounts')).toBe('accounts');
+    // Every shipped English key has a matching Arabic entry.
+    expect(service.translate('users.count.accounts')).toBe('حسابات');
   });
 
   it('echoes the key when a key is missing from every catalog', () => {

@@ -10,6 +10,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { displayServiceMessage } from '../../core/i18n/service-message-keys';
 import { TranslationService } from '../../core/services/translation.service';
 import { forkJoin, of, Observable } from 'rxjs';
 import { switchMap, map, catchError } from 'rxjs/operators';
@@ -1148,7 +1149,7 @@ export class ProductionComponent implements OnInit {
     try {
       records = this.buildItemRecords(sessionId, isoDate, formValue);
     } catch (err: any) {
-      this.saveError = err?.message || this.translation.translate('production.error.invalidData');
+      this.saveError = displayServiceMessage(err?.message, this.translation) || this.translation.translate('production.error.invalidData');
       this.saving = false;
       this.submissionGuard.release();
       return;

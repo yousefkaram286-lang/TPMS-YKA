@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { TranslationService } from './translation.service';
 import * as XLSX from 'xlsx';
 
 import { ReportService, ReportParams } from './report.service';
@@ -197,6 +198,49 @@ describe('ReportService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [ReportService] });
     svc = TestBed.inject(ReportService);
+    TestBed.inject(TranslationService).setLanguage('en');
+  });
+
+  describe('localized report presentation', () => {
+    it('shows Arabic PASS and FAIL in PDF rows while preserving source status', () => {
+      const translation = TestBed.inject(TranslationService);
+      const source = [['Sample 1', 'PASS'], ['Sample 2', 'FAIL']];
+      translation.setLanguage('ar');
+      const displayed = (svc as any).pdfDisplayRows([[translation.t('reports.pdf.Sample'), translation.t('reports.pdf.Result')]], source);
+      expect(displayed[0][1]).toBe('ناجح');
+      expect(displayed[1][1]).toBe('راسب');
+      expect(source).toEqual([['Sample 1', 'PASS'], ['Sample 2', 'FAIL']]);
+      expect(displayed).not.toBe(source);
+      translation.setLanguage('en');
+      expect((svc as any).pdfDisplayRows([['Sample', 'Result']], source)).toEqual(source);
+    });
+
+    it('localizes only known PDF configuration status cells', () => {
+      const translation = TestBed.inject(TranslationService);
+      translation.setLanguage('ar');
+      const source = [['Not Configured', 'CONFIGURATION_REQUIRED', 'N/A']];
+      const displayed = (svc as any).pdfDisplayRows([[translation.t('reports.pdf.Theoretical'), translation.t('reports.pdf.Sand_m_'), translation.t('reports.pdf.Result')]], source);
+      expect(displayed[0]).toEqual(['غير مُعد', 'يلزم الإعداد', 'غير منطبق']);
+      expect(source[0]).toEqual(['Not Configured', 'CONFIGURATION_REQUIRED', 'N/A']);
+      translation.setLanguage('en');
+    });
+
+    it('keeps Excel numeric data and sheet names while localizing headings', () => {
+      const translation = TestBed.inject(TranslationService);
+      const params = buildParams({ type: 'production', productions: [makeProduction()] });
+      translation.setLanguage('en');
+      const english = (svc as any).buildExcelWorkbook(params) as XLSX.WorkBook;
+      translation.setLanguage('ar');
+      const arabic = (svc as any).buildExcelWorkbook(params) as XLSX.WorkBook;
+      expect(arabic.SheetNames).toEqual(english.SheetNames);
+      const sheet = english.SheetNames[0];
+      expect(arabic.Sheets[sheet]['A4']?.v).not.toBe(english.Sheets[sheet]['A4']?.v);
+      const numericCells = (ws: XLSX.WorkSheet) => Object.entries(ws)
+        .filter(([address, cell]) => /^[A-Z]+[0-9]+$/.test(address) && (cell as XLSX.CellObject).t === 'n')
+        .map(([address, cell]) => [address, (cell as XLSX.CellObject).v]);
+      expect(numericCells(arabic.Sheets[sheet])).toEqual(numericCells(english.Sheets[sheet]));
+      translation.setLanguage('en');
+    });
   });
 
   const dailySheet = (p: Partial<ReportParams>) => {

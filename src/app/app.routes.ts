@@ -24,7 +24,7 @@ export const routes: Routes = [
       { path: 'output-release', component: OutputReleaseComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'materials', component: MaterialsComponent, canActivate: [adminGuard], data: { rtl: true } },
       { path: 'quality', component: QualityComponent, canActivate: [adminGuard], data: { rtl: true } },
-      { path: 'profile', loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent), canActivate: [adminGuard] },
+      { path: 'profile', loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent), canActivate: [adminGuard], data: { rtl: true } },
       { path: 'users', loadComponent: () => import('./features/users/user-management.component').then(m => m.UserManagementComponent), canActivate: [adminGuard], data: { rtl: true } },
       { 
         path: 'settings', 

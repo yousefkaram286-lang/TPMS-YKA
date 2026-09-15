@@ -180,11 +180,11 @@ describe('Settings i18n / RTL', () => {
   });
 
   // ── Fallback ─────────────────────────────────────────────
-  it('falls back to the English value when an Arabic key is missing', () => {
+  it('uses the Arabic value for a catalog key', () => {
     const translation = TestBed.inject(TranslationService);
     translation.setLanguage('ar');
-    // 'users.count.accounts' exists only in EN → must fall back to English.
-    expect(translation.translate('users.count.accounts')).toBe('accounts');
+    // The shipped catalogs now have matching keys.
+    expect(translation.translate('users.count.accounts')).toBe('حسابات');
     // A settings key present in both must resolve to Arabic.
     expect(translation.translate('settings.unitCosts.demoChip')).toBe('تجريبي');
   });

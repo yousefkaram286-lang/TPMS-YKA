@@ -1,3 +1,4 @@
+import { Dir } from '@angular/cdk/bidi';
 import {
   Component, OnInit, OnDestroy, AfterViewInit,
   ViewChild, ElementRef, ChangeDetectorRef, inject, effect
@@ -50,17 +51,17 @@ import { Component as NgComponent } from '@angular/core';
 @NgComponent({
   selector: 'app-report-dialog',
   standalone: true,
-  imports: [
+  imports: [Dir,
     CommonModule, FormsModule,
     MatButtonModule, MatIconModule, MatSelectModule,
     MatDialogModule, MatFormFieldModule, MatInputModule
   ],
   template: `
-    <div class="report-dialog">
+    <div class="report-dialog tpms-dir" [dir]="translation.dir()">
       <div class="report-dialog__header">
         <mat-icon class="report-dialog__icon">download</mat-icon>
         <h2>{{ translation.translate('dashboard.report.title') }}</h2>
-        <button mat-icon-button class="report-dialog__close" (click)="close()">
+        <button mat-icon-button class="report-dialog__close" [attr.aria-label]="translation.t('common.close')" (click)="close()">
           <mat-icon>close</mat-icon>
         </button>
       </div>
@@ -557,8 +558,8 @@ export class ReportDialogComponent {
             *ngFor="let a of alerts">
             <mat-icon class="alert-item__icon">{{ a.icon }}</mat-icon>
             <div class="alert-item__content">
-              <p class="alert-item__title">{{ a.title }}</p>
-              <p class="alert-item__desc">{{ a.description }}</p>
+              <p class="alert-item__title">{{ alertTitle(a.title) }}</p>
+              <p class="alert-item__desc">{{ alertDescription(a.description) }}</p>
             </div>
           </div>
         </div>
@@ -845,9 +846,9 @@ export class ReportDialogComponent {
               <div class="activity-content">
                 <div class="activity-header">
                   <span class="activity-type">{{ activityTitle(activity) }}</span>
-                  <span class="activity-time">{{ activity.relativeTime }}</span>
+                  <span class="activity-time">{{ activityTime(activity.relativeTime) }}</span>
                 </div>
-                <p class="activity-description">{{ activity.description }}</p>
+                <p class="activity-description">{{ activityDescription(activity.description) }}</p>
               </div>
             </div>
           </div>
@@ -1474,6 +1475,58 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return n > 0
       ? this.translation.translate('dashboard.kpi.assessedCount', { count: n })
       : this.translation.translate('dashboard.common.noData');
+  }
+
+
+  // Presentation of service-generated messages. Source alerts and activities stay intact.
+  alertTitle(title: string): string {
+    if (title === 'Production recorded, Materials missing') return this.translation.t('dashboard.dynamic.materialsMissing');
+    if (title === 'Quality configuration incomplete') return this.translation.t('dashboard.dynamic.qualityIncomplete');
+    const conversion = title.match(/^(.+) conversion not configured$/);
+    if (conversion) return this.translation.t('dashboard.dynamic.conversionMissing', { name: conversion[1] });
+    const product = title.match(/^Product configuration incomplete: (.+)$/);
+    return product ? this.translation.t('dashboard.dynamic.productIncomplete', { product: product[1] }) : title;
+  }
+
+  alertDescription(description: string): string {
+    let m = description.match(/^Line recorded (.+) pieces produced today but no Materials record was found for that Line\.$/);
+    if (m) return this.translation.t('dashboard.dynamic.materialsMissingDetail', { pieces: m[1] });
+    m = description.match(/^Set (.+)KgPerM3 in the Material master to display and report (.+) in cubic metres\.$/);
+    if (m) return this.translation.t('dashboard.dynamic.conversionDetail', { setting: m[1] + 'KgPerM3', name: m[2] });
+    m = description.match(/^Missing: (.+)\.$/);
+    if (m) return this.translation.t('dashboard.dynamic.missing', { fields: m[1].split(', ').map(f => this.translation.t('dashboard.dynamic.field.' + f.replaceAll(' ', ''))).join(this.translation.isArabic() ? '، ' : ', ') });
+    m = description.match(/^(\d+) sample\(s\) could not be evaluated — check Product Area and Compression Standard\.$/);
+    return m ? this.translation.t('dashboard.dynamic.qualityDetail', { samples: m[1] }) : description;
+  }
+
+  activityTime(time: string): string {
+    if (time === 'Just now') return this.translation.t('dashboard.dynamic.justNow');
+    if (time === 'Yesterday') return this.translation.t('dashboard.dynamic.yesterday');
+    const m = time.match(/^(\d+)([mhd]) ago$/);
+    return m ? this.translation.t('dashboard.dynamic.ago.' + m[2], { count: m[1] }) : time;
+  }
+
+  activityDescription(description: string): string {
+    let m = description.match(/^(.+) pieces — (.+)$/);
+    if (m) return this.translation.t('dashboard.dynamic.pieces', { count: m[1], product: this.activityProduct(m[2]) });
+    m = description.match(/^(.+) mixes — (.+)$/);
+    if (m) return this.translation.t('dashboard.dynamic.mixes', { count: m[1], product: this.activityProduct(m[2]) });
+    m = description.match(/^(\d+) samples tested, (\d+) passed, (\d+) failed — (.+)$/);
+    if (m) return this.translation.t('dashboard.dynamic.samples', { count: m[1], passed: m[2], failed: m[3], product: m[4] });
+    m = description.match(/^Sample (.+) (passed|failed) — (.+) \((.+)\)$/);
+    if (m) return this.translation.t('dashboard.dynamic.sample', { sample: m[1], result: this.translation.t('dashboard.dynamic.' + m[2]), measured: this.activityMeasurement(m[3]), product: m[4] });
+    return description;
+  }
+
+  private activityProduct(name: string): string {
+    return name === 'Unknown Product' ? this.translation.t('production.unknown.product')
+      : name === 'No product' ? this.translation.t('dashboard.dynamic.noProduct') : name;
+  }
+
+  private activityMeasurement(value: string): string {
+    if (value === 'No measurement') return this.translation.t('dashboard.dynamic.noMeasurement');
+    const m = value.match(/^(.+) compression$/);
+    return m ? this.translation.t('dashboard.dynamic.compression', { value: m[1] }) : value;
   }
 
   activityTitle(activity: RecentActivity): string {
