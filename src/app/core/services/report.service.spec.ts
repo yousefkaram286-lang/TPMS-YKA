@@ -373,6 +373,22 @@ describe('ReportService', () => {
       expect(kpi(ws, 'Press Production')).toBe(120);
     });
 
+    it('04b. KPI "Press Production" preserves fractional produced (545 × 10.5 = 5722.5, no rounding)', () => {
+      const ws = dailySheet({
+        productions: [makeProduction({ presses: 545, piecesPerPress: 10.5, produced: 5722.5 })]
+      });
+      expect(kpi(ws, 'Press Production')).toBe(5722.5);
+    });
+
+    it('04c. line-level Produced stays exact for fractional production', () => {
+      const ws = dailySheet({
+        productions: [makeProduction({ presses: 545, piecesPerPress: 10.5, produced: 5722.5 })],
+        sessions: [makeSession()]
+      });
+      const row = section(ws, 'LINE-LEVEL OPERATIONS')[1];
+      expect(row[5]).toBe(5722.5);
+    });
+
     it('05. KPI "Released Output" comes from Output Releases (independent, not prod.releasedOutput)', () => {
       const ws = dailySheet({
         productions: [makeProduction({ releasedOutput: 50 })],

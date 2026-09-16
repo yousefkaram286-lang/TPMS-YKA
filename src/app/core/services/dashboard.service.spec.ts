@@ -251,6 +251,26 @@ describe('DashboardService', () => {
     expect(block15?.releasedOutput).toBe(500);
   });
 
+  // ── Fractional Produced aggregation (produced numeric migration) ────────
+
+  it('calcStats preserves fractional produced (545 × 10.5 = 5722.5) — no rounding', () => {
+    const stats = svc.calcStats({
+      ...baseData(),
+      productions: [makeProduction({ presses: 545, piecesPerPress: 10.5, produced: 5722.5 })]
+    });
+    expect(stats.totalProduction).toBe(5722.5);
+  });
+
+  it('buildProductPerformance aggregates fractional produced exactly (no truncation)', () => {
+    const prods = [
+      makeProduction({ presses: 545, piecesPerPress: 10.5, produced: 5722.5 }),
+      makeProduction({ id: 'prod-2', presses: 1, piecesPerPress: 12.25, produced: 12.25 })
+    ];
+    const perf = svc.buildProductPerformance(prods, [], PRODUCTS);
+    expect(perf[0].produced).toBe(5734.75);
+    expect(perf[0].presses).toBe(546);
+  });
+
   it('released output is date-filtered by releaseDate in filterData', () => {
     const data = baseData();
     data.releases = [makeRelease(), makeRelease({ id: 'rel-old', releaseDate: '2026-08-01' })];

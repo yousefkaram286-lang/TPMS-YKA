@@ -93,6 +93,34 @@ describe('ProductionService (Production business rules)', () => {
     });
   });
 
+  // ── Fractional Produced lock-in (productions.produced → numeric) ─────────
+  it('545 × 10.5 = 5722.5 is calculated exactly with no rounding', () => {
+    const { svc } = buildService();
+    const record = svc.createProductionRecord({
+      id: 'prod-5722', date: '2026-09-16', lineId: 'line-1', productId: 'prd-block25',
+      piecesPerPress: 10.5, presses: 545, createdAt: '2026-09-16T08:00:00.000Z'
+    });
+    expect(record.produced).toBe(5722.5);
+    expect(record.presses).toBe(545);
+    expect(record.piecesPerPress).toBe(10.5);
+  });
+  it('3 × 4.5 = 13.5 is calculated exactly with no rounding', () => {
+    const { svc } = buildService();
+    const record = svc.createProductionRecord({
+      id: 'prod-135', date: '2026-09-16', lineId: 'line-1', productId: 'prd-block25',
+      piecesPerPress: 4.5, presses: 3, createdAt: '2026-09-16T08:00:00.000Z'
+    });
+    expect(record.produced).toBe(13.5);
+  });
+  it('integer Produced values (10 × 64 = 640) remain exact', () => {
+    const { svc } = buildService();
+    const record = svc.createProductionRecord({
+      id: 'prod-solid', date: '2026-09-16', lineId: 'line-2', productId: 'prd-solid12',
+      piecesPerPress: 64, presses: 10, createdAt: '2026-09-16T08:00:00.000Z'
+    });
+    expect(record.produced).toBe(640);
+  });
+
   // ── Production saves independently of Output ────────────────────────────
   it('Production record has NO output / released-quantity fields', () => {
     const { svc } = buildService();
