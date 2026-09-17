@@ -15,6 +15,7 @@ import { LineService } from './line.service';
 import { EfficiencyUtil } from '../utils/efficiency.util';
 import { MaterialConversionUtil, OK, CONFIGURATION_REQUIRED } from '../utils/material-conversion.util';
 import { QualityCalculationUtil } from '../utils/quality-calculation.util';
+import { getDefaultOperationalDate, parseLocalCalendarDate } from '../utils/date.util';
 
 import { Production } from '../models/production.model';
 import { ProductionSession } from '../models/production-session.model';
@@ -27,7 +28,7 @@ import { OutputRelease } from '../models/output-release.model';
 import { Material } from '../models/material.model';
 import { UnitCost } from '../models/unit-cost.model';
 
-export type DatePreset = 'today' | 'last7' | 'last30' | 'thisMonth' | 'custom';
+export type DatePreset = 'yesterday' | 'today' | 'last7' | 'last30' | 'thisMonth' | 'custom';
 
 export interface DateRange {
   preset: DatePreset;
@@ -163,6 +164,7 @@ export class DashboardService {
 
   getPresets(): { preset: DatePreset; label: string }[] {
     return [
+      { preset: 'yesterday', label: 'Operational Date' },
       { preset: 'today', label: 'Today' },
       { preset: 'last7', label: 'Last 7 Days' },
       { preset: 'last30', label: 'Last 30 Days' },
@@ -176,6 +178,13 @@ export class DashboardService {
     const label = this.getPresets().find(p => p.preset === preset)?.label ?? preset;
 
     switch (preset) {
+      case 'yesterday': {
+        // Default Operational Date = Local Plant Calendar Date − 1 (UI default only;
+        // never shifts stored data).
+        const op = this.localDateStr(getDefaultOperationalDate());
+        return { preset, startDate: op, endDate: op, label };
+      }
+
       case 'today':
         return { preset, startDate: today, endDate: today, label };
 
@@ -305,8 +314,8 @@ export class DashboardService {
     const map = new Map<string, number>();
 
     // Pre-populate all dates in range so gaps show as 0
-    let cur = new Date(range.startDate);
-    const end = new Date(range.endDate);
+    let cur = parseLocalCalendarDate(range.startDate) ?? new Date();
+    const end = parseLocalCalendarDate(range.endDate) ?? new Date();
     while (cur <= end) {
       map.set(this.localDateStr(cur), 0);
       cur.setDate(cur.getDate() + 1);
@@ -439,8 +448,8 @@ export class DashboardService {
   buildQualityTrend(qualityTests: QualityTest[], range: DateRange): QualityTrendPoint[] {
     const map = new Map<string, { total: number; count: number }>();
 
-    let cur = new Date(range.startDate);
-    const end = new Date(range.endDate);
+    let cur = parseLocalCalendarDate(range.startDate) ?? new Date();
+    const end = parseLocalCalendarDate(range.endDate) ?? new Date();
     while (cur <= end) {
       map.set(this.localDateStr(cur), { total: 0, count: 0 });
       cur.setDate(cur.getDate() + 1);

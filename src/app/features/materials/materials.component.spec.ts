@@ -29,6 +29,7 @@ import { LANGUAGE_STORAGE_KEY } from '../../core/i18n';
 import { EN } from '../../core/i18n/en';
 import { AR } from '../../core/i18n/ar';
 import { routes } from '../../app.routes';
+import { toLocalCalendarString, getDefaultOperationalDate } from '../../core/utils/date.util';
 
 const EMPTY: any[] = [];
 
@@ -291,5 +292,22 @@ describe('MaterialsComponent i18n', () => {
     } finally {
       AR[key] = 'المواد';
     }
+  });
+
+  it('defaults new entries to the Operational Date (yesterday) and resets to it', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    const op = toLocalCalendarString(getDefaultOperationalDate());
+
+    // Fresh entry form starts on the Operational Date = Local Plant Calendar Date − 1.
+    expect(toLocalCalendarString(comp.materialsForm.get('date')!.value as Date)).toBe(op);
+
+    // Manual selection of any calendar day is allowed.
+    comp.materialsForm.get('date')!.setValue(new Date(2026, 0, 5));
+    expect(toLocalCalendarString(comp.materialsForm.get('date')!.value as Date)).toBe('2026-01-05');
+
+    // After-save reset returns to the Operational Date.
+    comp.resetForm();
+    expect(toLocalCalendarString(comp.materialsForm.get('date')!.value as Date)).toBe(op);
   });
 });

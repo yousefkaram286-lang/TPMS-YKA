@@ -29,7 +29,7 @@ import { LineProductMapping } from '../../core/models/line-product.model';
 import { ProductionViewDialogComponent } from './production-view-dialog.component';
 import { ProductionUtil, SubmissionGuard } from '../../core/utils/production.util';
 import { MasterDataUtil } from '../../core/utils/master-data.util';
-import { toLocalCalendarString, parseLocalCalendarDate } from '../../core/utils/date.util';
+import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDate } from '../../core/utils/date.util';
 
 @Component({
   selector: 'app-production',
@@ -886,7 +886,7 @@ export class ProductionComponent implements OnInit {
 
   private initForm(): void {
     this.productionForm = this.fb.group({
-      date: [new Date(), Validators.required],
+      date: [getDefaultOperationalDate(), Validators.required],
       shiftId: [''],
       lineId: ['', Validators.required],
       supervisor: [''],
@@ -1364,7 +1364,7 @@ export class ProductionComponent implements OnInit {
      
      // Populate header and session data
      this.productionForm.patchValue({
-        date: parseLocalCalendarDate(session.date) ?? new Date(),
+        date: parseLocalCalendarDate(session.date) ?? getDefaultOperationalDate(),
         shiftId: session.shiftId,
         lineId: session.lineId,
         supervisor: session.supervisor,
@@ -1484,7 +1484,7 @@ export class ProductionComponent implements OnInit {
     this.addItem();
 
     this.productionForm.reset({
-      date: new Date(),
+      date: getDefaultOperationalDate(),
       shiftId: '',
       lineId: '',
       supervisor: '',
@@ -1549,7 +1549,9 @@ export class ProductionComponent implements OnInit {
        this.productionSessionService.getAll()
     ]).subscribe({
       next: ([records, sessions]) => {
-        this.history = records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        this.history = records.sort(
+          (a, b) => (parseLocalCalendarDate(b.date)?.getTime() ?? 0) - (parseLocalCalendarDate(a.date)?.getTime() ?? 0)
+        );
         
         this.sessionsMap.clear();
         sessions.forEach(s => this.sessionsMap.set(s.id, s));

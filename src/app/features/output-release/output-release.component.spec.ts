@@ -25,6 +25,7 @@ import { LANGUAGE_STORAGE_KEY } from '../../core/i18n';
 import { EN } from '../../core/i18n/en';
 import { AR } from '../../core/i18n/ar';
 import { routes } from '../../app.routes';
+import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDate } from '../../core/utils/date.util';
 
 const MANUAL_RECORD: OutputRelease = {
   id: 'output_sub_t1',
@@ -238,7 +239,9 @@ describe('OutputReleaseComponent i18n', () => {
     const comp = fixture.componentInstance;
     const svc = TestBed.inject(OutputReleaseService) as unknown as FakeOutputReleaseService;
 
-    // releaseDate defaults to today — it is valid out of the box.
+    // releaseDate defaults to the Operational Date (yesterday) — valid out of the box.
+    expect(toLocalCalendarString(comp.releaseForm.get('releaseDate')!.value as Date))
+      .toBe(toLocalCalendarString(getDefaultOperationalDate()));
     expect(comp.releaseForm.get('releaseDate')?.valid).toBeTrue();
     comp.releaseForm.get('releaseDate')?.setValue(null);
     expect(comp.releaseForm.get('releaseDate')?.hasError('required')).toBeTrue();
@@ -372,5 +375,34 @@ describe('OutputReleaseComponent i18n', () => {
     } finally {
       AR[key] = 'صرف الإنتاج';
     }
+  });
+
+  it('defaults new releases to the Operational Date (yesterday) and resets to it', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    const op = toLocalCalendarString(getDefaultOperationalDate());
+
+    // Fresh release form starts on the Operational Date = Local Plant Calendar Date − 1.
+    expect(toLocalCalendarString(comp.releaseForm.get('releaseDate')!.value as Date)).toBe(op);
+    expect(comp.releaseForm.get('releaseDate')?.valid).toBeTrue();
+
+    // Manual selection of any calendar day is allowed.
+    comp.releaseForm.get('releaseDate')!.setValue(new Date(2024, 5, 1));
+    expect(toLocalCalendarString(comp.releaseForm.get('releaseDate')!.value as Date)).toBe('2024-06-01');
+
+    // Clear form returns to the Operational Date.
+    comp.clearForm();
+    expect(toLocalCalendarString(comp.releaseForm.get('releaseDate')!.value as Date)).toBe(op);
+  });
+
+  it('editing a MANUAL_ENTRY preserves the stored release date (exact local calendar day)', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+
+    comp.editRecord(MANUAL_RECORD);
+    const value = comp.releaseForm.get('releaseDate')!.value as Date;
+    expect(toLocalCalendarString(value)).toBe('2024-01-15');
+    // Round-trips through the local-safe parser.
+    expect(toLocalCalendarString(parseLocalCalendarDate('2024-01-15')!)).toBe('2024-01-15');
   });
 });

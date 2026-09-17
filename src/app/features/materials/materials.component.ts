@@ -24,7 +24,7 @@ import { UnitCostService } from '../../core/services/unit-cost.service';
 import { MaterialService } from '../../core/services/material.service';
 import { SubmissionGuard } from '../../core/utils/production.util';
 import { MaterialConversionUtil } from '../../core/utils/material-conversion.util';
-import { toLocalCalendarString } from '../../core/utils/date.util';
+import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDate } from '../../core/utils/date.util';
 
 import { MaterialRecord, MaterialTransactionItem } from '../../core/models/material-record.model';
 import { Product } from '../../core/models/product.model';
@@ -706,7 +706,7 @@ export class MaterialsComponent implements OnInit {
 
   private initForm(): void {
     this.materialsForm = this.fb.group({
-      date: [new Date(), Validators.required],
+      date: [getDefaultOperationalDate(), Validators.required],
       lineId: ['', Validators.required],
       productId: [''],
       mixCount: [null, [Validators.required, Validators.min(1)]],
@@ -792,7 +792,9 @@ export class MaterialsComponent implements OnInit {
   private loadHistory(): void {
     this.materialsService.getAll().subscribe({
       next: (data) => {
-        this.history = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        this.history = data.sort(
+          (a, b) => (parseLocalCalendarDate(b.date)?.getTime() ?? 0) - (parseLocalCalendarDate(a.date)?.getTime() ?? 0)
+        );
         this.applyFilter();
         this.loadingHistory = false;
       },
@@ -961,7 +963,7 @@ export class MaterialsComponent implements OnInit {
   resetForm(): void {
     this.pendingSubmissionId = null; // explicit reset → next entry is a NEW transaction
     this.materialsForm.reset();
-    this.materialsForm.get('date')?.setValue(new Date());
+    this.materialsForm.get('date')?.setValue(getDefaultOperationalDate());
     this.materialsForm.get('lineId')?.setValue('');
     this.materialsForm.get('productId')?.setValue('');
     this.recipeInfo = false;

@@ -15,6 +15,25 @@ export function toLocalCalendarString(date: Date): string {
 }
 
 /**
+ * Default Operational Date (UI default only): the Local Plant Calendar Date
+ * minus one day, i.e. YESTERDAY.
+ *
+ * Returns a LOCAL `Date` for the previous calendar day of `now`. Calendar
+ * arithmetic via `setDate(getDate() - 1)` is used (NOT `now - 86400000`) so the
+ * result is the exact previous local calendar day regardless of DST or UTC
+ * offset; the optional `now` parameter exists only for deterministic tests.
+ *
+ * This is a UI/default-date rule only: use it to pre-fill entry forms, reset
+ * forms, and the Dashboard's default operational selection. It must NEVER be
+ * used to shift stored data, rewrite historical dates, or subtract during save.
+ */
+export function getDefaultOperationalDate(now: Date = new Date()): Date {
+  const date = new Date(now.getTime());
+  date.setDate(date.getDate() - 1);
+  return date;
+}
+
+/**
  * Parse a stored YYYY-MM-DD business date into a LOCAL `Date` (local midnight)
  * WITHOUT UTC interpretation. `new Date("2026-09-05")` parses at UTC midnight
  * and can render as the PREVIOUS local calendar day for negative UTC offsets,

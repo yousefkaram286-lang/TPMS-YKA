@@ -26,6 +26,7 @@ import { LANGUAGE_STORAGE_KEY } from '../../core/i18n';
 import { EN } from '../../core/i18n/en';
 import { AR } from '../../core/i18n/ar';
 import { routes } from '../../app.routes';
+import { toLocalCalendarString, getDefaultOperationalDate } from '../../core/utils/date.util';
 
 class FakeQualityService {
   getAll = () => of([]);
@@ -282,5 +283,39 @@ describe('QualityComponent i18n', () => {
     } finally {
       AR[key] = 'الجودة';
     }
+  });
+
+  it('defaults new tests to the Operational Date (yesterday) and resets to it', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    const op = toLocalCalendarString(getDefaultOperationalDate());
+
+    // Fresh test form starts on the Operational Date = Local Plant Calendar Date − 1.
+    expect(toLocalCalendarString(comp.qualityForm.get('date')!.value as Date)).toBe(op);
+
+    // Manual selection of any calendar day is allowed.
+    comp.qualityForm.get('date')!.setValue(new Date(2026, 0, 5));
+    expect(toLocalCalendarString(comp.qualityForm.get('date')!.value as Date)).toBe('2026-01-05');
+
+    // After-save clear returns to the Operational Date.
+    comp.clearForm();
+    expect(toLocalCalendarString(comp.qualityForm.get('date')!.value as Date)).toBe(op);
+  });
+
+  it('keeps the history Today filter anchored to the actual calendar day (local-safe parsing)', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    const today = toLocalCalendarString(new Date());
+    const yesterday = toLocalCalendarString(getDefaultOperationalDate());
+
+    comp.history = [
+      { id: 'h-today', productName: 'Solid Block', lineName: 'Line A', date: today, samples: [], sample: '' },
+      { id: 'h-yesterday', productName: 'Solid Block', lineName: 'Line A', date: yesterday, samples: [], sample: '' },
+      { id: 'h-old', productName: 'Solid Block', lineName: 'Line A', date: '2026-01-01', samples: [], sample: '' }
+    ] as any;
+    comp.dateFilter = 'today';
+    comp.applyFilter();
+
+    expect(comp.filteredHistory.map(r => r.id)).toEqual(['h-today']);
   });
 });

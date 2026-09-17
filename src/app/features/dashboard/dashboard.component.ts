@@ -1468,12 +1468,18 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   productionLabel(): string {
+    if (this.datePreset === 'yesterday') {
+      return this.translation.translate('dashboard.kpi.operationalProduction');
+    }
     return this.datePreset === 'today'
       ? this.translation.translate('dashboard.kpi.todayProduction')
       : this.translation.translate('dashboard.kpi.totalProduction');
   }
 
   mixesLabel(): string {
+    if (this.datePreset === 'yesterday') {
+      return this.translation.translate('dashboard.kpi.operationalMixes');
+    }
     return this.datePreset === 'today'
       ? this.translation.translate('dashboard.kpi.todayMixes')
       : this.translation.translate('dashboard.kpi.totalMixes');
@@ -1583,7 +1589,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ─── Date Filter ──────────────────────────────────────────────────────────
   presets = this.dashboardSvc.getPresets();
-  datePreset: DatePreset = 'today';
+  datePreset: DatePreset = 'yesterday';
   customStart = this.dashboardSvc.localDateStr(new Date());
   customEnd = this.dashboardSvc.localDateStr(new Date());
   currentRange?: DateRange;

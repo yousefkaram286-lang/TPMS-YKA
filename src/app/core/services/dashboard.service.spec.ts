@@ -26,6 +26,7 @@ import { UnitCost } from '../models/unit-cost.model';
 import { EfficiencyUtil } from '../utils/efficiency.util';
 import { QualityCalculationUtil } from '../utils/quality-calculation.util';
 import { CONFIGURATION_REQUIRED } from '../utils/material-conversion.util';
+import { getDefaultOperationalDate, toLocalCalendarString } from '../utils/date.util';
 
 // ─── Seeds ────────────────────────────────────────────────────────────────────
 
@@ -191,6 +192,62 @@ describe('DashboardService', () => {
     const todayLabel = `${monthNames[m - 1]} ${d}`;
     const todayPoint = trend.find(t => t.label === todayLabel);
     expect(todayPoint?.value).toBe(80);
+  });
+
+  it('regression 19: the Operational Date preset defaults to YESTERDAY (Local Plant Calendar Date − 1)', () => {
+    const op = svc.localDateStr(getDefaultOperationalDate());
+    expect(toLocalCalendarString(getDefaultOperationalDate())).toBe(op);
+
+    const range = svc.buildDateRange('yesterday');
+    expect(range.preset).toBe('yesterday');
+    expect(range.startDate).toBe(op);
+    expect(range.endDate).toBe(op);
+    expect(range.label).toBe('Operational Date');
+    // Yesterday is NOT aliased to Today.
+    expect(op).not.toBe(svc.localDateStr(new Date()));
+  });
+
+  it('regression 20: getPresets exposes Operational Date FIRST and keeps Today/last7/last30/thisMonth/custom labels unchanged', () => {
+    const presets = svc.getPresets();
+    const values = presets.map(p => p.preset);
+    expect(values[0]).toBe('yesterday');
+    expect(values).toEqual(['yesterday', 'today', 'last7', 'last30', 'thisMonth', 'custom']);
+    expect(presets.find(p => p.preset === 'yesterday')?.label).toBe('Operational Date');
+    expect(presets.find(p => p.preset === 'today')?.label).toBe('Today');
+    expect(presets.find(p => p.preset === 'last7')?.label).toBe('Last 7 Days');
+    expect(presets.find(p => p.preset === 'last30')?.label).toBe('Last 30 Days');
+    expect(presets.find(p => p.preset === 'thisMonth')?.label).toBe('This Month');
+
+    // Ranges for the other presets are left untouched by the new default.
+    expect(svc.buildDateRange('today').startDate).toBe(svc.localDateStr(new Date()));
+    expect(svc.buildDateRange('last7').endDate).toBe(svc.localDateStr(new Date()));
+    expect(svc.buildDateRange('last30').endDate).toBe(svc.localDateStr(new Date()));
+    const now = new Date();
+    expect(svc.buildDateRange('thisMonth').startDate)
+      .toBe(svc.localDateStr(new Date(now.getFullYear(), now.getMonth(), 1)));
+    expect(svc.buildDateRange('thisMonth').endDate).toBe(svc.localDateStr(new Date()));
+  });
+
+  it('regression 21: the Operational Date range filters to only yesterday and builds only the yesterday trend point', () => {
+    const op = svc.localDateStr(getDefaultOperationalDate());
+    const today = svc.localDateStr(new Date());
+    const opRange = svc.buildDateRange('yesterday');
+
+    const data = baseData();
+    data.productions = [
+      makeProduction({ id: 'prod-op', date: op }),
+      makeProduction({ id: 'prod-old', date: today }) // today must be EXCLUDED
+    ];
+    const filtered = svc.filterData(data, opRange);
+    expect(filtered.productions.length).toBe(1);
+    expect(filtered.productions[0].date).toBe(op);
+
+    const trend = svc.buildProductionTrend(
+      [makeProduction({ id: 'prod-op', date: op })],
+      opRange
+    );
+    expect(trend.length).toBe(1);
+    expect(trend[0].value).toBe(80);
   });
 
   it('regression 18: dashboard reads never mutate source transactions', () => {

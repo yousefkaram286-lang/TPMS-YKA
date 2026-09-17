@@ -1,4 +1,4 @@
-import { toLocalCalendarString, parseLocalCalendarDate } from './date.util';
+import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDate } from './date.util';
 
 describe('toLocalCalendarString (local plant calendar date serialization)', () => {
 
@@ -84,5 +84,46 @@ describe('Business date timezone integrity (date.util)', () => {
     expect(parseLocalCalendarDate('2026-09-31')).toBeUndefined(); // rolls to Oct 1 — never accepted
     expect(parseLocalCalendarDate('2026-13-01')).toBeUndefined(); // month 13 — never accepted
     expect(parseLocalCalendarDate('not-a-date')).toBeUndefined();
+  });
+});
+
+describe('getDefaultOperationalDate (Default Operational Date = Local Plant Calendar Date minus 1)', () => {
+
+  it('returns the previous local calendar day for a mid-month date', () => {
+    expect(toLocalCalendarString(getDefaultOperationalDate(new Date(2026, 8, 17)))).toBe('2026-09-16');
+  });
+
+  it('rolls back across a month boundary', () => {
+    expect(toLocalCalendarString(getDefaultOperationalDate(new Date(2026, 9, 1)))).toBe('2026-09-30');
+  });
+
+  it('rolls back across a year boundary', () => {
+    expect(toLocalCalendarString(getDefaultOperationalDate(new Date(2027, 0, 1)))).toBe('2026-12-31');
+  });
+
+  it('handles leap-day boundaries (Feb 29 exists in 2028)', () => {
+    expect(toLocalCalendarString(getDefaultOperationalDate(new Date(2028, 2, 1)))).toBe('2028-02-29');
+  });
+
+  it('handles non-leap-year boundaries (no Feb 29 in 2027)', () => {
+    expect(toLocalCalendarString(getDefaultOperationalDate(new Date(2027, 2, 1)))).toBe('2027-02-28');
+  });
+
+  it('uses local calendar arithmetic, never a fixed 86400000 ms UTC subtraction', () => {
+    // In a positive UTC offset (factory UTC+3), now - 86400000 lands on the
+    // PREVIOUS UTC calendar day; setDate must still yield the local previous day.
+    const result = getDefaultOperationalDate(new Date(2026, 8, 3, 0, 0, 0));
+    expect(toLocalCalendarString(result)).toBe('2026-09-02');
+    expect(result.getDate()).toBe(2);
+
+    // The default argument reads fine with no arguments.
+    expect(typeof getDefaultOperationalDate().getTime()).toBe('number');
+  });
+
+  it('does not mutate the caller-supplied `now` date', () => {
+    const now = new Date(2026, 8, 17, 11, 30, 0);
+    const before = now.getTime();
+    getDefaultOperationalDate(now);
+    expect(now.getTime()).toBe(before);
   });
 });

@@ -20,6 +20,7 @@ import { LANGUAGE_STORAGE_KEY } from '../../core/i18n';
 import { EN } from '../../core/i18n/en';
 import { AR } from '../../core/i18n/ar';
 import { routes } from '../../app.routes';
+import { getDefaultOperationalDate } from '../../core/utils/date.util';
 
 const EMPTY_DATA: DashboardData = {
   productions: [], sessions: [], materials: [], qualityTests: [],
@@ -34,6 +35,7 @@ const FAKE_STATS: DashboardStats = {
 class FakeDashboardService {
   getPresets() {
     return [
+      { preset: 'yesterday', label: 'Operational Date' },
       { preset: 'today', label: 'Today' },
       { preset: 'last7', label: 'Last 7 Days' },
       { preset: 'last30', label: 'Last 30 Days' },
@@ -42,9 +44,13 @@ class FakeDashboardService {
     ];
   }
   localDateStr = (d: Date) => d.toISOString().substring(0, 10);
-  buildDateRange = (preset: string, start?: string, end?: string) => ({
-    preset, startDate: start ?? '', endDate: end ?? '', label: `${start ?? 'x'} → ${end ?? 'y'}`
-  });
+  buildDateRange = (preset: string, start?: string, end?: string) => {
+    if (preset === 'yesterday') {
+      const op = this.localDateStr(getDefaultOperationalDate());
+      return { preset, startDate: op, endDate: op, label: 'Operational Date' };
+    }
+    return { preset, startDate: start ?? '', endDate: end ?? '', label: `${start ?? 'x'} → ${end ?? 'y'}` };
+  };
   filterData = (data: DashboardData) => data;
   calcStats = () => ({ ...FAKE_STATS });
   buildProductionTrend = () => [];
@@ -113,8 +119,24 @@ describe('DashboardComponent i18n', () => {
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Dashboard');
-    expect(text).toContain("Today's Production");
+    expect(text).toContain('Operational Date');
+    expect(text).toContain('Operational Production');
     expect(text).toContain('Last 7 Days');
+  });
+
+  it('switches to Today explicitly and renders the Today KPI labels', async () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.selectPreset('today');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain("Today's Production");
+    expect(text).toContain("Today's Mixes");
   });
 
   it('renders Arabic labels at runtime after switching language (no reload)', async () => {
@@ -131,8 +153,15 @@ describe('DashboardComponent i18n', () => {
 
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('لوحة التحكم');
-    expect(text).toContain('إنتاج اليوم');
+    expect(text).toContain('تاريخ التشغيل');
+    expect(text).toContain('إنتاج التشغيل');
     expect(text).toContain('آخر 7 أيام');
+
+    fixture.componentInstance.selectPreset('today');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('إنتاج اليوم');
   });
 
   it('falls back to English when an Arabic dashboard key is missing', () => {
@@ -175,7 +204,7 @@ describe('DashboardComponent i18n', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.isAdmin()).toBe(true);
-    expect(fixture.componentInstance.datePreset).toBe('today');
+    expect(fixture.componentInstance.datePreset).toBe('yesterday');
 
     translation.setLanguage('ar');
     fixture.detectChanges();
@@ -183,8 +212,23 @@ describe('DashboardComponent i18n', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.isAdmin()).toBe(true);
-    expect(fixture.componentInstance.datePreset).toBe('today');
+    expect(fixture.componentInstance.datePreset).toBe('yesterday');
     expect(fixture.componentInstance.loading).toBe(false);
     expect(fixture.componentInstance.error).toBe(false);
+  });
+
+  it('defaults the selected operational day to YESTERDAY (Local Plant Calendar Date − 1)', async () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    expect(comp.datePreset).toBe('yesterday');
+    expect(comp.currentRange?.preset).toBe('yesterday');
+    expect(comp.currentRange?.startDate).toBe(comp.currentRange?.endDate);
+    expect(comp.currentRange?.startDate)
+      .toBe((TestBed.inject(DashboardService) as unknown as FakeDashboardService)
+        .localDateStr(getDefaultOperationalDate()));
   });
 });

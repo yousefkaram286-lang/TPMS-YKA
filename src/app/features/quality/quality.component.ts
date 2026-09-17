@@ -27,7 +27,7 @@ import { Product } from '../../core/models/product.model';
 import { Line } from '../../core/models/line.model';
 import { MasterDataUtil } from '../../core/utils/master-data.util';
 import { QualityCalculationUtil, resolveQualitySnapshotBasis } from '../../core/utils/quality-calculation.util';
-import { toLocalCalendarString } from '../../core/utils/date.util';
+import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDate } from '../../core/utils/date.util';
 import { SubmissionGuard } from '../../core/utils/production.util';
 import { forkJoin } from 'rxjs';
 
@@ -791,7 +791,7 @@ export class QualityComponent implements OnInit, OnDestroy {
 
   private initForm(): void {
     this.qualityForm = this.fb.group({
-      date: [new Date(), Validators.required],
+      date: [getDefaultOperationalDate(), Validators.required],
       productId: ['', Validators.required],
       lineId: ['', Validators.required],
       notes: [''],
@@ -1001,7 +1001,7 @@ export class QualityComponent implements OnInit, OnDestroy {
     const product = this.activeProducts.find(p => p.id === record.productId);
     this.selectedProduct = product;
     this.qualityForm.patchValue({
-      date: new Date(record.date),
+      date: parseLocalCalendarDate(record.date) ?? getDefaultOperationalDate(),
       productId: record.productId,
       lineId: record.lineId ?? '',
       notes: record.notes ?? ''
@@ -1077,7 +1077,7 @@ export class QualityComponent implements OnInit, OnDestroy {
     this.pendingSubmissionId = null;
     this.selectedProduct = undefined;
     this.qualityForm.reset({
-      date: new Date(),
+      date: getDefaultOperationalDate(),
       productId: '',
       lineId: '',
       notes: ''
@@ -1103,21 +1103,23 @@ export class QualityComponent implements OnInit, OnDestroy {
 
       let matchesDate = true;
       if (this.dateFilter) {
-        const recordDate = new Date(record.date);
+        // Local-calendar parse: a stored YYYY-MM-DD is compared as the exact local
+        // day (never via UTC-midnight string parsing). Malformed dates match nothing.
+        const recordDate = parseLocalCalendarDate(record.date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (this.dateFilter === 'today') {
-          const testDate = new Date(recordDate);
-          testDate.setHours(0, 0, 0, 0);
-          matchesDate = testDate.getTime() === today.getTime();
+          const testDate = recordDate ? new Date(recordDate.getTime()) : undefined;
+          testDate?.setHours(0, 0, 0, 0);
+          matchesDate = !!testDate && testDate.getTime() === today.getTime();
         } else if (this.dateFilter === 'week') {
           const weekAgo = new Date(today);
           weekAgo.setDate(weekAgo.getDate() - 7);
-          matchesDate = recordDate >= weekAgo;
+          matchesDate = !!recordDate && recordDate >= weekAgo;
         } else if (this.dateFilter === 'month') {
           const monthAgo = new Date(today);
           monthAgo.setMonth(monthAgo.getMonth() - 1);
-          matchesDate = recordDate >= monthAgo;
+          matchesDate = !!recordDate && recordDate >= monthAgo;
         }
       }
 
@@ -1191,7 +1193,9 @@ export class QualityComponent implements OnInit, OnDestroy {
     this.loadingHistory = true;
     this.qualityService.getAll().subscribe({
       next: (tests) => {
-        this.history = tests.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        this.history = tests.sort(
+          (a, b) => (parseLocalCalendarDate(b.date)?.getTime() ?? 0) - (parseLocalCalendarDate(a.date)?.getTime() ?? 0)
+        );
         this.applyFilter();
         this.loadingHistory = false;
       },
