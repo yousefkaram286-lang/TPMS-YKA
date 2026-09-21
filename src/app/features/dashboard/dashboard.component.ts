@@ -33,7 +33,7 @@ import {
   ProductPerformanceRow, LineStatusRow, OperationalAlert,
   RecentActivity
 } from '../../core/services/dashboard.service';
-import { ReportService, ReportType, ReportFormat } from '../../core/services/report.service';
+import { ReportService, ReportType } from '../../core/services/report.service';
 import { AuthService } from '../../core/services/auth.service';
 import { TranslationService } from '../../core/services/translation.service';
 
@@ -106,35 +106,13 @@ import { Component as NgComponent } from '@angular/core';
           </div>
         </div>
 
-        <!-- Format -->
-        <div class="field-group">
-          <label>{{ translation.translate('dashboard.report.format') }}</label>
-          <div class="format-row">
-            <button
-              class="format-btn"
-              [class.format-btn--active]="format === 'xlsx'"
-              (click)="format = 'xlsx'">
-              <mat-icon>table_chart</mat-icon>
-              {{ translation.translate('dashboard.report.formatExcel') }}
-            </button>
-            <button
-              class="format-btn"
-              [class.format-btn--active]="format === 'pdf'"
-              (click)="format = 'pdf'">
-              <mat-icon>picture_as_pdf</mat-icon>
-              {{ translation.translate('dashboard.report.formatPdf') }}
-            </button>
-          </div>
+        <div class="report-dialog__footer">
+          <button mat-button (click)="close()" [disabled]="exporting" class="btn-cancel">{{ translation.translate('common.cancel') }}</button>
+          <button mat-button class="btn-download" [disabled]="exporting" (click)="download()">
+            <mat-icon>download</mat-icon>
+            {{ translation.translate(exporting ? 'common.loading' : 'dashboard.report.download') }}
+          </button>
         </div>
-      </div>
-
-      <div class="report-dialog__footer">
-        <button mat-button (click)="close()" [disabled]="exporting" class="btn-cancel">{{ translation.translate('common.cancel') }}</button>
-        <button mat-button class="btn-download" [disabled]="exporting" (click)="download()">
-          <mat-icon>download</mat-icon>
-          {{ translation.translate(exporting ? 'common.loading' : 'dashboard.report.download') }}
-        </button>
-      </div>
     </div>
   `,
   styles: [`
@@ -295,40 +273,6 @@ import { Component as NgComponent } from '@angular/core';
       }
     }
 
-    .format-row {
-      display: flex;
-      gap: var(--space-3);
-    }
-
-    .format-btn {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      padding: var(--space-3) var(--space-4);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      background: var(--surface-alt);
-      cursor: pointer;
-      font-size: var(--text-sm);
-      color: var(--text-secondary);
-      transition: all 0.2s;
-
-      mat-icon { font-size: 18px; width: 18px; height: 18px; }
-
-      &:hover { 
-        border-color: var(--accent); 
-        color: var(--accent);
-        background: var(--surface);
-      }
-    }
-
-    .format-btn--active {
-      border-color: var(--accent);
-      background: var(--primary-50);
-      color: var(--accent);
-      font-weight: var(--weight-medium);
-    }
-
     .report-dialog__footer {
       display: flex;
       justify-content: flex-end;
@@ -381,8 +325,7 @@ import { Component as NgComponent } from '@angular/core';
     // Dark mode adjustments
     :host-context([data-theme="dark"]) .report-dialog {
       .type-btn--active,
-      .preset-btn--active,
-      .format-btn--active {
+      .preset-btn--active {
         background: var(--primary-100);
       }
 
@@ -402,7 +345,6 @@ export class ReportDialogComponent {
 
   exporting = false;
   reportType: ReportType = 'production';
-  format: ReportFormat = 'xlsx';
   datePreset: DatePreset = 'today';
   customStart = this.dashboardSvc.localDateStr(new Date());
   customEnd = this.dashboardSvc.localDateStr(new Date());
@@ -443,7 +385,6 @@ export class ReportDialogComponent {
       const filtered = this.dashboardSvc.filterData(this.data, range);
       const exported = await this.reportService.generate({
         type: this.reportType,
-        format: this.format,
         range,
         productions: filtered.productions,
         sessions: filtered.sessions,
