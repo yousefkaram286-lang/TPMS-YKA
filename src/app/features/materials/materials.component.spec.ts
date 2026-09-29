@@ -30,11 +30,13 @@ import { EN } from '../../core/i18n/en';
 import { AR } from '../../core/i18n/ar';
 import { routes } from '../../app.routes';
 import { toLocalCalendarString, getDefaultOperationalDate } from '../../core/utils/date.util';
+import { MaterialRecord } from '../../core/models/material-record.model';
 
 const EMPTY: any[] = [];
 
 class FakeMaterialsService {
-  getAll = () => of(EMPTY);
+  records: MaterialRecord[] = [];
+  getAll = () => of(this.records);
   createIdempotent = () => of({});
   update = () => of({});
   delete = () => of({});
@@ -46,7 +48,10 @@ class FakeMaterialsService {
 }
 
 class FakeProductService { getAll = () => of(EMPTY); }
-class FakeLineService { getAll = () => of(EMPTY); }
+class FakeLineService {
+  lines: any[] = [];
+  getAll = () => of(this.lines);
+}
 class FakeShiftService { getAll = () => of(EMPTY); }
 class FakeRecipeService { getAll = () => of(EMPTY); getByProduct = () => of(EMPTY); }
 class FakeUnitCostService { getAll = () => of(EMPTY); }
@@ -103,6 +108,68 @@ describe('MaterialsComponent i18n', () => {
     });
     (comp as any).recomputeAll();
   }
+
+  function historyRecord(id: string, date: string, lineId: string, createdAt = '2026-09-28T12:00:00Z'): MaterialRecord {
+    return { id, date, lineId, createdAt, mixCount: 1, materials: [], totalCost: 0 };
+  }
+
+  async function renderHistory(records: MaterialRecord[], lineNames: string[]) {
+    (TestBed.inject(MaterialsService) as unknown as FakeMaterialsService).records = records;
+    (TestBed.inject(LineService) as unknown as FakeLineService).lines = lineNames.map((name, index) => ({
+      id: `l${index + 1}`, name, active: true, createdAt: '2026-01-01T00:00:00Z'
+    }));
+    const fixture = await createComponent();
+    const renderedLines = [...fixture.nativeElement.querySelectorAll('.history-table .mat-mdc-row .mat-column-line')]
+      .map((cell: Element) => cell.textContent?.trim());
+    return { records: fixture.componentInstance.filteredHistory, renderedLines };
+  }
+
+  it('renders same-date Materials History in numeric line order regardless of entry order', async () => {
+    const date = '2026-09-28';
+    const result = await renderHistory([
+      historyRecord('line-4', date, 'l4'),
+      historyRecord('line-1', date, 'l1'),
+      historyRecord('line-3', date, 'l3'),
+      historyRecord('line-2', date, 'l2')
+    ], ['Line 1', 'Line 2', 'Line 3', 'Line 4']);
+
+    expect(result.records.map(record => record.lineId)).toEqual(['l1', 'l2', 'l3', 'l4']);
+    expect(result.renderedLines).toEqual(['Line 1', 'Line 2', 'Line 3', 'Line 4']);
+  });
+
+  it('places a newer operational date ahead of an earlier line', async () => {
+    const result = await renderHistory([
+      historyRecord('older', '2026-09-28', 'l1'),
+      historyRecord('newer', '2026-09-29', 'l3')
+    ], ['Line 1', 'Line 2', 'Line 3']);
+
+    expect(result.records.map(record => record.date)).toEqual(['2026-09-29', '2026-09-28']);
+    expect(result.renderedLines).toEqual(['Line 3', 'Line 1']);
+  });
+
+  it('places Line 10 after Line 4 and nonnumeric lines after numbered lines', async () => {
+    const date = '2026-09-28';
+    const result = await renderHistory([
+      historyRecord('ten', date, 'l3'),
+      historyRecord('other', date, 'l4'),
+      historyRecord('four', date, 'l2'),
+      historyRecord('one', date, 'l1')
+    ], ['Line 1', 'Line 4', 'Line 10', 'Other']);
+
+    expect(result.renderedLines).toEqual(['Line 1', 'Line 4', 'Line 10', 'Other']);
+  });
+
+  it('uses creation time then id to break ties on the same date and line', async () => {
+    const date = '2026-09-28';
+    const result = await renderHistory([
+      historyRecord('b', date, 'l1', '2026-09-28T09:00:00Z'),
+      historyRecord('a', date, 'l1', '2026-09-28T09:00:00Z'),
+      historyRecord('newest', date, 'l1', '2026-09-28T10:00:00Z')
+    ], ['Line 1']);
+
+    expect(result.records.map(record => record.id)).toEqual(['newest', 'a', 'b']);
+    expect(result.renderedLines).toEqual(['Line 1', 'Line 1', 'Line 1']);
+  });
 
   it('marks the Materials route as RTL-capable for Arabic', () => {
     const materialsRoute = routes

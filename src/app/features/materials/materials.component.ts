@@ -792,9 +792,27 @@ export class MaterialsComponent implements OnInit {
   private loadHistory(): void {
     this.materialsService.getAll().subscribe({
       next: (data) => {
-        this.history = data.sort(
-          (a, b) => (parseLocalCalendarDate(b.date)?.getTime() ?? 0) - (parseLocalCalendarDate(a.date)?.getTime() ?? 0)
-        );
+        this.history = data.sort((a, b) => {
+          const dateOrder = (parseLocalCalendarDate(b.date)?.getTime() ?? 0)
+            - (parseLocalCalendarDate(a.date)?.getTime() ?? 0);
+          if (dateOrder !== 0) return dateOrder;
+
+          const aName = this.getLineName(a.lineId);
+          const bName = this.getLineName(b.lineId);
+          const aNumber = /\d+\s*$/.exec(aName);
+          const bNumber = /\d+\s*$/.exec(bName);
+          if (aNumber && bNumber) {
+            const lineOrder = Number(aNumber[0]) - Number(bNumber[0]);
+            if (lineOrder !== 0) return lineOrder;
+          } else if (aNumber || bNumber) {
+            return aNumber ? -1 : 1;
+          } else {
+            const nameOrder = aName.localeCompare(bName);
+            if (nameOrder !== 0) return nameOrder;
+          }
+
+          return (b.createdAt || '').localeCompare(a.createdAt || '') || a.id.localeCompare(b.id);
+        });
         this.applyFilter();
         this.loadingHistory = false;
       },
