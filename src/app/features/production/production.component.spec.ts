@@ -26,11 +26,13 @@ import { EN } from '../../core/i18n/en';
 import { AR } from '../../core/i18n/ar';
 import { routes } from '../../app.routes';
 import { toLocalCalendarString, getDefaultOperationalDate } from '../../core/utils/date.util';
+import { Production } from '../../core/models/production.model';
 
 const EMPTY: any[] = [];
 
 class FakeProductionService {
-  getAll = () => of(EMPTY);
+  records: Production[] = [];
+  getAll = () => of(this.records);
   getById = () => of(null);
   getBySessionId = () => of(EMPTY);
   create = () => of({});
@@ -48,7 +50,10 @@ class FakeProductionSessionService {
 }
 
 class FakeProductService { getAll = () => of(EMPTY); }
-class FakeLineService { getAll = () => of(EMPTY); }
+class FakeLineService {
+  lines: any[] = [];
+  getAll = () => of(this.lines);
+}
 class FakeShiftService { getAll = () => of(EMPTY); }
 class FakeLineProductService { getAll = () => of(EMPTY); }
 
@@ -100,6 +105,71 @@ describe('ProductionComponent i18n', () => {
     comp.addDowntimeEvent();
     comp.downtimeEvents.at(0).patchValue({ durationMinutes: 30 });
   }
+
+  function historyRecord(id: string, date: string, lineId: string, createdAt = '2026-09-23T12:00:00Z'): Production {
+    return {
+      id, date, lineId, createdAt, shiftId: '', supervisor: 'Ahmed',
+      productId: 'p1', piecesPerPress: 1, presses: 1, produced: 1
+    };
+  }
+
+  async function renderHistory(records: Production[], lineNames: string[]) {
+    (TestBed.inject(ProductionService) as unknown as FakeProductionService).records = records;
+    (TestBed.inject(LineService) as unknown as FakeLineService).lines = lineNames.map((name, index) => ({
+      id: `l${index + 1}`, name, active: true, createdAt: '2026-01-01T00:00:00Z'
+    }));
+    const fixture = await createComponent();
+    const renderedLines = [...fixture.nativeElement.querySelectorAll('.history-table .mat-mdc-row .mat-column-line')]
+      .map((cell: Element) => cell.textContent?.trim());
+    return { records: fixture.componentInstance.filteredHistory, renderedLines };
+  }
+
+  it('renders same-date Production History in numeric line order regardless of creation order', async () => {
+    const date = '2026-09-23';
+    const result = await renderHistory([
+      historyRecord('line-4', date, 'l4'),
+      historyRecord('line-1', date, 'l1'),
+      historyRecord('line-3', date, 'l3'),
+      historyRecord('line-2', date, 'l2')
+    ], ['Line 1', 'Line 2', 'Line 3', 'Line 4']);
+
+    expect(result.records.map(record => record.lineId)).toEqual(['l1', 'l2', 'l3', 'l4']);
+    expect(result.renderedLines).toEqual(['Line 1', 'Line 2', 'Line 3', 'Line 4']);
+  });
+
+  it('places a newer operational date ahead of an earlier line', async () => {
+    const result = await renderHistory([
+      historyRecord('older', '2026-09-23', 'l1'),
+      historyRecord('newer', '2026-09-24', 'l3')
+    ], ['Line 1', 'Line 2', 'Line 3']);
+
+    expect(result.records.map(record => record.date)).toEqual(['2026-09-24', '2026-09-23']);
+    expect(result.renderedLines).toEqual(['Line 3', 'Line 1']);
+  });
+
+  it('places Line 10 after Line 4 and nonnumeric lines after numbered lines', async () => {
+    const date = '2026-09-23';
+    const result = await renderHistory([
+      historyRecord('ten', date, 'l3'),
+      historyRecord('other', date, 'l4'),
+      historyRecord('four', date, 'l2'),
+      historyRecord('one', date, 'l1')
+    ], ['Line 1', 'Line 4', 'Line 10', 'Other']);
+
+    expect(result.renderedLines).toEqual(['Line 1', 'Line 4', 'Line 10', 'Other']);
+  });
+
+  it('uses creation time then id to break ties on the same date and line', async () => {
+    const date = '2026-09-23';
+    const result = await renderHistory([
+      historyRecord('b', date, 'l1', '2026-09-23T09:00:00Z'),
+      historyRecord('a', date, 'l1', '2026-09-23T09:00:00Z'),
+      historyRecord('newest', date, 'l1', '2026-09-23T10:00:00Z')
+    ], ['Line 1']);
+
+    expect(result.records.map(record => record.id)).toEqual(['newest', 'a', 'b']);
+    expect(result.renderedLines).toEqual(['Line 1', 'Line 1', 'Line 1']);
+  });
 
   it('marks the Production route as RTL-capable for Arabic', () => {
     const productionRoute = routes
