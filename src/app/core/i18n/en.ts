@@ -257,6 +257,9 @@ export const EN: TranslationCatalog = {
   'production.form.piecesPerPress': 'Pieces/Press',
   'production.form.piecesPerPress.notConfigured': 'Pieces/Press not set in Product master data',
   'production.form.presses': 'Presses',
+  'production.form.calculatedPresses': 'Presses (calculated)',
+  'production.form.trolleys': 'Trolleys',
+  'production.form.pressesPerTrolley': 'Presses/Trolley',
   'production.form.produced': 'Produced',
   'production.form.addProduct': 'Add Product',
 
@@ -322,6 +325,7 @@ export const EN: TranslationCatalog = {
 
   'production.error.lineInvalid': 'Selected Line is not valid. Production must be recorded per Production Line.',
   'production.error.negativePresses': 'Press count cannot be negative.',
+  'production.error.invalidTrolleys': 'Trolley count must be a number greater than zero.',
   'production.error.piecesPerPressMissing': 'PiecesPerPress is not configured for this product.',
   'production.error.productInvalid': 'Selected product is not valid or not active.',
   'production.error.noPiecesConfig': 'Product "{product}" has no PiecesPerPress configured. Set it in Settings > Products before recording production.',
@@ -350,6 +354,8 @@ export const EN: TranslationCatalog = {
   'production.view.product': 'Product',
   'production.view.piecesPerPress': 'Pieces / Press',
   'production.view.presses': 'Presses',
+  'production.view.trolleys': 'Trolleys',
+  'production.view.pressesPerTrolley': 'Presses per Trolley',
   'production.view.produced': 'Produced',
   'production.view.releasedOutput': 'Released Output',
   'production.view.overtimeYes': 'Yes',

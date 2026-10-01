@@ -8,6 +8,7 @@ import { TranslationService } from '../../core/services/translation.service';
 import { Production } from '../../core/models/production.model';
 import { ProductionSession, ProductionDowntimeEvent } from '../../core/models/production-session.model';
 import { ProductionUtil } from '../../core/utils/production.util';
+import { TrolleyUtil } from '../../core/utils/trolley.util';
 
 export interface ProductionViewDialogData {
   record: Production;
@@ -64,6 +65,14 @@ export interface ProductionViewDialogData {
             <div class="detail-item">
               <span class="detail-label">{{ translation.translate('production.view.piecesPerPress') }}</span>
               <span class="detail-value">{{ data.record.piecesPerPress }}</span>
+            </div>
+            <div class="detail-item" *ngIf="showTrolleyData">
+              <span class="detail-label">{{ translation.translate('production.view.trolleys') }}</span>
+              <span class="detail-value">{{ data.record.trolleyCount }}</span>
+            </div>
+            <div class="detail-item" *ngIf="showTrolleyData">
+              <span class="detail-label">{{ translation.translate('production.view.pressesPerTrolley') }}</span>
+              <span class="detail-value">{{ data.record.pressesPerTrolley }}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">{{ translation.translate('production.view.presses') }}</span>
@@ -348,6 +357,15 @@ export class ProductionViewDialogComponent {
     @Inject(MAT_DIALOG_DATA) public data: ProductionViewDialogData,
     private dialogRef: MatDialogRef<ProductionViewDialogComponent>
   ) {}
+
+  /**
+   * Trolley detail is shown only for records that actually carry it.
+   * A historical Line 1 / Line 2 record without a stored trolley count is
+   * displayed exactly as before — no trolley value is inferred for it.
+   */
+  get showTrolleyData(): boolean {
+    return TrolleyUtil.hasTrolleyData(this.data.record);
+  }
 
   /**
    * Downtime events for display. New sessions carry granular events; historical

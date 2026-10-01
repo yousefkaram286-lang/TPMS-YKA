@@ -405,4 +405,90 @@ describe('ProductionComponent i18n', () => {
     comp.clearForm();
     expect(toLocalCalendarString(comp.productionForm.get('date')!.value as Date)).toBe(op);
   });
+
+  it('shows decimal Trolleys on Line 1 and derives fractional Presses and Produced', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    comp.productionForm.get('lineId')!.setValue('lin-001');
+    comp.onLineChange();
+    comp.items.at(0).patchValue({ piecesPerPress: 22.5, trolleyCount: 30.25 });
+    comp.calculateRowProduced(0);
+    fixture.detectChanges();
+
+    expect(comp.trolleyMode).toBeTrue();
+    expect(comp.items.at(0).get('presses')?.value).toBe(423.5);
+    expect(comp.items.at(0).get('produced')?.value).toBe(9528.75);
+    expect(fixture.nativeElement.querySelector('input[formControlName="trolleyCount"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('input[formControlName="presses"]').readOnly).toBeTrue();
+  });
+
+  it('uses the same Trolley input on Line 2 and rejects zero or non-numeric values', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    comp.productionForm.get('lineId')!.setValue('lin-002');
+    comp.onLineChange();
+    const trolleys = comp.items.at(0).get('trolleyCount')!;
+    trolleys.setValue(0);
+    expect(trolleys.hasError('invalidTrolleys')).toBeTrue();
+    trolleys.setValue('bad');
+    expect(trolleys.hasError('invalidTrolleys')).toBeTrue();
+    trolleys.setValue(0.5);
+    comp.items.at(0).get('piecesPerPress')!.setValue(10.5);
+    comp.calculateRowProduced(0);
+    fixture.detectChanges();
+
+    expect(trolleys.valid).toBeTrue();
+    expect(comp.items.at(0).get('presses')?.value).toBe(7);
+    expect(comp.items.at(0).get('produced')?.value).toBe(73.5);
+    expect(fixture.nativeElement.querySelector('input[formControlName="trolleyCount"]')).not.toBeNull();
+  });
+
+  it('does not carry a previous line’s trolley count or derived Presses into another line', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    comp.productionForm.get('lineId')!.setValue('lin-001');
+    comp.onLineChange();
+    comp.items.at(0).get('trolleyCount')!.setValue(30);
+    comp.calculateRowProduced(0);
+    expect(comp.items.at(0).get('presses')?.value).toBe(420);
+
+    comp.productionForm.get('lineId')!.setValue('lin-002');
+    comp.onLineChange();
+    expect(comp.items.at(0).get('trolleyCount')?.value).toBeNull();
+    expect(comp.items.at(0).get('presses')?.value).toBe(0);
+
+    comp.items.at(0).get('trolleyCount')!.setValue(0.5);
+    comp.calculateRowProduced(0);
+    comp.productionForm.get('lineId')!.setValue('lin-003');
+    comp.onLineChange();
+    expect(comp.trolleyMode).toBeFalse();
+    expect(comp.items.at(0).get('trolleyCount')?.value).toBeNull();
+    expect(comp.items.at(0).get('presses')?.value).toBe(0);
+  });
+
+  it('keeps other lines on manual Presses and old Line 1 records readable without invented Trolleys', async () => {
+    const fixture = await createComponent();
+    const comp = fixture.componentInstance;
+    comp.productionForm.get('lineId')!.setValue('lin-003');
+    comp.onLineChange();
+    comp.items.at(0).patchValue({ presses: 3, piecesPerPress: 10.5 });
+    comp.calculateRowProduced(0);
+    fixture.detectChanges();
+    expect(comp.trolleyMode).toBeFalse();
+    expect(comp.items.at(0).get('produced')?.value).toBe(31.5);
+    expect(fixture.nativeElement.querySelector('input[formControlName="trolleyCount"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[formControlName="presses"]').readOnly).toBeFalse();
+
+    const old = { ...historyRecord('old', '2026-09-01', 'lin-001'), sessionId: 'old-session',
+      presses: 100, piecesPerPress: 22.5, produced: 2250 };
+    comp.history = [old];
+    comp.sessionsMap.set('old-session', {
+      id: 'old-session', date: old.date, shiftId: '', lineId: 'lin-001', supervisor: 'QA',
+      overtime: false, overtimeHours: 0, dailyLineTime: [], notes: '', createdAt: old.createdAt
+    });
+    comp.editSession(old);
+    expect(comp.trolleyMode).toBeFalse();
+    expect(comp.items.at(0).get('presses')?.value).toBe(100);
+    expect(comp.items.at(0).get('trolleyCount')?.value).toBeNull();
+  });
 });

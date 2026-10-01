@@ -174,6 +174,18 @@ describe('ReportService', () => {
       expect((svc as any).buildOperationKpis(buildParams()).produced).toBe(5722.5);
       expect((svc as any).fmtNum(5722.5)).toBe('5,722.5');
     });
+
+    it('keeps fractional trolley-derived Presses and Produced in PDF statistics', () => {
+      const params = buildParams({ productions: [makeProduction({
+        presses: 423.5, produced: 9528.75,
+        trolleyCount: 30.25, pressesPerTrolley: 14, piecesPerPress: 22.5
+      })] });
+      const stats = (svc as any).computeStats(params);
+      expect(stats.totalPresses).toBe(423.5);
+      expect(stats.totalProduced).toBe(9528.75);
+      expect((svc as any).fmtNum(stats.totalPresses)).toBe('423.5');
+      expect((svc as any).fmtNum(stats.totalProduced)).toBe('9,528.75');
+    });
   });
 
 

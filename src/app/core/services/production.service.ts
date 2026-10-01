@@ -4,6 +4,7 @@ import { catchError, map } from 'rxjs/operators';
 import { SupabaseService } from './supabase.service';
 import { Production } from '../models/production.model';
 import { ProductionUtil } from '../utils/production.util';
+import { TrolleyUtil, PRESSES_PER_TROLLEY } from '../utils/trolley.util';
 
 export interface ProductionRecordInput {
   id: string;
@@ -15,6 +16,13 @@ export interface ProductionRecordInput {
   supervisor?: string;
   piecesPerPress: number | undefined;
   presses: number;
+  /**
+   * Trolley input (Line 1 / Line 2 only). When supplied, Presses is
+   * DERIVED as trolleyCount x 14 and the caller-supplied `presses` is
+   * ignored. Accepts decimals (30.5) and is never rounded.
+   * Omit for every line that still receives direct Presses input.
+   */
+  trolleyCount?: number | null;
   machineId?: string;
   createdAt: string;
 }
@@ -40,6 +48,14 @@ export class ProductionService {
       piecesPerPress: row.pieces_per_press,
       presses: row.presses,
       produced: row.produced,
+      // Historical integrity: a missing trolley count stays missing.
+      // It is NEVER back-derived from presses.
+      trolleyCount: row.trolley_count !== null && row.trolley_count !== undefined
+        ? Number(row.trolley_count)
+        : undefined,
+      pressesPerTrolley: row.presses_per_trolley !== null && row.presses_per_trolley !== undefined
+        ? Number(row.presses_per_trolley)
+        : undefined,
       releasedOutput: row.released_output !== null ? row.released_output : undefined,
       output: row.output !== null ? row.output : undefined,
       createdAt: row.created_at,
@@ -61,6 +77,10 @@ export class ProductionService {
       pieces_per_press: production.piecesPerPress,
       presses: production.presses,
       produced: production.produced,
+      // null (not 0) when absent, so a record that was never entered in
+      // trolleys is never re-written as "0 trolleys" on a later save.
+      trolley_count: production.trolleyCount ?? null,
+      presses_per_trolley: production.pressesPerTrolley ?? null,
       released_output: production.releasedOutput ?? null,
       output: production.output ?? null,
       created_at: production.createdAt,
@@ -178,10 +198,33 @@ export class ProductionService {
    * ProducedQuantity is ALWAYS system-calculated from NumberOfPresses × PiecesPerPress;
    * any manually supplied produced value is ignored.
    *
-   * @throws Error when presses is negative or PiecesPerPress is not configured.
+   * TROLLEY INPUT (Line 1 / Line 2): when `trolleyCount` is a valid positive
+   * number, Presses is derived as trolleyCount × 14 (decimals preserved, never
+   * rounded) and the fixed 14 is snapshotted into `pressesPerTrolley`. Any
+   * caller-supplied `presses` is then ignored. When no trolley count is given,
+   * the record is built exactly as before from direct Presses input.
+   *
+   * @throws Error when the trolley count is invalid, presses is negative,
+   *         or PiecesPerPress is not configured.
    */
   createProductionRecord(input: ProductionRecordInput): Production {
-    if (!ProductionUtil.isValidPressCount(input.presses)) {
+    const usesTrolleys = input.trolleyCount !== null && input.trolleyCount !== undefined;
+
+    if (usesTrolleys && !TrolleyUtil.isTrolleyLine(input.lineId)) {
+      throw new Error('Trolley input is only valid for Line 1 and Line 2.');
+    }
+
+    if (usesTrolleys && !TrolleyUtil.isValidTrolleyCount(input.trolleyCount)) {
+      throw new Error('Trolley count must be a number greater than zero.');
+    }
+
+    // Trolley-derived Presses may be fractional (e.g. 30.25 trolleys = 423.5
+    // presses). isValidPressCount accepts any finite value >= 0.
+    const presses = usesTrolleys
+      ? TrolleyUtil.calculatePresses(input.trolleyCount)
+      : input.presses;
+
+    if (!ProductionUtil.isValidPressCount(presses)) {
       throw new Error('Negative press count is not allowed.');
     }
 
@@ -190,7 +233,11 @@ export class ProductionService {
     }
 
     const piecesPerPress = input.piecesPerPress as number;
-    const produced = this.calculateProduced(piecesPerPress, input.presses);
+    // The trolley path preserves the full fractional product. The existing
+    // manual-Presses calculation stays unchanged for all other records.
+    const produced = usesTrolleys
+      ? presses * piecesPerPress
+      : this.calculateProduced(piecesPerPress, presses);
 
     const record: Production = {
       id: input.id,
@@ -201,10 +248,15 @@ export class ProductionService {
       productId: input.productId,
       supervisor: input.supervisor ?? '',
       piecesPerPress,
-      presses: input.presses,
+      presses,
       produced,
       createdAt: input.createdAt,
     };
+
+    if (usesTrolleys) {
+      record.trolleyCount = input.trolleyCount as number;
+      record.pressesPerTrolley = PRESSES_PER_TROLLEY;
+    }
 
     if (input.machineId) record.machineId = input.machineId;
 

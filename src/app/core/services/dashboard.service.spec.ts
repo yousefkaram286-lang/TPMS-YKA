@@ -328,6 +328,16 @@ describe('DashboardService', () => {
     expect(perf[0].presses).toBe(546);
   });
 
+  it('aggregates fractional trolley-derived Presses and Produced without truncation', () => {
+    const trolley = makeProduction({ presses: 423.5, piecesPerPress: 10.5,
+      produced: 4446.75, trolleyCount: 30.25, pressesPerTrolley: 14 });
+    const manual = makeProduction({ id: 'manual', presses: 3, produced: 24 });
+    const perf = svc.buildProductPerformance([trolley, manual], [], PRODUCTS);
+    expect(perf[0].presses).toBe(426.5);
+    expect(perf[0].produced).toBe(4470.75);
+    expect(svc.calcStats({ ...baseData(), productions: [trolley, manual] }).totalProduction).toBe(4470.75);
+  });
+
   it('released output is date-filtered by releaseDate in filterData', () => {
     const data = baseData();
     data.releases = [makeRelease(), makeRelease({ id: 'rel-old', releaseDate: '2026-08-01' })];

@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,6 +28,7 @@ import { Shift } from '../../core/models/shift.model';
 import { LineProductMapping } from '../../core/models/line-product.model';
 import { ProductionViewDialogComponent } from './production-view-dialog.component';
 import { ProductionUtil, SubmissionGuard } from '../../core/utils/production.util';
+import { TrolleyUtil, PRESSES_PER_TROLLEY } from '../../core/utils/trolley.util';
 import { MasterDataUtil } from '../../core/utils/master-data.util';
 import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDate } from '../../core/utils/date.util';
 
@@ -105,15 +106,17 @@ import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDat
             <!-- SECTION B: Production Output -->
             <div class="section-label">{{ translation.translate('production.form.section.output') }}</div>
             <div formArrayName="items" class="products-list">
-              <div class="products-header">
+              <div class="products-header" [class.trolley-mode]="trolleyMode">
                 <div class="col-product">{{ translation.translate('production.form.product') }}</div>
                 <div class="col-pieces">{{ translation.translate('production.form.piecesPerPress') }}</div>
-                <div class="col-presses">{{ translation.translate('production.form.presses') }}</div>
+                <div class="col-trolleys" *ngIf="trolleyMode">{{ translation.translate('production.form.trolleys') }}</div>
+                <div class="col-presses-per-trolley" *ngIf="trolleyMode">{{ translation.translate('production.form.pressesPerTrolley') }}</div>
+                <div class="col-presses">{{ trolleyMode ? translation.translate('production.form.calculatedPresses') : translation.translate('production.form.presses') }}</div>
                 <div class="col-produced">{{ translation.translate('production.form.produced') }}</div>
                 <div class="col-actions"></div>
               </div>
 
-              <div class="product-row" *ngFor="let item of items.controls; let i = index" [formGroupName]="i">
+              <div class="product-row" *ngFor="let item of items.controls; let i = index" [formGroupName]="i" [class.trolley-mode]="trolleyMode">
                 <!-- Product Select -->
                 <div class="col-product form-group mb-0">
                   <select formControlName="productId" class="form-control" (change)="onProductChange(i)" [class.is-invalid]="item.get('productId')?.invalid && item.get('productId')?.touched">
@@ -130,9 +133,32 @@ import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDat
                   </div>
                 </div>
 
-                <!-- Presses -->
+                <!-- Trolleys (Line 1 / Line 2 only): editable, decimals allowed -->
+                <div class="col-trolleys form-group mb-0" *ngIf="trolleyMode">
+                  <input type="number" formControlName="trolleyCount" class="form-control"
+                         step="any" min="0" inputmode="decimal"
+                         (input)="calculateRowProduced(i)"
+                         [class.is-invalid]="item.get('trolleyCount')?.invalid && item.get('trolleyCount')?.touched">
+                  <div class="invalid-feedback" *ngIf="item.get('trolleyCount')?.hasError('invalidTrolleys')" style="display: block;">
+                    {{ translation.translate('production.error.invalidTrolleys') }}
+                  </div>
+                </div>
+
+                <!-- Presses per Trolley (Line 1 / Line 2 only): read only, fixed 14 -->
+                <div class="col-presses-per-trolley form-group mb-0" *ngIf="trolleyMode">
+                  <input type="number" class="form-control readonly-input" readonly tabindex="-1" [value]="pressesPerTrolley">
+                </div>
+
+                <!-- Presses: manual input, or calculated = Trolleys x 14 on Line 1/2 -->
                 <div class="col-presses form-group mb-0">
-                  <input type="number" formControlName="presses" class="form-control" (input)="calculateRowProduced(i)" [class.is-invalid]="item.get('presses')?.invalid && item.get('presses')?.touched" min="0">
+                  <input type="number" formControlName="presses" class="form-control"
+                         [class.readonly-input]="trolleyMode"
+                         [attr.step]="trolleyMode ? 'any' : null"
+                         [attr.min]="trolleyMode ? null : 0"
+                         [attr.readonly]="trolleyMode ? '' : null"
+                         [attr.tabindex]="trolleyMode ? -1 : null"
+                         (input)="calculateRowProduced(i)"
+                         [class.is-invalid]="item.get('presses')?.invalid && item.get('presses')?.touched">
                 </div>
 
                 <!-- Produced -->
@@ -552,8 +578,14 @@ import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDat
       &:hover { background: var(--surface-alt); }
     }
 
+    /* Line 1 / Line 2 add Trolleys + fixed Presses-per-Trolley columns. */
+    .products-header.trolley-mode,
+    .product-row.trolley-mode {
+      grid-template-columns: 3fr 1fr 1fr 1fr 1fr 1fr 48px;
+    }
+
     .col-product { min-width: 0; }
-    .col-pieces, .col-presses { min-width: 80px; }
+    .col-pieces, .col-presses, .col-trolleys, .col-presses-per-trolley { min-width: 80px; }
     .col-produced { min-width: 80px; display: flex; justify-content: center; }
     .col-actions { display: flex; justify-content: center; }
 
@@ -908,12 +940,90 @@ export class ProductionComponent implements OnInit {
       productId: ['', Validators.required],
       piecesPerPress: [0, Validators.required],
       presses: [0, [Validators.required, Validators.min(0)]],
+      // Line 1 / Line 2 only. null means "not entered in trolleys" and is
+      // never initialised to 0, so a manual-presses row never stores 0 trolleys.
+      trolleyCount: [null],
       produced: [0, Validators.required]
     });
   }
 
+  /**
+   * Validator for the trolley input: accepts any positive decimal
+   * (30, 30.5, 30.25, 0.5) and rejects 0, negatives and non-numeric input.
+   * Applied ONLY while trolley mode is active.
+   */
+  private static trolleyValidator(control: AbstractControl): ValidationErrors | null {
+    return TrolleyUtil.isValidTrolleyCount(control.value) ? null : { invalidTrolleys: true };
+  }
+
+  /** Fixed, read-only Presses-per-trolley value shown on Line 1 / Line 2. */
+  readonly pressesPerTrolley = PRESSES_PER_TROLLEY;
+
+  /**
+   * True when a Line 1 / Line 2 historical session is being edited whose
+   * items carry no stored trolley count. Such a record keeps the ordinary
+   * manual Presses form so its existing Presses value stays readable and
+   * editable — a trolley count is never invented for it.
+   */
+  private legacyTrolleyLineSession = false;
+  private previousTrolleyMode = false;
+
+  /**
+   * Trolley input is active when the selected Line is a trolley line AND the
+   * record being edited is not a legacy trolley-line session without stored
+   * trolley data. Every other line keeps the manual Presses input.
+   */
+  get trolleyMode(): boolean {
+    if (this.legacyTrolleyLineSession) return false;
+    return TrolleyUtil.isTrolleyLine(this.productionForm?.get('lineId')?.value);
+  }
+
+  /**
+   * Enables/disables the trolley validator on every row so the entry form is
+   * only blocked on Line 1 / Line 2.
+   */
+  private syncTrolleyValidation(): void {
+    const active = this.trolleyMode;
+    this.items.controls.forEach(row => {
+      const ctrl = row.get('trolleyCount');
+      if (!ctrl) return;
+      ctrl.setValidators(active ? [ProductionComponent.trolleyValidator] : []);
+      ctrl.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  /**
+   * Switching lines changes the input mode. Any trolley value captured on the
+   * previous line is cleared so it is never carried into another line's record,
+   * and every row's Presses/Produced are recomputed for the new mode.
+   */
+  onLineChange(): void {
+    const lineId = this.productionForm.get('lineId')?.value;
+    const wasTrolleyMode = this.previousTrolleyMode;
+    this.legacyTrolleyLineSession = false;
+    this.applyLineProductFilter(lineId);
+    const nextTrolleyMode = this.trolleyMode;
+
+    // Reset items because the available products change per line
+    this.items.controls.forEach((row, i) => {
+      if (!this.isProductAllowed(row.get('productId')?.value)) {
+        row.get('productId')?.setValue('');
+        row.get('piecesPerPress')?.setValue(0);
+      }
+      // A trolley count belongs to exactly one line. Derived presses must not
+      // become a manual input when switching from a trolley line to another line.
+      row.get('trolleyCount')?.setValue(null);
+      if (wasTrolleyMode && !nextTrolleyMode) row.get('presses')?.setValue(0);
+      this.calculateRowProduced(i);
+    });
+
+    this.previousTrolleyMode = nextTrolleyMode;
+    this.syncTrolleyValidation();
+  }
+
   addItem(): void {
     this.items.push(this.createItem());
+    this.syncTrolleyValidation();
   }
 
   removeItem(index: number): void {
@@ -956,20 +1066,6 @@ export class ProductionComponent implements OnInit {
   isInvalid(controlName: string): boolean {
     const control = this.productionForm.get(controlName);
     return !!(control && control.invalid && (control.dirty || control.touched));
-  }
-
-  onLineChange(): void {
-    const lineId = this.productionForm.get('lineId')?.value;
-    this.applyLineProductFilter(lineId);
-
-    // Reset items because the available products change per line
-    this.items.controls.forEach((_, i) => {
-      if (!this.isProductAllowed(this.items.at(i).get('productId')?.value)) {
-        this.items.at(i).get('productId')?.setValue('');
-        this.items.at(i).get('piecesPerPress')?.setValue(0);
-      }
-      this.calculateRowProduced(i);
-    });
   }
 
   /**
@@ -1028,11 +1124,29 @@ export class ProductionComponent implements OnInit {
     this.calculateRowProduced(index);
   }
 
+  /**
+   * Recomputes one row.
+   *
+   * Line 1 / Line 2 (trolley mode): Presses is DERIVED as Trolleys x 14 and the
+   * `presses` control is kept in sync so every existing consumer (summary
+   * totals, record building, history) continues to work unchanged. Neither
+   * value is rounded to an integer.
+   *
+   * All other lines: Presses is the operator's manual input, unchanged.
+   */
   calculateRowProduced(index: number): void {
     const row = this.items.at(index);
     const pieces = row.get('piecesPerPress')?.value || 0;
+
+    if (this.trolleyMode) {
+      const trolleys = row.get('trolleyCount')?.value;
+      row.get('presses')?.setValue(TrolleyUtil.calculatePresses(trolleys), { emitEvent: false });
+    }
+
     const presses = row.get('presses')?.value || 0;
-    row.get('produced')?.setValue(ProductionUtil.calculateProduced(pieces, presses));
+    row.get('produced')?.setValue(this.trolleyMode
+      ? presses * pieces
+      : ProductionUtil.calculateProduced(pieces, presses));
   }
 
   getTotalProduced(): number {
@@ -1110,11 +1224,21 @@ export class ProductionComponent implements OnInit {
 
     for (let idx = 0; idx < formValue.items.length; idx++) {
       const item = formValue.items[idx];
-      if (!ProductionUtil.isValidPressCount(item.presses)) {
+
+      // Line 1 / Line 2: the Trolley count is the source of truth. 0, negative
+      // and non-numeric values are rejected; decimals are kept exactly.
+      if (this.trolleyMode) {
+        if (!TrolleyUtil.isValidTrolleyCount(item.trolleyCount)) {
+          this.saveError = this.translation.translate('production.error.invalidTrolleys');
+          this.submissionGuard.release();
+          return;
+        }
+      } else if (!ProductionUtil.isValidPressCount(item.presses)) {
         this.saveError = this.translation.translate('production.error.negativePresses');
         this.submissionGuard.release();
         return;
       }
+
       const product = this.productsMap.get(item.productId);
       const referenceStatus = ProductionUtil.resolveProductReferenceStatus({
         editing: !!this.editingSessionId,
@@ -1201,6 +1325,9 @@ export class ProductionComponent implements OnInit {
         supervisor: (formValue.supervisor || '').trim(),
         piecesPerPress: item.piecesPerPress,
         presses: item.presses,
+        // Trolley input (Line 1 / Line 2): Presses is derived as Trolleys x 14.
+        // null on every other line, so those records never store trolley data.
+        trolleyCount: this.trolleyMode ? item.trolleyCount : null,
         createdAt
       });
     });
@@ -1358,9 +1485,18 @@ export class ProductionComponent implements OnInit {
      }
      
      this.editingSessionId = session.id;
-     
+
      // Find all items for this session
      const sessionItems = this.history.filter(h => h.sessionId === session.id);
+
+     // Historical integrity: a Line 1 / Line 2 session whose items carry no
+     // stored trolley count is opened in the ordinary manual Presses form. Its
+     // existing Presses value stays readable and editable, and NO trolley
+     // count is invented for it. Such a record is also never silently
+     // rewritten with a back-derived trolley value on a later Save.
+     this.legacyTrolleyLineSession =
+       TrolleyUtil.isTrolleyLine(session.lineId) &&
+       !sessionItems.every(item => TrolleyUtil.hasTrolleyData(item));
      
      // Populate header and session data
      this.productionForm.patchValue({
@@ -1384,10 +1520,15 @@ export class ProductionComponent implements OnInit {
            productId: item.productId,
            piecesPerPress: item.piecesPerPress,
            presses: item.presses,
+           // A stored trolley count loads and edits normally. A missing one stays
+           // null — it is never back-derived from the Presses value.
+           trolleyCount: this.legacyTrolleyLineSession ? null : (item.trolleyCount ?? null),
            produced: item.produced
         });
         this.items.push(group);
      });
+     this.syncTrolleyValidation();
+     this.previousTrolleyMode = this.trolleyMode;
      
      // Populate downtime events for the selected line. Historical scalar-only
      // sessions are transformed into one compatibility event so legacy downtime
@@ -1480,6 +1621,8 @@ export class ProductionComponent implements OnInit {
   clearForm(): void {
     this.editingSessionId = null;
     this.pendingSessionId = null;
+    this.legacyTrolleyLineSession = false;
+    this.previousTrolleyMode = false;
     this.items.clear();
     this.addItem();
 

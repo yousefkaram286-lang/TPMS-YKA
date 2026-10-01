@@ -254,6 +254,9 @@ export const AR: TranslationCatalog = {
   'production.form.piecesPerPress': 'القطع / الكبسة',
   'production.form.piecesPerPress.notConfigured': 'عدد القطع لكل كبسة غير مضبوط في بيانات المنتج الرئيسية',
   'production.form.presses': 'الكبسات',
+  'production.form.calculatedPresses': 'الكبسات المحسوبة',
+  'production.form.trolleys': 'التروليات',
+  'production.form.pressesPerTrolley': 'الكبسات لكل ترولي',
   'production.form.produced': 'المُنتَج',
   'production.form.addProduct': 'إضافة منتج',
 
@@ -319,6 +322,7 @@ export const AR: TranslationCatalog = {
 
   'production.error.lineInvalid': 'الخط المحدد غير صالح. يجب تسجيل الإنتاج لكل خط إنتاج.',
   'production.error.negativePresses': 'لا يمكن أن يكون عدد الكبسات سالباً.',
+  'production.error.invalidTrolleys': 'يجب أن يكون عدد التروليات رقماً أكبر من صفر.',
   'production.error.piecesPerPressMissing': 'لم يتم إعداد عدد القطع لكل ضغطة لهذا المنتج.',
   'production.error.productInvalid': 'المنتج المحدد غير صالح أو غير نشط.',
   'production.error.noPiecesConfig': 'المنتج "{product}" لا يحتوي على عدد القطع لكل كبسة مضبوط. اضبطها في الإعدادات > المنتجات قبل تسجيل الإنتاج.',
@@ -347,6 +351,8 @@ export const AR: TranslationCatalog = {
   'production.view.product': 'المنتج',
   'production.view.piecesPerPress': 'القطع / الكبسة',
   'production.view.presses': 'الكبسات',
+  'production.view.trolleys': 'التروليات',
+  'production.view.pressesPerTrolley': 'الكبسات لكل ترولي',
   'production.view.produced': 'المُنتَج',
   'production.view.releasedOutput': 'الإنتاج المصروف',
   'production.view.overtimeYes': 'نعم',
