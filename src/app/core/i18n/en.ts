@@ -325,7 +325,8 @@ export const EN: TranslationCatalog = {
 
   'production.error.lineInvalid': 'Selected Line is not valid. Production must be recorded per Production Line.',
   'production.error.negativePresses': 'Press count cannot be negative.',
-  'production.error.invalidTrolleys': 'Trolley count must be a number greater than zero.',
+  'production.error.invalidTrolleys': 'Trolley count must be a number greater than or equal to zero.',
+  'production.error.invalidStep': 'Trolley count must be entered in increments of 0.5 (for example 30 or 30.5).',
   'production.error.piecesPerPressMissing': 'PiecesPerPress is not configured for this product.',
   'production.error.productInvalid': 'Selected product is not valid or not active.',
   'production.error.noPiecesConfig': 'Product "{product}" has no PiecesPerPress configured. Set it in Settings > Products before recording production.',

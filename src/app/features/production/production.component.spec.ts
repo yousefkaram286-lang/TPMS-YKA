@@ -406,32 +406,48 @@ describe('ProductionComponent i18n', () => {
     expect(toLocalCalendarString(comp.productionForm.get('date')!.value as Date)).toBe(op);
   });
 
-  it('shows decimal Trolleys on Line 1 and derives fractional Presses and Produced', async () => {
+  it('shows decimal Trolleys on Line 1 and derives whole Presses and Produced', async () => {
     const fixture = await createComponent();
     const comp = fixture.componentInstance;
     comp.productionForm.get('lineId')!.setValue('lin-001');
     comp.onLineChange();
-    comp.items.at(0).patchValue({ piecesPerPress: 22.5, trolleyCount: 30.25 });
+    comp.items.at(0).patchValue({ piecesPerPress: 22.5, trolleyCount: 30.5 });
     comp.calculateRowProduced(0);
     fixture.detectChanges();
 
     expect(comp.trolleyMode).toBeTrue();
-    expect(comp.items.at(0).get('presses')?.value).toBe(423.5);
-    expect(comp.items.at(0).get('produced')?.value).toBe(9528.75);
+    expect(comp.items.at(0).get('presses')?.value).toBe(427);
+    expect(comp.items.at(0).get('produced')?.value).toBe(9607.5);
     expect(fixture.nativeElement.querySelector('input[formControlName="trolleyCount"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('input[formControlName="presses"]').readOnly).toBeTrue();
   });
 
-  it('uses the same Trolley input on Line 2 and rejects zero or non-numeric values', async () => {
+  it('uses the same Trolley input on Line 2, allows zero, and rejects off-step values', async () => {
     const fixture = await createComponent();
     const comp = fixture.componentInstance;
     comp.productionForm.get('lineId')!.setValue('lin-002');
     comp.onLineChange();
     const trolleys = comp.items.at(0).get('trolleyCount')!;
+
+    // Zero is a VALID entry: a line stopped for the whole operational day.
     trolleys.setValue(0);
-    expect(trolleys.hasError('invalidTrolleys')).toBeTrue();
+    trolleys.updateValueAndValidity();
+    expect(trolleys.hasError('invalidTrolleys')).toBeFalse();
+    expect(trolleys.hasError('invalidStep')).toBeFalse();
+
+    // Non-numeric is still rejected.
     trolleys.setValue('bad');
+    trolleys.updateValueAndValidity();
     expect(trolleys.hasError('invalidTrolleys')).toBeTrue();
+
+    // Every confirmed off-step value is rejected with the dedicated error.
+    for (const value of [0.25, 0.75, 1.25, 30.25]) {
+      trolleys.setValue(value);
+      trolleys.updateValueAndValidity();
+      expect(trolleys.hasError('invalidStep')).withContext(String(value)).toBeTrue();
+    }
+
+    // 0.5 -> 7 presses is valid.
     trolleys.setValue(0.5);
     comp.items.at(0).get('piecesPerPress')!.setValue(10.5);
     comp.calculateRowProduced(0);

@@ -49,9 +49,9 @@ describe('Production trolley persistence', () => {
     service = TestBed.inject(ProductionService);
   });
 
-  it('derives Line 1 and Line 2 presses from decimals, including fractional PPP output', () => {
+  it('derives Line 1 and Line 2 whole Presses from 0.5 increments, including fractional PPP output', () => {
     for (const lineId of ['lin-001', 'lin-002']) {
-      for (const [trolleys, presses] of [[30, 420], [30.5, 427], [30.25, 423.5], [0.5, 7]]) {
+      for (const [trolleys, presses] of [[0, 0], [0.5, 7], [1, 14], [1.5, 21], [30, 420], [30.5, 427]] as Array<[number, number]>) {
         const record = service.createProductionRecord({
           id: `${lineId}-${trolleys}`, date: '2026-09-29', lineId,
           productId: 'prd-008', piecesPerPress: 22.5,
@@ -61,36 +61,71 @@ describe('Production trolley persistence', () => {
         expect(record.pressesPerTrolley).toBe(14);
         expect(record.presses).toBe(presses);
         expect(record.produced).toBe(presses * 22.5);
+        expect(Number.isInteger(record.presses)).toBeTrue();
       }
     }
-    const small = service.createProductionRecord({
-      id: 'small-fraction', date: '2026-09-29', lineId: 'lin-001',
-      productId: 'prd-008', piecesPerPress: 1,
-      presses: 0, trolleyCount: 0.0000001, createdAt
-    });
-    expect(small.presses).toBeCloseTo(0.0000014, 12);
-    expect(small.produced).toBeCloseTo(0.0000014, 12);
-    expect(small.produced).not.toBe(0.000001);
   });
 
-  it('stores and reloads trolley count, factor snapshot, decimal presses, and Produced', async () => {
+  it('rejects every trolley count that is not a multiple of 0.5', () => {
+    for (const trolleys of [0.25, 0.75, 1.25, 30.25]) {
+      expect(() => service.createProductionRecord({
+        id: `bad-${trolleys}`, date: '2026-09-29', lineId: 'lin-001',
+        productId: 'prd-008', piecesPerPress: 22.5,
+        presses: 0, trolleyCount: trolleys, createdAt
+      })).withContext(String(trolleys)).toThrowError(/multiple of 0\.5/i);
+    }
+  });
+
+  it('accepts a zero-trolley session as a valid zero-production record', () => {
+    const record = service.createProductionRecord({
+      id: 'zero-session', date: '2026-09-29', lineId: 'lin-001',
+      productId: 'prd-008', piecesPerPress: 22.5,
+      presses: 999, trolleyCount: 0, createdAt
+    });
+    expect(record.trolleyCount).toBe(0);
+    expect(record.pressesPerTrolley).toBe(14);
+    expect(record.presses).toBe(0);
+    expect(record.produced).toBe(0);
+  });
+
+  it('stores and reloads trolley count, factor snapshot, whole presses, and Produced', async () => {
     const record = service.createProductionRecord({
       id: 'trolley-1', date: '2026-09-29', lineId: 'lin-001',
       productId: 'prd-008', piecesPerPress: 22.5,
-      presses: 0, trolleyCount: 30.25, createdAt
+      presses: 0, trolleyCount: 30.5, createdAt
     });
     const saved = await firstValueFrom(service.create(record));
     const reloaded = await firstValueFrom(service.getById(record.id));
 
-    expect(lastWrite.trolley_count).toBe(30.25);
+    expect(lastWrite.trolley_count).toBe(30.5);
     expect(lastWrite.presses_per_trolley).toBe(14);
-    expect(lastWrite.presses).toBe(423.5);
-    expect(lastWrite.produced).toBe(9528.75);
-    expect(saved.trolleyCount).toBe(30.25);
-    expect(reloaded?.trolleyCount).toBe(30.25);
+    expect(lastWrite.presses).toBe(427);
+    expect(lastWrite.produced).toBe(9607.5);
+    expect(saved.trolleyCount).toBe(30.5);
+    expect(reloaded?.trolleyCount).toBe(30.5);
     expect(reloaded?.pressesPerTrolley).toBe(14);
-    expect(reloaded?.presses).toBe(423.5);
-    expect(reloaded?.produced).toBe(9528.75);
+    expect(reloaded?.presses).toBe(427);
+    expect(reloaded?.produced).toBe(9607.5);
+  });
+
+  it('round-trips a zero-trolley session through the database mapping', async () => {
+    const record = service.createProductionRecord({
+      id: 'zero-db', date: '2026-09-29', lineId: 'lin-001',
+      productId: 'prd-008', piecesPerPress: 22.5,
+      presses: 0, trolleyCount: 0, createdAt
+    });
+    await firstValueFrom(service.create(record));
+    const reloaded = await firstValueFrom(service.getById(record.id));
+
+    // 0 is a real trolley count, not "no trolley data": it must be stored as 0
+    // and read back as 0 (not collapsed to null/undefined).
+    expect(lastWrite.trolley_count).toBe(0);
+    expect(lastWrite.presses_per_trolley).toBe(14);
+    expect(lastWrite.presses).toBe(0);
+    expect(lastWrite.produced).toBe(0);
+    expect(reloaded?.trolleyCount).toBe(0);
+    expect(reloaded?.presses).toBe(0);
+    expect(reloaded?.produced).toBe(0);
   });
 
   it('keeps other lines on manual presses and rejects trolley data on them', () => {

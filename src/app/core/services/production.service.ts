@@ -4,7 +4,7 @@ import { catchError, map } from 'rxjs/operators';
 import { SupabaseService } from './supabase.service';
 import { Production } from '../models/production.model';
 import { ProductionUtil } from '../utils/production.util';
-import { TrolleyUtil, PRESSES_PER_TROLLEY } from '../utils/trolley.util';
+import { TrolleyUtil, PRESSES_PER_TROLLEY, TROLLEY_STEP } from '../utils/trolley.util';
 
 export interface ProductionRecordInput {
   id: string;
@@ -198,14 +198,19 @@ export class ProductionService {
    * ProducedQuantity is ALWAYS system-calculated from NumberOfPresses × PiecesPerPress;
    * any manually supplied produced value is ignored.
    *
-   * TROLLEY INPUT (Line 1 / Line 2): when `trolleyCount` is a valid positive
-   * number, Presses is derived as trolleyCount × 14 (decimals preserved, never
-   * rounded) and the fixed 14 is snapshotted into `pressesPerTrolley`. Any
-   * caller-supplied `presses` is then ignored. When no trolley count is given,
+   * TROLLEY INPUT (Line 1 / Line 2): when `trolleyCount` is a multiple of
+   * 0.5 Trolley and >= 0, Presses is derived as trolleyCount × 14 and the fixed
+   * 14 is snapshotted into `pressesPerTrolley`. The 0.5 increment is what
+   * guarantees a whole number of Presses (0.5 × 14 = 7). Any caller-supplied
+   * `presses` is then ignored. A trolley count of 0 is a legitimate
+   * zero-production session and is accepted. When no trolley count is given,
    * the record is built exactly as before from direct Presses input.
    *
-   * @throws Error when the trolley count is invalid, presses is negative,
-   *         or PiecesPerPress is not configured.
+   * Produced stays unconstrained: PiecesPerPress may be fractional.
+   *
+   * @throws Error when the trolley count is negative/non-numeric, is not a
+   *         multiple of 0.5, presses is negative, or PiecesPerPress is not
+   *         configured.
    */
   createProductionRecord(input: ProductionRecordInput): Production {
     const usesTrolleys = input.trolleyCount !== null && input.trolleyCount !== undefined;
@@ -214,12 +219,26 @@ export class ProductionService {
       throw new Error('Trolley input is only valid for Line 1 and Line 2.');
     }
 
-    if (usesTrolleys && !TrolleyUtil.isValidTrolleyCount(input.trolleyCount)) {
-      throw new Error('Trolley count must be a number greater than zero.');
+    // Trolley Count may be zero (a line stopped for the whole operational day
+    // is a valid, savable zero-production session) but must sit on a 0.5
+    // increment, which is what guarantees whole Presses. A value off the step
+    // is rejected outright — never floored, ceiled, rounded, or snapped to the
+    // nearest increment.
+    if (usesTrolleys
+        && TrolleyUtil.isNumericTrolleyCount(input.trolleyCount)
+        && !TrolleyUtil.isOnStep(input.trolleyCount)) {
+      throw new Error(
+        `Trolley count ${input.trolleyCount} is not a multiple of ${TROLLEY_STEP}. `
+        + `Enter the trolley count in increments of ${TROLLEY_STEP} (for example 30 or 30.5).`
+      );
     }
 
-    // Trolley-derived Presses may be fractional (e.g. 30.25 trolleys = 423.5
-    // presses). isValidPressCount accepts any finite value >= 0.
+    if (usesTrolleys && !TrolleyUtil.isValidTrolleyCount(input.trolleyCount)) {
+      throw new Error('Trolley count must be a number greater than or equal to zero.');
+    }
+
+    // Trolley-derived Presses are always whole here (validated above), e.g.
+    // 30.5 trolleys = 427 presses. isValidPressCount accepts any finite >= 0.
     const presses = usesTrolleys
       ? TrolleyUtil.calculatePresses(input.trolleyCount)
       : input.presses;

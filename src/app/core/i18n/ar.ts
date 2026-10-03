@@ -322,7 +322,8 @@ export const AR: TranslationCatalog = {
 
   'production.error.lineInvalid': 'الخط المحدد غير صالح. يجب تسجيل الإنتاج لكل خط إنتاج.',
   'production.error.negativePresses': 'لا يمكن أن يكون عدد الكبسات سالباً.',
-  'production.error.invalidTrolleys': 'يجب أن يكون عدد التروليات رقماً أكبر من صفر.',
+  'production.error.invalidTrolleys': 'يجب أن يكون عدد التروليات رقماً يساوي صفراً أو أكثر.',
+  'production.error.invalidStep': 'يجب إدخال عدد التروليات بمضاعفات 0.5 (مثل 30 أو 30.5).',
   'production.error.piecesPerPressMissing': 'لم يتم إعداد عدد القطع لكل ضغطة لهذا المنتج.',
   'production.error.productInvalid': 'المنتج المحدد غير صالح أو غير نشط.',
   'production.error.noPiecesConfig': 'المنتج "{product}" لا يحتوي على عدد القطع لكل كبسة مضبوط. اضبطها في الإعدادات > المنتجات قبل تسجيل الإنتاج.',

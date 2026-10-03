@@ -328,14 +328,24 @@ describe('DashboardService', () => {
     expect(perf[0].presses).toBe(546);
   });
 
-  it('aggregates fractional trolley-derived Presses and Produced without truncation', () => {
-    const trolley = makeProduction({ presses: 423.5, piecesPerPress: 10.5,
-      produced: 4446.75, trolleyCount: 30.25, pressesPerTrolley: 14 });
+  it('aggregates trolley-derived whole Presses and fractional Produced without truncation', () => {
+    const trolley = makeProduction({ presses: 427, piecesPerPress: 10.5,
+      produced: 4483.5, trolleyCount: 30.5, pressesPerTrolley: 14 });
     const manual = makeProduction({ id: 'manual', presses: 3, produced: 24 });
     const perf = svc.buildProductPerformance([trolley, manual], [], PRODUCTS);
-    expect(perf[0].presses).toBe(426.5);
-    expect(perf[0].produced).toBe(4470.75);
-    expect(svc.calcStats({ ...baseData(), productions: [trolley, manual] }).totalProduction).toBe(4470.75);
+    expect(perf[0].presses).toBe(430);
+    expect(perf[0].produced).toBe(4507.5);
+    expect(svc.calcStats({ ...baseData(), productions: [trolley, manual] }).totalProduction).toBe(4507.5);
+  });
+
+  it('includes a zero-production trolley session in totals as 0 without dropping the row', () => {
+    const stopped = makeProduction({ id: 'stopped', presses: 0, piecesPerPress: 10.5,
+      produced: 0, trolleyCount: 0, pressesPerTrolley: 14 });
+    const running = makeProduction({ id: 'running', presses: 420, piecesPerPress: 10, produced: 4200 });
+    const perf = svc.buildProductPerformance([stopped, running], [], PRODUCTS);
+    expect(perf[0].presses).toBe(420);
+    expect(perf[0].produced).toBe(4200);
+    expect(svc.calcStats({ ...baseData(), productions: [stopped, running] }).totalProduction).toBe(4200);
   });
 
   it('released output is date-filtered by releaseDate in filterData', () => {

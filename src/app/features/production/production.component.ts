@@ -28,7 +28,7 @@ import { Shift } from '../../core/models/shift.model';
 import { LineProductMapping } from '../../core/models/line-product.model';
 import { ProductionViewDialogComponent } from './production-view-dialog.component';
 import { ProductionUtil, SubmissionGuard } from '../../core/utils/production.util';
-import { TrolleyUtil, PRESSES_PER_TROLLEY } from '../../core/utils/trolley.util';
+import { TrolleyUtil, PRESSES_PER_TROLLEY, TROLLEY_STEP } from '../../core/utils/trolley.util';
 import { MasterDataUtil } from '../../core/utils/master-data.util';
 import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDate } from '../../core/utils/date.util';
 
@@ -119,6 +119,7 @@ import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDat
               <div class="product-row" *ngFor="let item of items.controls; let i = index" [formGroupName]="i" [class.trolley-mode]="trolleyMode">
                 <!-- Product Select -->
                 <div class="col-product form-group mb-0">
+                  <label class="field-label">{{ translation.translate('production.form.product') }}</label>
                   <select formControlName="productId" class="form-control" (change)="onProductChange(i)" [class.is-invalid]="item.get('productId')?.invalid && item.get('productId')?.touched">
                     <option value="" disabled>{{ translation.translate('production.form.product.placeholder') }}</option>
                     <option *ngFor="let product of activeProducts" [value]="product.id">{{ product.name }}</option>
@@ -127,30 +128,34 @@ import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDat
 
                 <!-- Pieces / Press -->
                 <div class="col-pieces form-group mb-0">
+                  <label class="field-label">{{ translation.translate('production.form.piecesPerPress') }}</label>
                   <input type="number" formControlName="piecesPerPress" class="form-control readonly-input" readonly tabindex="-1">
                   <div class="invalid-feedback" *ngIf="item.get('piecesPerPress')?.hasError('noConfig')" style="display: block;">
                     {{ translation.translate('production.form.piecesPerPress.notConfigured') }}
                   </div>
                 </div>
 
-                <!-- Trolleys (Line 1 / Line 2 only): editable, decimals allowed -->
+                <!-- Trolleys (Line 1 / Line 2 only): editable in 0.5 increments. Zero is
+                     valid; an off-step value (30.25) is rejected, never snapped. -->
                 <div class="col-trolleys form-group mb-0" *ngIf="trolleyMode">
-                  <input type="number" formControlName="trolleyCount" class="form-control"
-                         step="any" min="0" inputmode="decimal"
+                  <label class="field-label">{{ translation.translate('production.form.trolleys') }}</label>
+                  <input type="number" formControlName="trolleyCount" class="form-control field-numeric"
+                         [attr.step]="trolleyStep" min="0" inputmode="decimal"
                          (input)="calculateRowProduced(i)"
+                         (blur)="item.get('trolleyCount')?.markAsTouched()"
+                         [attr.aria-invalid]="item.get('trolleyCount')?.invalid && item.get('trolleyCount')?.touched"
                          [class.is-invalid]="item.get('trolleyCount')?.invalid && item.get('trolleyCount')?.touched">
-                  <div class="invalid-feedback" *ngIf="item.get('trolleyCount')?.hasError('invalidTrolleys')" style="display: block;">
-                    {{ translation.translate('production.error.invalidTrolleys') }}
-                  </div>
                 </div>
 
                 <!-- Presses per Trolley (Line 1 / Line 2 only): read only, fixed 14 -->
                 <div class="col-presses-per-trolley form-group mb-0" *ngIf="trolleyMode">
+                  <label class="field-label">{{ translation.translate('production.form.pressesPerTrolley') }}</label>
                   <input type="number" class="form-control readonly-input" readonly tabindex="-1" [value]="pressesPerTrolley">
                 </div>
 
                 <!-- Presses: manual input, or calculated = Trolleys x 14 on Line 1/2 -->
                 <div class="col-presses form-group mb-0">
+                  <label class="field-label">{{ trolleyMode ? translation.translate('production.form.calculatedPresses') : translation.translate('production.form.presses') }}</label>
                   <input type="number" formControlName="presses" class="form-control"
                          [class.readonly-input]="trolleyMode"
                          [attr.step]="trolleyMode ? 'any' : null"
@@ -163,14 +168,29 @@ import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDat
 
                 <!-- Produced -->
                 <div class="col-produced form-group mb-0">
+                  <label class="field-label">{{ translation.translate('production.form.produced') }}</label>
                   <div class="produced-value">{{ item.get('produced')?.value || 0 }}</div>
                 </div>
 
                 <!-- Actions -->
                 <div class="col-actions">
-                  <button type="button" mat-icon-button color="warn" (click)="removeItem(i)" [disabled]="items.length === 1">
+                  <button type="button" mat-icon-button color="warn" (click)="removeItem(i)" [disabled]="items.length === 1"
+                          [attr.aria-label]="'Remove product'">
                     <mat-icon>delete</mat-icon>
                   </button>
+                </div>
+
+                <!-- Validation messages live in a direct full-width grid row beneath
+                     the fields, so a long string can never squeeze the inputs. -->
+                <div class="row-messages" *ngIf="item.get('trolleyCount')?.invalid && item.get('trolleyCount')?.touched">
+                  <div class="row-message" *ngIf="item.get('trolleyCount')?.hasError('invalidStep')">
+                      <mat-icon class="row-message-icon">error_outline</mat-icon>
+                      <span>{{ translation.translate('production.error.invalidStep') }}</span>
+                    </div>
+                  <div class="row-message" *ngIf="item.get('trolleyCount')?.hasError('invalidTrolleys')">
+                    <mat-icon class="row-message-icon">error_outline</mat-icon>
+                    <span>{{ translation.translate('production.error.invalidTrolleys') }}</span>
+                  </div>
                 </div>
               </div>
 
@@ -581,13 +601,126 @@ import { toLocalCalendarString, parseLocalCalendarDate, getDefaultOperationalDat
     /* Line 1 / Line 2 add Trolleys + fixed Presses-per-Trolley columns. */
     .products-header.trolley-mode,
     .product-row.trolley-mode {
-      grid-template-columns: 3fr 1fr 1fr 1fr 1fr 1fr 48px;
+      grid-template-columns: minmax(180px, 2.4fr) repeat(4, minmax(104px, 1fr)) minmax(112px, 1.15fr) 48px;
     }
 
     .col-product { min-width: 0; }
-    .col-pieces, .col-presses, .col-trolleys, .col-presses-per-trolley { min-width: 80px; }
-    .col-produced { min-width: 80px; display: flex; justify-content: center; }
+    .col-pieces, .col-presses, .col-trolleys, .col-presses-per-trolley { min-width: 104px; }
+    .col-produced { min-width: 112px; display: flex; flex-direction: column; align-items: center; }
     .col-actions { display: flex; justify-content: center; }
+
+    /* Per-field labels are only needed once the column header is hidden
+       (narrow/stacked layout); the header already labels them on desktop. */
+    .field-label { display: none; }
+
+    /* Numeric entry: centred, tabular figures so digits line up down the column
+       and a long value cannot widen its track. */
+    .products-header .col-pieces,
+    .products-header .col-trolleys,
+    .products-header .col-presses-per-trolley,
+    .products-header .col-presses,
+    .products-header .col-produced {
+      text-align: center;
+      white-space: normal;
+      line-height: 1.25;
+      overflow-wrap: break-word;
+      hyphens: auto;
+    }
+
+    .field-numeric,
+    .col-pieces .form-control,
+    .col-presses .form-control,
+    .col-presses-per-trolley .form-control {
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Keep every cell top-aligned so a tall validation message never shifts
+       the numeric fields out of line with their header. */
+    .product-row > * { align-self: start; }
+    .product-row .form-control { height: 38px; }
+    .product-row .col-actions { align-self: center; }
+
+    /* Validation message: own full-width row under the fields, so a long
+       string wraps instead of being squeezed into one narrow column. */
+    .row-messages {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: var(--space-1);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      background: var(--danger-50, #fef2f2);
+      border-inline-start: 3px solid var(--danger-500, #dc2626);
+    }
+
+    .row-message {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      line-height: 1.4;
+      color: var(--danger-700, #b91c1c);
+    }
+
+    .row-message-icon {
+      flex: 0 0 auto;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+    }
+
+    /* Narrow screens: stack the row into labelled field pairs rather than
+       letting columns overlap or clip. Product and Produced stay first-class. */
+    @media (max-width: 900px) {
+      .products-header { display: none; }
+
+      .products-header.trolley-mode,
+      .product-row.trolley-mode,
+      .products-header:not(.trolley-mode),
+      .product-row:not(.trolley-mode) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-3);
+        padding: var(--space-3);
+        background: var(--surface-alt);
+      }
+
+      .product-row .col-product,
+      .product-row .col-produced { grid-column: 1 / -1; }
+
+      .product-row .col-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+        margin-top: var(--space-2);
+      }
+
+      .col-pieces, .col-presses, .col-trolleys, .col-presses-per-trolley { min-width: 0; }
+      .col-produced { min-width: 0; }
+
+      /* The column header is gone, so every field carries its own label. */
+      .field-label {
+        display: block;
+        font-size: var(--text-xs);
+        font-weight: var(--weight-semibold);
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 2px;
+      }
+
+      .row-messages { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 480px) {
+      .products-header.trolley-mode,
+      .product-row.trolley-mode,
+      .products-header:not(.trolley-mode),
+      .product-row:not(.trolley-mode) {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
 
     .produced-value {
       font-size: var(--text-base);
@@ -948,16 +1081,29 @@ export class ProductionComponent implements OnInit {
   }
 
   /**
-   * Validator for the trolley input: accepts any positive decimal
-   * (30, 30.5, 30.25, 0.5) and rejects 0, negatives and non-numeric input.
-   * Applied ONLY while trolley mode is active.
+   * Validator for the trolley input. Accepts a multiple of 0.5 Trolley that
+   * is >= 0: 0, 0.5, 1, 1.5, 30, 30.5 are valid. Because 0.5 Trolley = 7
+   * Presses, this guarantees Presses is always a whole number. Rejects
+   * negatives, non-numeric input, and any count off the 0.5 step
+   * (30.25 -> 423.5 presses). Applied ONLY in trolley mode.
    */
   private static trolleyValidator(control: AbstractControl): ValidationErrors | null {
-    return TrolleyUtil.isValidTrolleyCount(control.value) ? null : { invalidTrolleys: true };
+    const value = control.value;
+    if (TrolleyUtil.isNumericTrolleyCount(value) && !TrolleyUtil.isOnStep(value)) {
+      return { invalidStep: true };
+    }
+    return TrolleyUtil.isValidTrolleyCount(value) ? null : { invalidTrolleys: true };
   }
 
   /** Fixed, read-only Presses-per-trolley value shown on Line 1 / Line 2. */
   readonly pressesPerTrolley = PRESSES_PER_TROLLEY;
+
+  /**
+   * Entry increment for the Trolley Count field (0.5 Trolley = 7 Presses).
+   * Matches the validation rule exactly, so the native spinner/stepper and
+   * the accepted values can never disagree.
+   */
+  readonly trolleyStep = TROLLEY_STEP;
 
   /**
    * True when a Line 1 / Line 2 historical session is being edited whose
@@ -1129,8 +1275,12 @@ export class ProductionComponent implements OnInit {
    *
    * Line 1 / Line 2 (trolley mode): Presses is DERIVED as Trolleys x 14 and the
    * `presses` control is kept in sync so every existing consumer (summary
-   * totals, record building, history) continues to work unchanged. Neither
-   * value is rounded to an integer.
+   * totals, record building, history) continues to work unchanged.
+   *
+   * The derived Presses is NEVER rounded. If the entered trolley count would
+   * give fractional Presses (30.25 -> 423.5), the value is shown exactly as
+   * calculated and the row is marked invalid by the validator, which blocks
+   * Save. Presses 0 (a stopped line) is a normal, savable result.
    *
    * All other lines: Presses is the operator's manual input, unchanged.
    */
@@ -1141,6 +1291,9 @@ export class ProductionComponent implements OnInit {
     if (this.trolleyMode) {
       const trolleys = row.get('trolleyCount')?.value;
       row.get('presses')?.setValue(TrolleyUtil.calculatePresses(trolleys), { emitEvent: false });
+      // Re-run the row validator so the off-step state appears as soon as the
+      // operator finishes typing, without waiting for a blur.
+      row.get('trolleyCount')?.updateValueAndValidity({ emitEvent: false });
     }
 
     const presses = row.get('presses')?.value || 0;
@@ -1225,10 +1378,21 @@ export class ProductionComponent implements OnInit {
     for (let idx = 0; idx < formValue.items.length; idx++) {
       const item = formValue.items[idx];
 
-      // Line 1 / Line 2: the Trolley count is the source of truth. 0, negative
-      // and non-numeric values are rejected; decimals are kept exactly.
+      // Line 1 / Line 2: the Trolley count is the source of truth. It must be a
+      // multiple of 0.5, which guarantees whole Presses, and 0 is a valid
+      // session (a line stopped for the whole day).
+      // Rejected: negatives, non-numeric input, and any count off the 0.5 step
+      // (e.g. 30.25 -> 423.5 presses). An off-step value is never rounded or
+      // snapped to the nearest increment.
       if (this.trolleyMode) {
-        if (!TrolleyUtil.isValidTrolleyCount(item.trolleyCount)) {
+        const trolley = item.trolleyCount;
+        if (TrolleyUtil.isNumericTrolleyCount(trolley) && !TrolleyUtil.isOnStep(trolley)) {
+          // Distinguish "not a multiple of 0.5" from "not a number".
+          this.saveError = this.translation.translate('production.error.invalidStep');
+          this.submissionGuard.release();
+          return;
+        }
+        if (!TrolleyUtil.isValidTrolleyCount(trolley)) {
           this.saveError = this.translation.translate('production.error.invalidTrolleys');
           this.submissionGuard.release();
           return;

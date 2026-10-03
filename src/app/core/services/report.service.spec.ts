@@ -175,16 +175,27 @@ describe('ReportService', () => {
       expect((svc as any).fmtNum(5722.5)).toBe('5,722.5');
     });
 
-    it('keeps fractional trolley-derived Presses and Produced in PDF statistics', () => {
+    it('keeps trolley-derived whole Presses and fractional Produced in PDF statistics', () => {
       const params = buildParams({ productions: [makeProduction({
-        presses: 423.5, produced: 9528.75,
-        trolleyCount: 30.25, pressesPerTrolley: 14, piecesPerPress: 22.5
+        presses: 427, produced: 9607.5,
+        trolleyCount: 30.5, pressesPerTrolley: 14, piecesPerPress: 22.5
       })] });
       const stats = (svc as any).computeStats(params);
-      expect(stats.totalPresses).toBe(423.5);
-      expect(stats.totalProduced).toBe(9528.75);
-      expect((svc as any).fmtNum(stats.totalPresses)).toBe('423.5');
-      expect((svc as any).fmtNum(stats.totalProduced)).toBe('9,528.75');
+      expect(stats.totalPresses).toBe(427);
+      expect(stats.totalProduced).toBe(9607.5);
+      expect((svc as any).fmtNum(stats.totalPresses)).toBe('427');
+      expect((svc as any).fmtNum(stats.totalProduced)).toBe('9,607.5');
+    });
+
+    it('includes a zero-production trolley session in PDF statistics as 0', () => {
+      const params = buildParams({ productions: [
+        makeProduction({ id: 'stopped', presses: 0, produced: 0, trolleyCount: 0, pressesPerTrolley: 14 }),
+        makeProduction({ id: 'running', presses: 427, produced: 4483.5, trolleyCount: 30.5, pressesPerTrolley: 14, piecesPerPress: 10.5 })
+      ] });
+      const stats = (svc as any).computeStats(params);
+      expect(stats.totalPresses).toBe(427);
+      expect(stats.totalProduced).toBe(4483.5);
+      expect((svc as any).fmtNum(stats.totalProduced)).toBe('4,483.5');
     });
   });
 

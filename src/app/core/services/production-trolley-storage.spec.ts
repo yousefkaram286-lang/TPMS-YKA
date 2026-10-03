@@ -81,11 +81,34 @@ describe('ProductionService — trolley storage mapping', () => {
       expect(record.produced).toBe(4200);
     });
 
-    it('keeps fractional presses from a decimal trolley count', () => {
-      const record = service.createProductionRecord(inputFor({ trolleyCount: 30.25 }));
-      expect(record.presses).toBe(423.5);
-      expect(record.trolleyCount).toBe(30.25);
-      expect(record.produced).toBe(4235);
+    it('derives whole presses from a half-trolley decimal', () => {
+      const record = service.createProductionRecord(inputFor({ trolleyCount: 30.5 }));
+      expect(record.presses).toBe(427);
+      expect(record.trolleyCount).toBe(30.5);
+      expect(record.produced).toBe(4270);
+      expect(Number.isInteger(record.presses)).toBeTrue();
+    });
+
+    it('rejects a trolley count that is not a multiple of 0.5', () => {
+      for (const trolleys of [0.25, 0.75, 1.25, 30.25]) {
+        expect(() => service.createProductionRecord(inputFor({ trolleyCount: trolleys })))
+          .withContext(String(trolleys))
+          .toThrowError(/multiple of 0\.5/i);
+      }
+    });
+
+    it('accepts 0, 1 and 1.5 trolleys as valid whole-press sessions', () => {
+      const zero = service.createProductionRecord(inputFor({ trolleyCount: 0 }));
+      expect(zero.presses).toBe(0);
+      expect(zero.produced).toBe(0);
+      expect(zero.trolleyCount).toBe(0);
+
+      const one = service.createProductionRecord(inputFor({ trolleyCount: 1 }));
+      expect(one.presses).toBe(14);
+
+      const oneAndAHalf = service.createProductionRecord(inputFor({ trolleyCount: 1.5 }));
+      expect(oneAndAHalf.presses).toBe(21);
+      expect(oneAndAHalf.trolleyCount).toBe(1.5);
     });
 
     it('ignores a caller-supplied presses value when a trolley count is present', () => {
@@ -100,19 +123,45 @@ describe('ProductionService — trolley storage mapping', () => {
       expect(record.presses).toBe(150);
     });
 
-    it('rejects an invalid trolley count', () => {
-      expect(() => service.createProductionRecord(inputFor({ trolleyCount: 0 }))).toThrow();
+    it('rejects a negative trolley count', () => {
       expect(() => service.createProductionRecord(inputFor({ trolleyCount: -3 }))).toThrow();
+      expect(() => service.createProductionRecord(inputFor({ trolleyCount: -0.5 }))).toThrow();
+    });
+
+    it('rejects a non-numeric trolley count', () => {
+      expect(() => service.createProductionRecord(inputFor({ trolleyCount: 'abc' as unknown as number }))).toThrow();
+      expect(() => service.createProductionRecord(inputFor({ trolleyCount: '30.5x' as unknown as number }))).toThrow();
+      expect(() => service.createProductionRecord(inputFor({ trolleyCount: NaN }))).toThrow();
+      expect(() => service.createProductionRecord(inputFor({ trolleyCount: Infinity }))).toThrow();
+    });
+
+    it('treats a null trolley count as "not entered", i.e. a manual-presses record', () => {
+      // null means the operator never used the Trolley flow, so the existing
+      // manual Presses behaviour applies; it is not a Trolley Count of 0.
+      const record = service.createProductionRecord(inputFor({ trolleyCount: null, presses: 150 }));
+      expect(record.trolleyCount).toBeUndefined();
+      expect(record.pressesPerTrolley).toBeUndefined();
+      expect(record.presses).toBe(150);
     });
   });
 
   describe('model -> database mapping', () => {
     it('writes trolley_count and presses_per_trolley columns', () => {
-      const db = service.toDb(baseRecord({ trolleyCount: 30.25, pressesPerTrolley: 14, presses: 423.5, produced: 4235 }));
-      expect(db.trolley_count).toBe(30.25);
+      const db = service.toDb(baseRecord({ trolleyCount: 30.5, pressesPerTrolley: 14, presses: 427, produced: 4270 }));
+      expect(db.trolley_count).toBe(30.5);
       expect(db.presses_per_trolley).toBe(14);
-      expect(db.presses).toBe(423.5);
-      expect(db.produced).toBe(4235);
+      expect(db.presses).toBe(427);
+      expect(db.produced).toBe(4270);
+    });
+
+    it('writes 0 (not NULL) for a zero-trolley session', () => {
+      // 0 is a real trolley count. Writing NULL here would lose the distinction
+      // between "line stopped, produced nothing" and "not captured in trolleys".
+      const db = service.toDb(baseRecord({ trolleyCount: 0, pressesPerTrolley: 14, presses: 0, produced: 0 }));
+      expect(db.trolley_count).toBe(0);
+      expect(db.presses_per_trolley).toBe(14);
+      expect(db.presses).toBe(0);
+      expect(db.produced).toBe(0);
     });
 
     it('writes NULL — not 0 — for a record with no trolley data', () => {
@@ -126,14 +175,28 @@ describe('ProductionService — trolley storage mapping', () => {
     it('reads trolley_count and presses_per_trolley back into the model', () => {
       const model = service.toModel({
         id: 'r1', date: '2026-09-29', shift_id: '', line_id: 'lin-001', product_id: 'p1',
-        supervisor: 'Ahmed', pieces_per_press: 10.5, presses: 423.5, produced: 4483.5,
-        trolley_count: 30.25, presses_per_trolley: 14,
+        supervisor: 'Ahmed', pieces_per_press: 10.5, presses: 427, produced: 4483.5,
+        trolley_count: 30.5, presses_per_trolley: 14,
         created_at: '2026-09-29T08:00:00Z'
       });
-      expect(model.trolleyCount).toBe(30.25);
+      expect(model.trolleyCount).toBe(30.5);
       expect(model.pressesPerTrolley).toBe(14);
-      expect(model.presses).toBe(423.5);
+      expect(model.presses).toBe(427);
       expect(model.produced).toBe(4483.5);
+    });
+
+    it('reads a zero-trolley row back as 0, not as missing trolley data', () => {
+      const model = service.toModel({
+        id: 'r0', date: '2026-09-29', shift_id: '', line_id: 'lin-001', product_id: 'p1',
+        supervisor: 'Ahmed', pieces_per_press: 10.5, presses: 0, produced: 0,
+        trolley_count: 0, presses_per_trolley: 14,
+        created_at: '2026-09-29T08:00:00Z'
+      });
+      expect(model.trolleyCount).toBe(0);
+      expect(model.pressesPerTrolley).toBe(14);
+      expect(model.presses).toBe(0);
+      expect(model.produced).toBe(0);
+      expect(TrolleyUtil.hasTrolleyData(model)).toBeTrue();
     });
 
     it('leaves trolley fields undefined for a legacy row (NULL columns)', () => {
@@ -161,7 +224,7 @@ describe('ProductionService — trolley storage mapping', () => {
   });
 });
 
-describe('Dashboard totals with trolley-derived fractional presses', () => {
+describe('Dashboard totals with trolley-derived whole presses and fractional Produced', () => {
   let dashboard: DashboardService;
 
   beforeEach(() => {
@@ -196,7 +259,7 @@ describe('Dashboard totals with trolley-derived fractional presses', () => {
 
   it('sums fractional produced totals without rounding', () => {
     const stats = dashboard.calcStats(dashboardData([
-      baseRecord({ id: 'a', presses: 423.5, produced: 4483.5, trolleyCount: 30.25, pressesPerTrolley: 14 }),
+      baseRecord({ id: 'a', presses: 427, produced: 4483.5, trolleyCount: 30.5, pressesPerTrolley: 14 }),
       baseRecord({ id: 'b', presses: 7, produced: 73.5, trolleyCount: 0.5, pressesPerTrolley: 14 }),
     ]));
 
@@ -205,10 +268,20 @@ describe('Dashboard totals with trolley-derived fractional presses', () => {
 
   it('keeps a lone fractional produced value exact', () => {
     const stats = dashboard.calcStats(dashboardData([
-      baseRecord({ presses: 423.5, produced: 317.625, trolleyCount: 30.25, pressesPerTrolley: 14 })
+      baseRecord({ presses: 427, produced: 317.625, trolleyCount: 30.5, pressesPerTrolley: 14 })
     ]));
 
     expect(stats.totalProduction).toBe(317.625);
+  });
+
+  it('keeps a zero-trolley session in the total and reports zero presses', () => {
+    const stats = dashboard.calcStats(dashboardData([
+      baseRecord({ id: 'z', presses: 0, produced: 0, trolleyCount: 0, pressesPerTrolley: 14 }),
+      baseRecord({ id: 'a', presses: 427, produced: 4270, trolleyCount: 30.5, pressesPerTrolley: 14 }),
+    ]));
+
+    // The stopped line adds 0, so the total is unchanged but nothing is lost.
+    expect(stats.totalProduction).toBe(4270);
   });
 
   it('does not alter a whole-number Line 3 total', () => {
@@ -219,10 +292,10 @@ describe('Dashboard totals with trolley-derived fractional presses', () => {
     expect(stats.totalProduction).toBe(4200);
   });
 
-  it('returns a Line 1 fractional record to its original total after removal', () => {
+  it('returns a Line 1 record to its original total after removal', () => {
     const qaRecord = baseRecord({
-      id: 'qa', lineId: 'lin-001', presses: 423.5, produced: 4483.5,
-      trolleyCount: 30.25, pressesPerTrolley: 14
+      id: 'qa', lineId: 'lin-001', presses: 427, produced: 4483.5,
+      trolleyCount: 30.5, pressesPerTrolley: 14
     });
     const originals = [baseRecord({ id: 'a', presses: 420, produced: 4200 })];
 
